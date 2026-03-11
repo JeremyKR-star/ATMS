@@ -1,0 +1,1843 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATMS - Advanced Training Management System v2</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>✈</text></svg>">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #2563eb; --primary-light: #dbeafe; --primary-dark: #1d4ed8;
+  --success: #059669; --success-light: #d1fae5; --warning: #d97706; --warning-light: #fef3c7;
+  --danger: #dc2626; --danger-light: #fee2e2; --info: #2563eb; --info-light: #dbeafe;
+  --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb; --gray-300: #d1d5db;
+  --gray-400: #9ca3af; --gray-500: #6b7280; --gray-600: #4b5563; --gray-700: #374151;
+  --gray-800: #1f2937; --gray-900: #111827;
+  --sidebar-w: 260px; --sidebar-collapsed-w: 68px; --radius: 12px;
+}
+body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f2f5; color: var(--gray-800); }
+a { color: var(--primary); text-decoration: none; }
+
+/* ── Login ── */
+.login-page { display: flex; align-items: center; justify-content: center; min-height: 100vh;
+  background: #050a18; position: relative; overflow: hidden; }
+.login-canvas { position: absolute; inset: 0; z-index: 1; }
+.login-box { background: rgba(10,18,40,0.85); backdrop-filter: blur(20px); padding: 48px 40px; border-radius: 20px; width: 420px;
+  box-shadow: 0 0 80px rgba(37,99,235,0.2), 0 0 200px rgba(37,99,235,0.05), inset 0 1px 0 rgba(96,165,250,0.15);
+  position: relative; z-index: 10; border: 1px solid rgba(37,99,235,0.2); }
+.login-box h1 { text-align: center; color: #93c5fd; margin-bottom: 4px; font-size: 36px; letter-spacing: 6px;
+  text-shadow: 0 0 30px rgba(37,99,235,0.5), 0 0 60px rgba(37,99,235,0.2); }
+.login-box .subtitle { text-align: center; color: rgba(148,163,184,0.8); margin-bottom: 36px; font-size: 13px; letter-spacing: 2px; }
+.login-box .form-group label { color: rgba(148,163,184,0.9); }
+.login-box .form-group input { background: rgba(15,23,42,0.8); border-color: rgba(37,99,235,0.3); color: #e2e8f0; }
+.login-box .form-group input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(37,99,235,0.2), 0 0 20px rgba(37,99,235,0.1); background: rgba(15,23,42,0.95); }
+.login-box .form-group input::placeholder { color: rgba(100,116,139,0.6); }
+.login-box .btn-primary { background: linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow: 0 4px 20px rgba(37,99,235,0.4);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+.login-box .btn-primary:hover { box-shadow: 0 6px 30px rgba(37,99,235,0.6); transform: translateY(-2px); }
+
+/* ── Forms ── */
+.form-group { margin-bottom: 18px; }
+.form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--gray-600); }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; padding: 11px 14px; border: 1.5px solid var(--gray-200); border-radius: 10px;
+  font-size: 14px; outline: none; transition: all 0.2s; background: var(--gray-50); }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); background: #fff; }
+
+/* ── Buttons ── */
+.btn { padding: 10px 20px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+.btn-success { background: var(--success); color: #fff; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-outline { background: #fff; border: 1.5px solid var(--gray-200); color: var(--gray-700); }
+.btn-outline:hover { background: var(--gray-50); border-color: var(--gray-300); }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+.btn-block { width: 100%; justify-content: center; padding: 12px; font-size: 15px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Layout ── */
+.app-layout { display: flex; min-height: 100vh; }
+.sidebar { width: var(--sidebar-w); background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  color: #fff; position: fixed; top: 0; left: 0; bottom: 0; display: flex; flex-direction: column; z-index: 100;
+  transition: width 0.3s ease; overflow: hidden; }
+.sidebar.collapsed { width: var(--sidebar-collapsed-w); }
+.sidebar-header { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; }
+.sidebar-header h2 { font-size: 22px; color: #fff; letter-spacing: 2px; white-space: nowrap; }
+.sidebar.collapsed .sidebar-header h2 { display: none; }
+.sidebar-toggle { background: rgba(255,255,255,0.1); border: none; color: #fff; width: 32px; height: 32px;
+  border-radius: 8px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s; flex-shrink: 0; }
+.sidebar-toggle:hover { background: rgba(255,255,255,0.2); }
+.sidebar-user { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px;
+  background: rgba(255,255,255,0.05); border-radius: 12px; cursor: pointer; transition: background 0.2s; }
+.sidebar-user:hover { background: rgba(255,255,255,0.1); }
+.sidebar.collapsed .sidebar-user .user-detail { display: none; }
+.sidebar.collapsed .sidebar-user { justify-content: center; padding: 12px 8px; }
+.sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+.nav-item { padding: 11px 20px; cursor: pointer; font-size: 14px; color: rgba(255,255,255,0.6);
+  transition: all 0.15s; display: flex; align-items: center; gap: 12px; margin: 2px 8px; border-radius: 10px; white-space: nowrap; }
+.nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.nav-item.active { background: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+.sidebar.collapsed .nav-item { justify-content: center; padding: 11px 8px; }
+.sidebar.collapsed .nav-item span:last-child { display: none; }
+.nav-section { padding: 16px 20px 6px; font-size: 11px; text-transform: uppercase; color: rgba(255,255,255,0.3); letter-spacing: 1.5px; white-space: nowrap; }
+.sidebar.collapsed .nav-section { text-align: center; padding: 16px 4px 6px; font-size: 9px; letter-spacing: 0.5px; }
+.sidebar-footer { padding: 12px 8px; border-top: 1px solid rgba(255,255,255,0.08); }
+.main-content { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; transition: margin-left 0.3s ease; }
+.main-content.sidebar-collapsed { margin-left: var(--sidebar-collapsed-w); }
+.top-bar { background: #fff; border-bottom: 1px solid var(--gray-200); padding: 18px 32px;
+  display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 50; }
+.top-bar h1 { font-size: 22px; color: var(--gray-900); }
+.page-content { padding: 24px 32px; }
+
+/* ── Avatar ── */
+.avatar { border-radius: 50%; object-fit: cover; background: var(--primary-light); display: flex;
+  align-items: center; justify-content: center; font-weight: 700; color: var(--primary-dark);
+  flex-shrink: 0; overflow: hidden; position: relative; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-xs { width: 28px; height: 28px; font-size: 11px; }
+.avatar-sm { width: 36px; height: 36px; font-size: 13px; }
+.avatar-md { width: 44px; height: 44px; font-size: 16px; }
+.avatar-lg { width: 64px; height: 64px; font-size: 22px; }
+.avatar-xl { width: 100px; height: 100px; font-size: 36px; }
+.avatar-upload { cursor: pointer; }
+.avatar-upload:hover::after { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.4); border-radius: 50%; }
+.avatar-upload:hover::before { content: '📷'; position: absolute; z-index: 1; font-size: 20px; }
+
+/* ── Cards ── */
+.card { background: #fff; border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,0.04),0 1px 2px rgba(0,0,0,0.06);
+  border: 1px solid var(--gray-100); margin-bottom: 20px; transition: box-shadow 0.2s; }
+.card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.card-header { padding: 16px 20px; border-bottom: 1px solid var(--gray-100); display: flex; justify-content: space-between; align-items: center; }
+.card-header h3 { font-size: 16px; color: var(--gray-800); }
+.card-body { padding: 20px; }
+
+/* ── Stat Cards ── */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: #fff; border-radius: var(--radius); padding: 22px; border: 1px solid var(--gray-100);
+  transition: all 0.3s; cursor: default; position: relative; overflow: hidden; }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+.stat-card .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center;
+  justify-content: center; font-size: 22px; margin-bottom: 14px; }
+.stat-card .stat-value { font-size: 30px; font-weight: 800; color: var(--gray-900); line-height: 1; }
+.stat-card .stat-label { font-size: 13px; color: var(--gray-500); margin-top: 6px; }
+.stat-card .stat-trend { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600;
+  margin-top: 8px; padding: 2px 8px; border-radius: 20px; }
+.stat-card .stat-bg { position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; border-radius: 50%; opacity: 0.06; }
+
+/* ── Table ── */
+.table-wrapper { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { background: var(--gray-50); padding: 12px 16px; text-align: left; font-weight: 600; color: var(--gray-600);
+  border-bottom: 2px solid var(--gray-200); white-space: nowrap; font-size: 13px; }
+td { padding: 12px 16px; border-bottom: 1px solid var(--gray-50); }
+tr { transition: background 0.15s; }
+tr:hover { background: #fafbfc; }
+
+/* ── Badges ── */
+.badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; display: inline-block; letter-spacing: 0.3px; }
+.badge-blue { background: var(--primary-light); color: var(--primary-dark); }
+.badge-green { background: var(--success-light); color: #065f46; }
+.badge-yellow { background: var(--warning-light); color: #92400e; }
+.badge-red { background: var(--danger-light); color: #991b1b; }
+.badge-gray { background: var(--gray-100); color: var(--gray-600); }
+
+/* ── Grid ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+/* ── Modal ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center;
+  justify-content: center; z-index: 200; backdrop-filter: blur(4px); animation: fadeIn 0.2s; }
+.modal { background: #fff; border-radius: 20px; width: 520px; max-width: 90vw; max-height: 85vh;
+  overflow-y: auto; box-shadow: 0 25px 80px rgba(0,0,0,0.3); animation: scaleIn 0.2s; }
+.modal-header { padding: 20px 24px; border-bottom: 1px solid var(--gray-100); display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { font-size: 18px; }
+.modal-body { padding: 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--gray-100); display: flex; justify-content: flex-end; gap: 10px; }
+.close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--gray-400); }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* ── Toast ── */
+.toast { position: fixed; top: 20px; right: 20px; padding: 14px 24px; border-radius: 12px; color: #fff;
+  font-size: 14px; font-weight: 500; z-index: 999; box-shadow: 0 8px 30px rgba(0,0,0,0.2); animation: slideIn 0.3s ease; }
+.toast-success { background: var(--success); }
+.toast-error { background: var(--danger); }
+@keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
+
+/* ── Misc ── */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--gray-400); }
+.filters { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.filters input, .filters select { padding: 9px 14px; border: 1.5px solid var(--gray-200); border-radius: 10px; font-size: 14px; background: #fff; }
+.progress-bar { background: var(--gray-100); border-radius: 10px; height: 8px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+.mt-2 { margin-top: 8px; }
+.mt-4 { margin-top: 16px; }
+.mb-4 { margin-bottom: 16px; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+
+/* ── Activity Feed ── */
+.activity-item { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--gray-50); }
+.activity-item:last-child { border-bottom: none; }
+.activity-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.activity-content { flex: 1; }
+.activity-text { font-size: 14px; color: var(--gray-700); }
+.activity-time { font-size: 11px; color: var(--gray-400); margin-top: 3px; }
+
+/* ── Donut Chart ── */
+.donut-container { display: flex; align-items: center; gap: 24px; }
+.donut-chart { position: relative; width: 140px; height: 140px; }
+.donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.donut-center .big { font-size: 28px; font-weight: 800; color: var(--gray-900); }
+.donut-center .small { font-size: 11px; color: var(--gray-500); }
+.donut-legend { display: flex; flex-direction: column; gap: 8px; }
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+/* ── Bar Chart ── */
+.bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 160px; padding: 10px 0; }
+.bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; }
+.bar { width: 100%; max-width: 48px; border-radius: 6px 6px 0 0; transition: height 0.8s ease; min-height: 3px; }
+.bar-label { font-size: 10px; color: var(--gray-400); margin-top: 6px; text-align: center; }
+.bar-value { font-size: 11px; font-weight: 700; margin-bottom: 4px; color: var(--gray-600); }
+
+/* ── Tabs ── */
+.tabs { display: flex; border-bottom: 2px solid var(--gray-200); margin-bottom: 20px; }
+.tab { padding: 10px 20px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--gray-400);
+  border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+.tab:hover { color: var(--gray-600); }
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+/* ── Pulse ── */
+@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+.pulse-on-hover:hover { animation: pulse 0.3s ease; }
+
+/* ── Hamburger ── */
+.hamburger { display: none; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--gray-700); padding: 4px 8px; }
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; }
+
+/* ── Pilot Carousel ── */
+.pilot-carousel { position: relative; overflow: hidden; }
+.pilot-carousel-track { display: flex; transition: transform 0.5s cubic-bezier(0.4,0,0.2,1); }
+.pilot-card { min-width: 100%; display: flex; justify-content: center; padding: 20px; }
+.pilot-profile { text-align: center; width: 100%; max-width: 400px; }
+.pilot-photo { width: 160px; height: 160px; border-radius: 50%; margin: 0 auto 20px;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); display: flex; align-items: center;
+  justify-content: center; font-size: 56px; font-weight: 800; color: var(--primary-dark);
+  box-shadow: 0 8px 32px rgba(37,99,235,0.2); border: 4px solid #fff; overflow: hidden;
+  transition: transform 0.3s; }
+.pilot-photo:hover { transform: scale(1.05); }
+.pilot-photo img { width: 100%; height: 100%; object-fit: cover; }
+.pilot-name { font-size: 24px; font-weight: 800; color: var(--gray-900); margin-bottom: 4px; }
+.pilot-rank { font-size: 14px; color: var(--gray-500); margin-bottom: 16px; }
+.pilot-stats { display: flex; justify-content: center; gap: 24px; margin-top: 16px; }
+.pilot-stat { text-align: center; }
+.pilot-stat-val { font-size: 22px; font-weight: 800; }
+.pilot-stat-lbl { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+.carousel-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px;
+  border-radius: 50%; background: #fff; border: 1px solid var(--gray-200); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--gray-600);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.2s; z-index: 2; }
+.carousel-nav:hover { background: var(--primary); color: #fff; }
+.carousel-prev { left: 10px; }
+.carousel-next { right: 10px; }
+.carousel-dots { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+.carousel-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gray-200); cursor: pointer; transition: all 0.3s; }
+.carousel-dot.active { background: var(--primary); width: 28px; border-radius: 5px; }
+
+/* ── Training Progress ── */
+.training-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.training-table th { background: #1e293b; color: #fff; padding: 8px 10px; font-size: 11px; text-align: center; white-space: nowrap; }
+.training-table td { padding: 6px 8px; text-align: center; border: 1px solid var(--gray-100); font-size: 12px; }
+.training-table .done { background: #d1fae5; color: #065f46; font-weight: 600; }
+.training-table .pending { background: var(--gray-50); color: var(--gray-400); }
+.training-table .section-header { background: #f0f7ff; font-weight: 700; color: var(--primary-dark); text-align: left; padding-left: 12px; }
+.training-table td.editable { cursor: pointer; position: relative; }
+.training-table td.editable:hover { background: #e0e7ff !important; outline: 2px solid var(--primary); outline-offset: -1px; }
+.cell-edit-popup { position: fixed; z-index: 300; background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+  padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 180px; }
+.cell-edit-popup input { padding: 8px; border: 1.5px solid var(--gray-200); border-radius: 8px; font-size: 13px; }
+.cell-edit-popup .cell-btns { display: flex; gap: 6px; justify-content: flex-end; }
+.pilot-admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 768px) { .pilot-admin-grid { grid-template-columns: 1fr; } }
+.pilot-list-card { padding: 14px; border: 1.5px solid var(--gray-100); border-radius: 12px; display: flex; align-items: center;
+  gap: 14px; cursor: pointer; transition: all 0.2s; }
+.pilot-list-card:hover { border-color: var(--primary); background: var(--primary-light); }
+.pilot-list-card.selected { border-color: var(--primary); background: var(--primary-light); }
+.active-indicator { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--gray-500); }
+.active-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: activePulse 2s infinite; }
+@keyframes activePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ── Responsive: Tablet ── */
+@media (max-width: 1024px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Responsive: Mobile ── */
+@media (max-width: 768px) {
+  .sidebar { width: 260px; transform: translateX(-100%); transition: transform 0.3s ease; }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar.collapsed { width: 260px; transform: translateX(-100%); }
+  .sidebar.collapsed.open { transform: translateX(0); }
+  .sidebar-overlay.open { display: block; }
+  .main-content, .main-content.sidebar-collapsed { margin-left: 0; }
+  .hamburger { display: block; }
+  .sidebar-toggle { display: none; }
+  .sidebar.collapsed .sidebar-header h2 { display: block; }
+  .sidebar.collapsed .sidebar-user .user-detail { display: block; }
+  .sidebar.collapsed .nav-item { justify-content: flex-start; padding: 11px 20px; }
+  .sidebar.collapsed .nav-item span:last-child { display: inline; }
+  .sidebar.collapsed .nav-section { text-align: left; padding: 16px 20px 6px; font-size: 11px; }
+  .top-bar { padding: 12px 16px; }
+  .top-bar h1 { font-size: 17px; }
+  .top-bar .desktop-date { display: none; }
+  .page-content { padding: 16px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card { padding: 14px; }
+  .stat-card .stat-value { font-size: 22px; }
+  .stat-card .stat-icon { width: 36px; height: 36px; font-size: 16px; margin-bottom: 8px; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; gap: 12px; }
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { font-size: 13px; }
+  th, td { padding: 8px 10px; }
+  .donut-container { flex-direction: column; gap: 12px; align-items: flex-start; }
+  .donut-chart { width: 120px; height: 120px; }
+  .donut-chart svg { width: 120px; height: 120px; }
+  .donut-center .big { font-size: 22px; }
+  .card-header { padding: 12px 16px; }
+  .card-body { padding: 14px 16px; }
+  .modal { width: 95vw; max-height: 90vh; border-radius: 16px; }
+  .modal-header { padding: 16px; }
+  .modal-body { padding: 16px; }
+  .filters { gap: 8px; }
+  .filters input, .filters select { padding: 8px 10px; font-size: 13px; flex: 1; min-width: 0; }
+  .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tab { padding: 10px 14px; font-size: 13px; white-space: nowrap; }
+  .login-box { width: 90vw; padding: 32px 24px; }
+  .login-box h1 { font-size: 26px; }
+  .btn { padding: 9px 16px; font-size: 13px; }
+  .btn-sm { padding: 6px 12px; font-size: 11px; }
+  .toast { left: 16px; right: 16px; top: 12px; text-align: center; }
+  .activity-text { font-size: 13px; }
+  .pilot-photo { width: 120px; height: 120px; font-size: 42px; }
+  .pilot-name { font-size: 20px; }
+}
+@media (max-width: 400px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .stat-card { display: flex; align-items: center; gap: 14px; padding: 14px; }
+  .stat-card .stat-icon { margin-bottom: 0; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef, createContext, useContext } = React;
+
+// ─── API ───
+const API = window.location.origin + '/api';
+async function api(path, options = {}) {
+  const token = localStorage.getItem('atms_token');
+  const headers = {};
+  if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API}${path}`, { ...options, headers: { ...headers, ...options.headers } });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+const AppContext = createContext();
+function useApp() { return useContext(AppContext); }
+
+function Toast({ message, type, onClose }) {
+  useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, []);
+  return <div className={`toast toast-${type}`}>{message}</div>;
+}
+
+function Modal({ title, children, onClose, footer }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header"><h3>{title}</h3><button className="close-btn" onClick={onClose}>&times;</button></div>
+        <div className="modal-body">{children}</div>
+        {footer && <div className="modal-footer">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+function Avatar({ src, name, size = 'md', onClick, className = '' }) {
+  const initials = (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const colors = ['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#4f46e5'];
+  const bg = colors[(name || '').charCodeAt(0) % colors.length];
+  const cls = `avatar avatar-${size} ${onClick ? 'avatar-upload' : ''} ${className}`;
+  return (
+    <div className={cls} onClick={onClick} style={!src ? { background: bg + '18', color: bg } : undefined}>
+      {src ? <img src={src} alt={name} /> : initials}
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const map = { active:'green', completed:'blue', enrolled:'blue', in_progress:'yellow', planned:'gray',
+    cancelled:'red', failed:'red', dropped:'red', inactive:'gray', suspended:'red', pending:'yellow',
+    graded:'green', submitted:'blue', returned:'yellow', present:'green', absent:'red', late:'yellow',
+    excused:'gray', pass:'green', needs_improvement:'yellow', draft:'gray', archived:'gray' };
+  return <span className={`badge badge-${map[status]||'gray'}`}>{status}</span>;
+}
+
+function DonutChart({ data, centerLabel, centerValue }) {
+  const total = data.reduce((s, d) => s + d.value, 0) || 1;
+  let cum = 0;
+  const segs = data.map(d => { const start = cum; cum += (d.value / total) * 360; return { ...d, start, end: cum }; });
+  const toRad = deg => (deg - 90) * Math.PI / 180;
+  const arc = (start, end, r) => {
+    const s = toRad(start), e = toRad(end);
+    const large = (end - start) > 180 ? 1 : 0;
+    return `M ${70+r*Math.cos(s)} ${70+r*Math.sin(s)} A ${r} ${r} 0 ${large} 1 ${70+r*Math.cos(e)} ${70+r*Math.sin(e)}`;
+  };
+  return (
+    <div className="donut-container">
+      <div className="donut-chart">
+        <svg width="100%" height="100%" viewBox="0 0 140 140">
+          {segs.map((seg, i) => (
+            <path key={i} d={arc(seg.start, Math.min(seg.end, seg.start + 359.9), 56)}
+              fill="none" stroke={seg.color} strokeWidth="22" strokeLinecap="round" opacity="0.85" />
+          ))}
+        </svg>
+        <div className="donut-center"><span className="big">{centerValue}</span><span className="small">{centerLabel}</span></div>
+      </div>
+      <div className="donut-legend">
+        {data.map((d, i) => (
+          <div className="legend-item" key={i}><div className="legend-dot" style={{background: d.color}} />{d.label}: {d.value}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SimpleBarChart({ data, labelKey, valueKey, color = 'var(--primary)', gradient }) {
+  const max = Math.max(...data.map(d => d[valueKey] || 0), 1);
+  return (
+    <div className="bar-chart">
+      {data.map((d, i) => (
+        <div className="bar-col" key={i}>
+          <div className="bar-value">{d[valueKey]}</div>
+          <div className="bar" style={{ height: `${(d[valueKey] / max) * 100}%`,
+            background: gradient || color, opacity: 0.85 + (i % 2) * 0.15 }} />
+          <div className="bar-label">{d[labelKey]}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━ FIGHTER JET SVG ━━━━━━━━━━━━
+// ━━━━━━━━━━━━ LOGIN CANVAS BACKGROUND ━━━━━━━━━━━━
+function LoginBackground() {
+  var canvasRef = useRef(null);
+
+  useEffect(function() {
+    var canvas = canvasRef.current;
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var W, H, animId;
+    var particles = [];
+    var jets = [];
+    var sparks = [];
+    var radarAngle = 0;
+    var time = 0;
+
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // ── Stars / particles ──
+    for (var i = 0; i < 120; i++) {
+      particles.push({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: -0.3 - Math.random() * 1.5, vy: 0,
+        size: 0.5 + Math.random() * 2,
+        brightness: Math.random(),
+        twinkleSpeed: 0.02 + Math.random() * 0.04
+      });
+    }
+    // ── Speed lines ──
+    var speedLines = [];
+    for (var i = 0; i < 30; i++) {
+      speedLines.push({
+        x: Math.random() * W * 1.5,
+        y: Math.random() * H,
+        len: 40 + Math.random() * 160,
+        speed: 4 + Math.random() * 10,
+        alpha: 0.03 + Math.random() * 0.08
+      });
+    }
+
+    // ── Fighter jets ──
+    function spawnJet() {
+      var fromRight = Math.random() > 0.3;
+      var scale = 0.7 + Math.random() * 0.8;
+      var yBase = 60 + Math.random() * (H - 180);
+      jets.push({
+        x: fromRight ? W + 100 : -200,
+        y: yBase,
+        speed: (3 + Math.random() * 5) * (fromRight ? -1 : 1),
+        scale: scale,
+        dir: fromRight ? -1 : 1,
+        tilt: (Math.random() - 0.5) * 0.15,
+        trail: [],
+        afterburner: 0.5 + Math.random() * 0.5,
+        alive: true
+      });
+    }
+    spawnJet(); spawnJet();
+
+    function drawJet(ctx, j) {
+      ctx.save();
+      ctx.translate(j.x, j.y);
+      ctx.scale(j.dir * j.scale, j.scale);
+      ctx.rotate(j.tilt);
+
+      // ── Afterburner glow ──
+      var abLen = 30 + Math.sin(time * 12) * 15;
+      var abGrad = ctx.createRadialGradient(-50, 0, 2, -50 - abLen, 0, abLen);
+      abGrad.addColorStop(0, 'rgba(251,191,36,' + (j.afterburner * 0.9) + ')');
+      abGrad.addColorStop(0.3, 'rgba(249,115,22,' + (j.afterburner * 0.6) + ')');
+      abGrad.addColorStop(0.7, 'rgba(239,68,68,' + (j.afterburner * 0.3) + ')');
+      abGrad.addColorStop(1, 'rgba(239,68,68,0)');
+      ctx.fillStyle = abGrad;
+      ctx.beginPath();
+      ctx.ellipse(-50, 0, abLen, 6 + Math.sin(time * 15) * 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // ── Body ──
+      ctx.fillStyle = 'rgba(37,99,235,0.9)';
+      ctx.strokeStyle = 'rgba(96,165,250,0.8)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(60, 0);    // nose
+      ctx.lineTo(30, -5);
+      ctx.lineTo(10, -18);  // canopy top
+      ctx.lineTo(-10, -20);
+      ctx.lineTo(-20, -12);
+      ctx.lineTo(-45, -8);  // tail top
+      ctx.lineTo(-55, -22); // vertical stab
+      ctx.lineTo(-48, -22);
+      ctx.lineTo(-42, -8);
+      ctx.lineTo(-50, -6);
+      ctx.lineTo(-50, 6);
+      ctx.lineTo(-42, 8);
+      ctx.lineTo(-48, 22);
+      ctx.lineTo(-55, 22);  // vertical stab bottom
+      ctx.lineTo(-45, 8);
+      ctx.lineTo(-20, 12);
+      ctx.lineTo(-10, 20);
+      ctx.lineTo(10, 18);
+      ctx.lineTo(30, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // ── Wings ──
+      ctx.fillStyle = 'rgba(30,64,175,0.8)';
+      ctx.beginPath();
+      ctx.moveTo(15, -6); ctx.lineTo(-15, -38); ctx.lineTo(-30, -36); ctx.lineTo(-10, -6);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(15, 6); ctx.lineTo(-15, 38); ctx.lineTo(-30, 36); ctx.lineTo(-10, 6);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+
+      // ── Cockpit ──
+      ctx.fillStyle = 'rgba(147,197,253,0.4)';
+      ctx.beginPath();
+      ctx.ellipse(25, -2, 12, 5, -0.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      // ── Edge glow ──
+      ctx.shadowColor = 'rgba(59,130,246,0.6)';
+      ctx.shadowBlur = 15;
+      ctx.strokeStyle = 'rgba(96,165,250,0.3)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+    }
+
+    // ── Spark burst on jet ──
+    function emitSparks(x, y) {
+      for (var i = 0; i < 6; i++) {
+        sparks.push({
+          x: x, y: y,
+          vx: (Math.random() - 0.5) * 4,
+          vy: (Math.random() - 0.5) * 4,
+          life: 1.0, decay: 0.02 + Math.random() * 0.03
+        });
+      }
+    }
+
+    // ── Radar drawing ──
+    function drawRadar(ctx, cx, cy, r) {
+      ctx.save();
+      // Circles
+      for (var i = 1; i <= 3; i++) {
+        ctx.strokeStyle = 'rgba(37,99,235,0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * i / 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // Cross
+      ctx.strokeStyle = 'rgba(37,99,235,0.08)';
+      ctx.beginPath(); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.stroke();
+
+      // Sweep
+      var sweepGrad = ctx.createConicalGradient ? null : null; // fallback
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(radarAngle);
+      // Sweep trail
+      for (var s = 0; s < 40; s++) {
+        var a = -s * 0.03;
+        var alpha = 0.25 * (1 - s / 40);
+        ctx.strokeStyle = 'rgba(59,130,246,' + alpha + ')';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+        ctx.stroke();
+      }
+      // Main line
+      ctx.strokeStyle = 'rgba(96,165,250,0.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(r, 0); ctx.stroke();
+      ctx.restore();
+
+      // Blips
+      var blips = [[0.4, 0.8], [0.7, 2.1], [0.55, 4.5], [0.3, 5.2], [0.65, 3.8]];
+      for (var b = 0; b < blips.length; b++) {
+        var bd = blips[b][0] * r;
+        var ba = blips[b][1] + time * 0.1;
+        var bx = cx + Math.cos(ba) * bd;
+        var by = cy + Math.sin(ba) * bd;
+        var diff = radarAngle - ba;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        var blipAlpha = Math.max(0, 1 - Math.abs(diff) / 1.5);
+        if (blipAlpha > 0) {
+          ctx.fillStyle = 'rgba(96,165,250,' + blipAlpha + ')';
+          ctx.beginPath(); ctx.arc(bx, by, 3, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = 'rgba(96,165,250,' + (blipAlpha * 0.3) + ')';
+          ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    // ── HUD overlay ──
+    function drawHUD(ctx) {
+      ctx.save();
+      ctx.font = '11px "Courier New", monospace';
+      ctx.fillStyle = 'rgba(96,165,250,' + (0.3 + Math.sin(time * 2) * 0.15) + ')';
+      ctx.fillText('RMAF // FA-50 // T-50i', 30, 40);
+      ctx.fillText('TACTICAL TRAINING SYSTEM', 30, 56);
+      ctx.fillStyle = 'rgba(96,165,250,' + (0.3 + Math.sin(time * 2.5 + 1) * 0.15) + ')';
+      ctx.fillText('ALT 35,000 FT', W - 170, 40);
+      ctx.fillText('SPD MACH 1.6', W - 170, 56);
+      ctx.fillText('HDG 270 MAG', W - 170, 72);
+      ctx.fillStyle = 'rgba(96,165,250,' + (0.3 + Math.sin(time * 1.5 + 2) * 0.15) + ')';
+      ctx.fillText('RDR: ACTIVE', 30, H - 50);
+      ctx.fillText('WEAPONS: SAFE', 30, H - 34);
+      ctx.fillStyle = 'rgba(96,165,250,' + (0.3 + Math.sin(time * 3) * 0.15) + ')';
+      ctx.fillText('MODE: TRAINING', W - 170, H - 50);
+      ctx.fillText('NAV: OPERATIONAL', W - 170, H - 34);
+
+      // Crosshair center (subtle)
+      var cx2 = W / 2, cy2 = H / 2;
+      ctx.strokeStyle = 'rgba(59,130,246,0.07)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx2, cy2, 60, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx2, cy2, 90, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx2 - 100, cy2); ctx.lineTo(cx2 - 30, cy2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx2 + 30, cy2); ctx.lineTo(cx2 + 100, cy2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx2, cy2 - 100); ctx.lineTo(cx2, cy2 - 30); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx2, cy2 + 30); ctx.lineTo(cx2, cy2 + 100); ctx.stroke();
+      ctx.restore();
+    }
+
+    // ── Main loop ──
+    function frame() {
+      time += 0.016;
+      radarAngle += 0.03;
+      ctx.clearRect(0, 0, W, H);
+
+      // Background gradient
+      var bg = ctx.createRadialGradient(W * 0.5, H * 0.4, 0, W * 0.5, H * 0.5, W * 0.8);
+      bg.addColorStop(0, '#0c1a3a');
+      bg.addColorStop(0.5, '#081228');
+      bg.addColorStop(1, '#050a18');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // Speed lines
+      for (var s = 0; s < speedLines.length; s++) {
+        var sl = speedLines[s];
+        sl.x -= sl.speed;
+        if (sl.x + sl.len < 0) { sl.x = W + sl.len; sl.y = Math.random() * H; }
+        ctx.strokeStyle = 'rgba(59,130,246,' + sl.alpha + ')';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(sl.x, sl.y); ctx.lineTo(sl.x + sl.len, sl.y); ctx.stroke();
+      }
+
+      // Particles / stars
+      for (var p = 0; p < particles.length; p++) {
+        var pt = particles[p];
+        pt.x += pt.vx;
+        pt.brightness += pt.twinkleSpeed;
+        var alpha = 0.3 + Math.sin(pt.brightness) * 0.7;
+        if (pt.x < -5) { pt.x = W + 5; pt.y = Math.random() * H; }
+        ctx.fillStyle = 'rgba(200,220,255,' + Math.max(0, alpha) + ')';
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Jets
+      if (Math.random() < 0.004 && jets.length < 5) spawnJet();
+      for (var ji = jets.length - 1; ji >= 0; ji--) {
+        var jt = jets[ji];
+        jt.x += jt.speed;
+        jt.y += Math.sin(time * 1.5 + ji) * 0.3;
+
+        // Vapor trail
+        jt.trail.push({ x: jt.x - jt.dir * 50 * jt.scale, y: jt.y, alpha: 0.5 });
+        if (jt.trail.length > 60) jt.trail.shift();
+        for (var ti = 0; ti < jt.trail.length; ti++) {
+          var tp = jt.trail[ti];
+          tp.alpha *= 0.97;
+          ctx.fillStyle = 'rgba(100,150,255,' + (tp.alpha * 0.15) + ')';
+          ctx.beginPath();
+          ctx.arc(tp.x, tp.y, 3 + (jt.trail.length - ti) * 0.15, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        drawJet(ctx, jt);
+        if (Math.random() < 0.05) emitSparks(jt.x, jt.y);
+
+        if ((jt.dir === 1 && jt.x > W + 250) || (jt.dir === -1 && jt.x < -250)) {
+          jets.splice(ji, 1);
+        }
+      }
+
+      // Sparks
+      for (var si = sparks.length - 1; si >= 0; si--) {
+        var sp = sparks[si];
+        sp.x += sp.vx; sp.y += sp.vy; sp.life -= sp.decay;
+        if (sp.life <= 0) { sparks.splice(si, 1); continue; }
+        ctx.fillStyle = 'rgba(251,191,36,' + sp.life + ')';
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, 1.5 * sp.life, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Radar (bottom-right)
+      drawRadar(ctx, W - 110, H - 110, 80);
+
+      // HUD
+      drawHUD(ctx);
+
+      // Horizon line
+      var hlY = H * 0.48 + Math.sin(time * 0.5) * 8;
+      ctx.strokeStyle = 'rgba(59,130,246,0.06)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([8, 16]);
+      ctx.beginPath(); ctx.moveTo(0, hlY); ctx.lineTo(W, hlY); ctx.stroke();
+      ctx.setLineDash([]);
+
+      animId = requestAnimationFrame(frame);
+    }
+    frame();
+
+    return function() {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="login-canvas" />;
+}
+
+// ━━━━━━━━━━━━ LOGIN ━━━━━━━━━━━━
+function LoginPage({ onLogin }) {
+  const [empId, setEmpId] = useState('');
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
+  const handleLogin = async (e) => {
+    e.preventDefault(); setErr(''); setLoading(true);
+    try {
+      const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ employee_id: empId, password: pw }) });
+      localStorage.setItem('atms_token', data.data.token);
+      localStorage.setItem('atms_user', JSON.stringify(data.data.user));
+      onLogin(data.data.user);
+    } catch (e) { setErr(e.message); }
+    setLoading(false);
+  };
+  return (
+    <div className="login-page">
+      <LoginBackground />
+      <div className="login-box">
+        <div style={{textAlign:'center',marginBottom:12}}>
+          <svg width="56" height="56" viewBox="0 0 56 56" style={{margin:'0 auto',filter:'drop-shadow(0 0 20px rgba(59,130,246,0.4))'}}>
+            <circle cx="28" cy="28" r="26" fill="none" stroke="rgba(59,130,246,0.3)" strokeWidth="1.5"/>
+            <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(59,130,246,0.15)" strokeWidth="0.5" strokeDasharray="4 4">
+              <animateTransform attributeName="transform" type="rotate" values="0 28 28;360 28 28" dur="20s" repeatCount="indefinite"/>
+            </circle>
+            <path d="M10 28 L22 23 L33 14 L38 14 L35 23 L48 21 L53 18 L53 23 L50 28 L53 33 L53 38 L48 35 L35 33 L38 42 L33 42 L22 33 L10 28Z"
+              fill="rgba(59,130,246,0.8)" stroke="rgba(147,197,253,0.5)" strokeWidth="0.5"/>
+          </svg>
+        </div>
+        <h1>ATMS</h1>
+        <p className="subtitle">Advanced Training Management System</p>
+        <form onSubmit={handleLogin}>
+          <div className="form-group"><label>Employee ID</label>
+            <input value={empId} onChange={e => setEmpId(e.target.value)} placeholder="ADM001" required /></div>
+          <div className="form-group"><label>Password</label>
+            <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="비밀번호 입력" required /></div>
+          {err && <p style={{color:'#f87171',marginBottom:16,fontSize:14}}>{err}</p>}
+          <button className="btn btn-primary btn-block" type="submit" disabled={loading}>
+            {loading ? '로그인 중...' : '로그인'}</button>
+        </form>
+        <div style={{marginTop:28,padding:16,background:'rgba(15,23,42,0.6)',borderRadius:12,fontSize:12,color:'rgba(148,163,184,0.7)',border:'1px solid rgba(37,99,235,0.15)'}}>
+          <strong style={{color:'rgba(148,163,184,0.9)'}}>Test Accounts</strong><br/>Admin: ADM001 / admin1234<br/>Instructor: INS001 / inst1234<br/>Trainee: TRN001 / train1234
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━ DASHBOARD ━━━━━━━━━━━━
+function Dashboard() {
+  const [stats, setStats] = useState(null);
+  const { showToast } = useApp();
+  useEffect(() => { api('/dashboard').then(d => setStats(d.data)).catch(e => showToast(e.message,'error')); }, []);
+  if (!stats) return <div className="page-content"><p>로딩 중...</p></div>;
+
+  const courseStatusData = (stats.courses_by_status || []).map(c => ({
+    label: { active:'진행중', completed:'완료', planned:'계획', cancelled:'취소' }[c.status] || c.status,
+    value: c.count,
+    color: { active:'#2563eb', completed:'#059669', planned:'#9ca3af', cancelled:'#dc2626' }[c.status] || '#6b7280'
+  }));
+  const roleData = (stats.users_by_role || []).map(r => ({
+    label: { admin:'관리자', instructor:'교관', trainee:'훈련생', ojt_admin:'OJT관리자', manager:'매니저' }[r.role] || r.role,
+    value: r.count,
+    color: { admin:'#dc2626', instructor:'#2563eb', trainee:'#059669', ojt_admin:'#7c3aed', manager:'#d97706' }[r.role] || '#6b7280'
+  }));
+
+  return (
+    <div className="page-content">
+      <div className="stats-grid">
+        {[
+          { icon: '📚', label: '전체 과정', value: stats.total_courses, color: '#2563eb', bg: '#2563eb' },
+          { icon: '✅', label: '진행중 과정', value: stats.active_courses, color: '#059669', bg: '#059669' },
+          { icon: '👨‍🎓', label: '훈련생', value: stats.total_trainees, color: '#7c3aed', bg: '#7c3aed' },
+          { icon: '👨‍🏫', label: '교관', value: stats.total_instructors, color: '#0891b2', bg: '#0891b2' },
+          { icon: '🎯', label: '수료율', value: `${stats.completion_rate}%`, color: '#059669', bg: '#059669',
+            trend: stats.completion_rate >= 70 ? '+Good' : 'Low' },
+          { icon: '📝', label: '평균 점수', value: stats.avg_eval_score, color: '#d97706', bg: '#d97706' },
+        ].map((s, i) => (
+          <div className="stat-card pulse-on-hover" key={i}>
+            <div className="stat-bg" style={{background: s.bg}} />
+            <div className="stat-icon" style={{background: s.color+'12', color: s.color}}>{s.icon}</div>
+            <div className="stat-value">{s.value}</div>
+            <div className="stat-label">{s.label}</div>
+            {s.trend && <div className="stat-trend" style={{background: s.trend.includes('+') ? '#d1fae5':'#fef3c7',
+              color: s.trend.includes('+') ? '#059669':'#d97706'}}>{s.trend}</div>}
+          </div>
+        ))}
+      </div>
+      <div className="grid-2">
+        <div className="card"><div className="card-header"><h3>과정 현황</h3></div>
+          <div className="card-body"><DonutChart data={courseStatusData} centerValue={stats.total_courses} centerLabel="전체 과정" /></div></div>
+        <div className="card"><div className="card-header"><h3>사용자 구성</h3></div>
+          <div className="card-body"><DonutChart data={roleData} centerValue={stats.total_users} centerLabel="전체 인원" /></div></div>
+      </div>
+      <div className="grid-2">
+        <div className="card"><div className="card-header"><h3>최근 등록</h3></div><div className="card-body">
+          {(stats.recent_enrollments || []).slice(0, 6).map(e => (
+            <div className="activity-item" key={e.id}>
+              <div className="activity-dot" style={{background: {in_progress:'#d97706',enrolled:'#2563eb',completed:'#059669',failed:'#dc2626'}[e.status]||'#9ca3af'}} />
+              <div className="activity-content">
+                <div className="activity-text"><strong>{e.trainee_name}</strong> → {e.course_name}</div>
+                <div className="activity-time"><StatusBadge status={e.status} /> &middot; {e.enrolled_at?.slice(0,10)}</div>
+              </div>
+            </div>
+          ))}{(stats.recent_enrollments || []).length === 0 && <div className="empty-state">등록 내역이 없습니다</div>}
+        </div></div>
+        <div className="card"><div className="card-header"><h3>예정 일정</h3></div><div className="card-body">
+          {(stats.upcoming_schedules || []).slice(0, 6).map(s => (
+            <div className="activity-item" key={s.id}>
+              <div className="activity-dot" style={{background: {lecture:'#2563eb',practical:'#059669',assessment:'#d97706',meeting:'#6b7280'}[s.schedule_type]||'#9ca3af'}} />
+              <div className="activity-content">
+                <div className="activity-text"><strong>{s.title}</strong></div>
+                <div className="activity-time">{s.schedule_date} {s.start_time}-{s.end_time} &middot; {s.room || ''} &middot; {s.instructor_name || ''}</div>
+              </div>
+            </div>
+          ))}{(stats.upcoming_schedules || []).length === 0 && <div className="empty-state">예정 일정이 없습니다</div>}
+        </div></div>
+      </div>
+      <div className="grid-3" style={{marginTop:4}}>
+        <div className="card"><div className="card-body text-center">
+          <div style={{fontSize:36,fontWeight:800,color:'var(--primary)'}}>{stats.total_enrollments}</div>
+          <div style={{fontSize:13,color:'var(--gray-500)',marginTop:4}}>총 등록 건수</div></div></div>
+        <div className="card"><div className="card-body text-center">
+          <div style={{fontSize:36,fontWeight:800,color:'var(--success)'}}>{stats.ojt_programs}</div>
+          <div style={{fontSize:13,color:'var(--gray-500)',marginTop:4}}>OJT 프로그램</div></div></div>
+        <div className="card"><div className="card-body text-center">
+          <div style={{fontSize:36,fontWeight:800,color:'#7c3aed'}}>{stats.ojt_enrollments}</div>
+          <div style={{fontSize:13,color:'var(--gray-500)',marginTop:4}}>OJT 참여 인원</div></div></div>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━ COURSES ━━━━━━━━━━━━
+function CoursesPage() {
+  const [courses, setCourses] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ code:'',name:'',type:'TT',description:'',duration_weeks:'',max_trainees:20,aircraft_type:'' });
+  const { user, showToast } = useApp();
+  const load = () => api('/courses').then(d => setCourses(d.data)).catch(e => showToast(e.message,'error'));
+  useEffect(() => { load(); }, []);
+  const handleCreate = async () => {
+    try { await api('/courses',{method:'POST',body:JSON.stringify(form)}); showToast('과정 생성 완료','success'); setShowModal(false); load();
+    } catch(e) { showToast(e.message,'error'); }
+  };
+  const canCreate = ['admin','ojt_admin'].includes(user.role);
+  return (
+    <div className="page-content">
+      {canCreate && <div className="mb-4 text-right"><button className="btn btn-primary" onClick={()=>setShowModal(true)}>+ 신규 과정</button></div>}
+      <div className="card"><div className="card-body"><div className="table-wrapper"><table>
+        <thead><tr><th>코드</th><th>과정명</th><th>유형</th><th>기종</th><th>기간</th><th>상태</th><th>시작일</th></tr></thead>
+        <tbody>{courses.map(c=>(
+          <tr key={c.id}><td><strong>{c.code}</strong></td><td>{c.name}</td>
+            <td><span className={`badge badge-${c.type==='TT'?'blue':'yellow'}`}>{c.type}</span></td>
+            <td>{c.aircraft_type||'-'}</td><td>{c.duration_weeks}주</td>
+            <td><StatusBadge status={c.status}/></td><td>{c.start_date||'-'}</td></tr>
+        ))}{courses.length===0&&<tr><td colSpan="7" className="text-center" style={{padding:40,color:'var(--gray-400)'}}>과정이 없습니다</td></tr>}</tbody>
+      </table></div></div></div>
+      {showModal&&<Modal title="신규 과정 등록" onClose={()=>setShowModal(false)}
+        footer={<><button className="btn btn-outline" onClick={()=>setShowModal(false)}>취소</button><button className="btn btn-primary" onClick={handleCreate}>등록</button></>}>
+        <div className="form-group"><label>과정 코드</label><input value={form.code} onChange={e=>setForm({...form,code:e.target.value})} placeholder="TT-B737-2026-02"/></div>
+        <div className="form-group"><label>과정명</label><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div>
+        <div className="form-group"><label>유형</label><select value={form.type} onChange={e=>setForm({...form,type:e.target.value})}><option value="TT">TT</option><option value="OJT">OJT</option></select></div>
+        <div className="form-group"><label>기종</label><input value={form.aircraft_type} onChange={e=>setForm({...form,aircraft_type:e.target.value})}/></div>
+        <div className="form-group"><label>기간(주)</label><input type="number" value={form.duration_weeks} onChange={e=>setForm({...form,duration_weeks:e.target.value})}/></div>
+        <div className="form-group"><label>최대인원</label><input type="number" value={form.max_trainees} onChange={e=>setForm({...form,max_trainees:e.target.value})}/></div>
+        <div className="form-group"><label>설명</label><textarea rows="3" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></div>
+      </Modal>}
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━ USERS ━━━━━━━━━━━━
+function UsersPage() {
+  const [data, setData] = useState({users:[],total:0});
+  const [roleFilter, setRoleFilter] = useState('');
+  const [search, setSearch] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [form, setForm] = useState({employee_id:'',name:'',email:'',role:'trainee',department:'',password:''});
+  const { user, showToast } = useApp();
+  const load = () => { let q='/users?per_page=100'; if(roleFilter) q+=`&role=${roleFilter}`; if(search) q+=`&search=${search}`;
+    api(q).then(d=>setData(d.data)).catch(e=>showToast(e.message,'error')); };
+  useEffect(()=>{load();},[roleFilter,search]);
+  const handleCreate = async () => {
+    try { await api('/auth/register',{method:'POST',body:JSON.stringify(form)}); showToast('사용자 등록 완료','success'); setShowModal(false); load();
+    } catch(e) { showToast(e.message,'error'); }
+  };
+  const handleDelete = async () => {
+    if(!deleteTarget) return;
+    try { await api(`/users/${deleteTarget.id}`,{method:'DELETE'}); showToast(`${deleteTarget.name} 비활성화 완료`,'success'); setDeleteTarget(null); load();
+    } catch(e) { showToast(e.message,'error'); }
+  };
+  const canManage = ['admin','ojt_admin'].includes(user.role);
+  return (
+    <div className="page-content">
+      <div className="filters">
+        <input placeholder="이름/사번 검색..." value={search} onChange={e=>setSearch(e.target.value)}/>
+        <select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}>
+          <option value="">전체 역할</option><option value="admin">Admin</option><option value="instructor">Instructor</option>
+          <option value="trainee">Trainee</option><option value="ojt_admin">OJT Admin</option><option value="manager">Manager</option>
+        </select>
+        {canManage&&<button className="btn btn-primary btn-sm" onClick={()=>setShowModal(true)}>+ 사용자 등록</button>}
+        <span style={{fontSize:13,color:'var(--gray-500)'}}>총 {data.total}명</span>
+      </div>
+      <div className="card"><div className="card-body"><div className="table-wrapper"><table>
+        <thead><tr><th style={{width:50}}></th><th>사번</th><th>이름</th><th>이메일</th><th>역할</th><th>부서</th><th>상태</th>{canManage&&<th style={{width:70}}></th>}</tr></thead>
+        <tbody>{data.users.map(u=>(
+          <tr key={u.id}>
+            <td><Avatar src={u.photo_url} name={u.name} size="sm"/></td>
+            <td>{u.employee_id}</td><td><strong>{u.name}</strong></td><td>{u.email||'-'}</td>
+            <td><span className="badge badge-blue">{u.role}</span></td><td>{u.department||'-'}</td><td><StatusBadge status={u.status}/></td>
+            {canManage&&<td><button className="btn btn-danger btn-sm" style={{padding:'4px 10px',fontSize:11}}
+              onClick={()=>setDeleteTarget(u)}>삭제</button></td>}</tr>
+        ))}</tbody>
+      </table></div></div></div>
+      {deleteTarget&&<Modal title="사용자 삭제 확인" onClose={()=>setDeleteTarget(null)}
+        footer={<><button className="btn btn-outline" onClick={()=>setDeleteTarget(null)}>취소</button>
+          <button className="btn btn-danger" onClick={handleDelete}>비활성화</button></>}>
+        <div style={{textAlign:'center',padding:'20px 0'}}>
+          <Avatar src={deleteTarget.photo_url} name={deleteTarget.name} size="lg" />
+          <div style={{marginTop:16,fontSize:18,fontWeight:700}}>{deleteTarget.name}</div>
+          <div style={{color:'var(--gray-500)',marginTop:4}}>{deleteTarget.employee_id} &middot; {deleteTarget.role}</div>
+          <div style={{marginTop:20,padding:16,background:'var(--danger-light)',borderRadius:10,fontSize:14,color:'#991b1b'}}>
+            이 사용자를 비활성화하시겠습니까?<br/><span style={{fontSize:12}}>(계정이 비활성 상태로 전환되며, 로그인이 불가합니다)</span>
+          </div>
+        </div>
+      </Modal>}
+      {showModal&&<Modal title="사용자 등록" onClose={()=>setShowModal(false)}
+        footer={<><button className="btn btn-outline" onClick={()=>setShowModal(false)}>취소</button><button className="btn btn-primary" onClick={handleCreate}>등록</button></>}>
+        <div className="form-group"><label>사번</label><input value={form.employee_id} onChange={e=>setForm({...form,employee_id:e.target.value})}/></div>
+        <div className="form-group"><label>이름</label><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div>
+        <div className="form-group"><label>이메일</label><input value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></div>
+        <div className="form-group"><label>비밀번호</label><input type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/></div>
+        <div className="form-group"><label>역할</label><select value={form.role} onChange={e=>setForm({...form,role:e.target.value})}>
+          <option value="trainee">Trainee</option><option value="instructor">Instructor</option>
+          <option value="ojt_admin">OJT Admin</option><option value="admin">Admin</option><option value="manager">Manager</option>
+        </select></div>
+        <div className="form-group"><label>부서</label><input value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></div>
+      </Modal>}
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━ SCHEDULE ━━━━━━━━━━━━
+function SchedulePage() {
+  const [schedules, setSchedules] = useState([]);
+  const [dateFrom, setDateFrom] = useState(''); const [dateTo, setDateTo] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { user, showToast } = useApp();
+  const load = () => { let q='/schedules?'; if(dateFrom)q+=`&date_from=${dateFrom}`; if(dateTo)q+=`&date_to=${dateTo}`;
+    api(q).then(d=>setSchedules(d.data)).catch(e=>showToast(e.message,'error')); };
+  useEffect(()=>{load();},[dateFrom,dateTo]);
+  const handleDelete = async () => {
+    if(!deleteTarget) return;
+    try { await api(`/schedules/${deleteTarget.id}`,{method:'DELETE'}); showToast('일정 삭제 완료','success'); setDeleteTarget(null); load();
+    } catch(e) { showToast(e.message,'error'); }
+  };
+  const canManage = ['admin','ojt_admin'].includes(user.role);
+  const tc = {lecture:'#2563eb',practical:'#059669',assessment:'#d97706',ojt:'#7c3aed',meeting:'#6b7280',other:'#9ca3af'};
+  return (
+    <div className="page-content">
+      <div className="filters"><label style={{fontSize:14}}>기간:</label>
+        <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/><span>~</span>
+        <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}/></div>
+      <div className="card"><div className="card-body"><div className="table-wrapper"><table>
+        <thead><tr><th>날짜</th><th>시간</th><th>제목</th><th>유형</th><th>과정</th><th>교관</th><th>장소</th>{canManage&&<th style={{width:70}}></th>}</tr></thead>
+        <tbody>{schedules.map(s=>(
+          <tr key={s.id}><td><strong>{s.schedule_date}</strong></td><td>{s.start_time}-{s.end_time}</td><td>{s.title}</td>
+            <td><span className="badge" style={{background:tc[s.schedule_type]+'18',color:tc[s.schedule_type]}}>{s.schedule_type}</span></td>
+            <td>{s.course_name||'-'}</td><td>{s.instructor_name||'-'}</td><td>{s.room||'-'}</td>
+            {canManage&&<td><button className="btn btn-danger btn-sm" style={{padding:'4px 10px',fontSize:11}}
+              onClick={()=>setDeleteTarget(s)}>삭제</button></td>}</tr>
+        ))}{schedules.length===0&&<tr><td colSpan={canManage?8:7} className="text-center" style={{padding:40,color:'var(--gray-400)'}}>일정이 없습니다</td></tr>}</tbody>
+      </table></div></div></div>
+      {deleteTarget&&<Modal title="일정 삭제 확인" onClose={()=>setDeleteTarget(null)}
+        footer={<><button className="btn btn-outline" onClick={()=>setDeleteTarget(null)}>취소</button>
+          <button className="btn btn-danger" onClick={handleDelete}>삭제</button></>}>
+        <div style={{textAlign:'center',padding:'20px 0'}}>
+          <div style={{fontSize:40,marginBottom:12}}>📅</div>
+          <div style={{fontSize:18,fontWeight:700}}>{deleteTarget.title}</div>
+          <div style={{color:'var(--gray-500)',marginTop:8}}>{deleteTarget.schedule_date} {deleteTarget.start_time}-{deleteTarget.end_time}</div>
+          <div style={{marginTop:20,padding:16,background:'var(--danger-light)',borderRadius:10,fontSize:14,color:'#991b1b'}}>
+            이 일정을 삭제하시겠습니까?<br/><span style={{fontSize:12}}>(삭제된 일정은 복구할 수 없습니다)</span></div>
+        </div>
+      </Modal>}
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━ EVALUATIONS ━━━━━━━━━━━━
+function EvaluationsPage() {
+  const [evals, setEvals] = useState([]); const [sf, setSf] = useState('');
+  const { showToast } = useApp();
+  const load = () => { let q='/evaluations?'; if(sf)q+=`&status=${sf}`; api(q).then(d=>setEvals(d.data)).catch(e=>showToast(e.message,'error')); };
+  useEffect(()=>{load();},[sf]);
+  return (
+    <div className="page-content">
+      <div className="filters"><select value={sf} onChange={e=>setSf(e.target.value)}>
+        <option value="">전체</option><option value="pending">Pending</option><option value="submitted">Submitted</option>
+        <option value="graded">Graded</option></select></div>
+      <div className="card"><div className="card-body"><div className="table-wrapper"><table>
+        <thead><tr><th>제목</th><th>유형</th><th>과정</th><th>훈련생</th><th>점수</th><th>등급</th><th>상태</th></tr></thead>
+        <tbody>{evals.map(ev=>(
+          <tr key={ev.id}><td><strong>{ev.title}</strong></td><td><span className="badge badge-gray">{ev.eval_type}</span></td>
+            <td>{ev.course_name||'-'}</td><td>{ev.trainee_name||'-'}</td>
+            <td>{ev.score!==null?`${ev.score}/${ev.max_score}`:'-'}</td><td>{ev.grade||'-'}</td><td><StatusBadge status={ev.status}/></td></tr>
+        ))}{evals.length===0&&<tr><td colSpan="7" className="text-center" style={{padding:40,color:'var(--gray-400)'}}>평가 내역 없음</td></tr>}</tbody>
+      </table></div></div></div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━ OJT ━━━━━━━━━━━━
+function OJTPage() {
+  const [programs, setPrograms] = useState([]); const [selected, setSelected] = useState(null); const [detail, setDetail] = useState(null);
+  const { showToast } = useApp();
+  useEffect(()=>{api('/ojt/programs').then(d=>setPrograms(d.data)).catch(e=>showToast(e.message,'error'));},[]);
+  const loadDetail = id => api(`/ojt/programs/${id}`).then(d=>{setDetail(d.data);setSelected(id);}).catch(e=>showToast(e.message,'error'));
+  return (
+    <div className="page-content"><div className="grid-2">
+      <div className="card"><div className="card-header"><h3>OJT 프로그램</h3></div><div className="card-body">
+        {programs.map(p=>(
+          <div key={p.id} onClick={()=>loadDetail(p.id)} style={{padding:'14px 16px',borderBottom:'1px solid var(--gray-50)',cursor:'pointer',
+            background:selected===p.id?'var(--primary-light)':'transparent',borderRadius:8,marginBottom:4,transition:'all 0.2s'}}>
+            <div style={{fontWeight:600}}>{p.name}</div>
+            <div style={{fontSize:12,color:'var(--gray-500)',marginTop:4}}>{p.aircraft_type} | {p.duration_weeks}주 | <StatusBadge status={p.status}/></div>
+          </div>
+        ))}{programs.length===0&&<div className="empty-state">OJT 프로그램 없음</div>}
+      </div></div>
+      <div className="card"><div className="card-header"><h3>{detail?detail.name:'상세'}</h3></div><div className="card-body">
+        {detail?(<>
+          <p style={{color:'var(--gray-600)',marginBottom:16}}>{detail.description}</p>
+          <h4 style={{marginBottom:10}}>과제 ({(detail.tasks||[]).length})</h4>
+          {(detail.tasks||[]).map(t=>(
+            <div key={t.id} style={{padding:'10px 0',borderBottom:'1px solid var(--gray-50)'}}>
+              <strong>{t.order_num}. {t.name}</strong>
+              <div style={{fontSize:12,color:'var(--gray-500)'}}>{t.description} | {t.required_hours}h</div></div>
+          ))}
+          <h4 style={{marginTop:20,marginBottom:10}}>참여자 ({(detail.enrollments||[]).length})</h4>
+          {(detail.enrollments||[]).map(e=>(
+            <div key={e.id} style={{padding:'8px 0',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid var(--gray-50)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8}}><Avatar name={e.trainee_name} size="xs"/>{e.trainee_name}</div>
+              <span><StatusBadge status={e.status}/> {e.progress}%</span></div>
+          ))}
+        </>):<div className="empty-state">프로그램 선택</div>}
+      </div></div>
+    </div></div>
+  );
+}
+
+// ━━━━━━━━━━━━ CONTENT ━━━━━━━━━━━━
+function ContentPage() {
+  const [items, setItems] = useState([]); const { showToast } = useApp();
+  useEffect(()=>{api('/content').then(d=>setItems(d.data)).catch(e=>showToast(e.message,'error'));},[]);
+  const icons = {ebook:'📕',assessment:'📝',assignment:'📋',lesson_plan:'📖',supplementary:'📎',video:'🎬',document:'📄'};
+  return (
+    <div className="page-content"><div className="card"><div className="card-body"><div className="table-wrapper"><table>
+      <thead><tr><th>제목</th><th>유형</th><th>과정</th><th>모듈</th><th>작성자</th><th>상태</th></tr></thead>
+      <tbody>{items.map(c=>(
+        <tr key={c.id}><td><strong>{icons[c.content_type]||'📄'} {c.title}</strong></td>
+          <td><span className="badge badge-gray">{c.content_type}</span></td>
+          <td>{c.course_name||'-'}</td><td>{c.module_name||'-'}</td><td>{c.uploader_name||'-'}</td><td><StatusBadge status={c.status}/></td></tr>
+      ))}{items.length===0&&<tr><td colSpan="6" className="text-center" style={{padding:40,color:'var(--gray-400)'}}>자료 없음</td></tr>}</tbody>
+    </table></div></div></div></div>
+  );
+}
+
+// ━━━━━━━━━━━━ REPORTS ━━━━━━━━━━━━
+function ReportsPage() {
+  const [tab, setTab] = useState('courses'); const [cd, setCd] = useState([]); const [td2, setTd] = useState([]); const [md, setMd] = useState(null);
+  const { showToast } = useApp();
+  useEffect(()=>{
+    if(tab==='courses') api('/reports/courses').then(d=>setCd(d.data)).catch(e=>showToast(e.message,'error'));
+    if(tab==='trainees') api('/reports/trainees').then(d=>setTd(d.data)).catch(e=>showToast(e.message,'error'));
+    if(tab==='trends') api('/reports/monthly').then(d=>setMd(d.data)).catch(e=>showToast(e.message,'error'));
+  },[tab]);
+  return (
+    <div className="page-content">
+      <div className="tabs">
+        <div className={`tab ${tab==='courses'?'active':''}`} onClick={()=>setTab('courses')}>과정별</div>
+        <div className={`tab ${tab==='trainees'?'active':''}`} onClick={()=>setTab('trainees')}>훈련생별</div>
+        <div className={`tab ${tab==='trends'?'active':''}`} onClick={()=>setTab('trends')}>월별 추이</div>
+      </div>
+      {tab==='courses'&&<div className="card"><div className="card-body"><div className="table-wrapper"><table>
+        <thead><tr><th>과정</th><th>유형</th><th>등록</th><th>수료</th><th>평균</th><th>만족도</th><th>상태</th></tr></thead>
+        <tbody>{cd.map(c=>(<tr key={c.id}><td><strong>{c.name}</strong></td><td>{c.type}</td><td>{c.enrolled_count}</td><td>{c.completed_count}</td>
+          <td>{c.avg_score||'-'}</td><td>{c.avg_satisfaction||'-'}</td><td><StatusBadge status={c.status}/></td></tr>))}</tbody>
+      </table></div></div></div>}
+      {tab==='trainees'&&<div className="card"><div className="card-body"><div className="table-wrapper"><table>
+        <thead><tr><th>사번</th><th>이름</th><th>부서</th><th>등록</th><th>수료</th><th>평균</th></tr></thead>
+        <tbody>{td2.map(t=>(<tr key={t.id}><td>{t.employee_id}</td><td><strong>{t.name}</strong></td><td>{t.department||'-'}</td>
+          <td>{t.courses_enrolled}</td><td>{t.courses_completed}</td><td>{t.avg_score||'-'}</td></tr>))}</tbody>
+      </table></div></div></div>}
+      {tab==='trends'&&md&&<div className="grid-2">
+        <div className="card"><div className="card-header"><h3>등록/수료 추이</h3></div><div className="card-body">
+          {md.enrollment_trends.length>0?<SimpleBarChart data={md.enrollment_trends} labelKey="month" valueKey="enrollments"
+            gradient="linear-gradient(180deg,#2563eb,#7c3aed)"/>:<p style={{color:'var(--gray-400)',textAlign:'center'}}>데이터 없음</p>}
+        </div></div>
+        <div className="card"><div className="card-header"><h3>평균 점수 추이</h3></div><div className="card-body">
+          {md.evaluation_trends.length>0?<SimpleBarChart data={md.evaluation_trends} labelKey="month" valueKey="avg_score"
+            gradient="linear-gradient(180deg,#059669,#0891b2)"/>:<p style={{color:'var(--gray-400)',textAlign:'center'}}>데이터 없음</p>}
+        </div></div>
+      </div>}
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━ NOTIFICATIONS ━━━━━━━━━━━━
+function NotificationsPage() {
+  const [data, setData] = useState({notifications:[],unread_count:0}); const { showToast } = useApp();
+  const load = () => api('/notifications').then(d=>setData(d.data)).catch(e=>showToast(e.message,'error'));
+  useEffect(()=>{load();},[]);
+  const markRead = async id => { try{await api(`/notifications/${id}/read`,{method:'PUT'});load();}catch(e){showToast(e.message,'error');} };
+  const markAllRead = async () => { try{await api('/notifications/read-all',{method:'PUT'});showToast('모두 읽음','success');load();}catch(e){showToast(e.message,'error');} };
+  const tc = {info:'var(--info)',warning:'var(--warning)',success:'var(--success)',danger:'var(--danger)'};
+  return (
+    <div className="page-content">
+      <div className="flex-between mb-4"><span style={{fontSize:14,color:'var(--gray-500)'}}>읽지않음: {data.unread_count}건</span>
+        <button className="btn btn-outline btn-sm" onClick={markAllRead}>모두 읽음</button></div>
+      <div className="card"><div className="card-body">
+        {data.notifications.map(n=>(
+          <div key={n.id} onClick={()=>!n.is_read&&markRead(n.id)} style={{cursor:n.is_read?'default':'pointer',padding:'14px 16px',
+            borderBottom:'1px solid var(--gray-50)',background:n.is_read?'transparent':'#f0f7ff',borderRadius:8,marginBottom:4,
+            display:'flex',gap:12,alignItems:'flex-start',transition:'all 0.2s'}}>
+            <div style={{width:10,height:10,borderRadius:'50%',background:tc[n.notification_type]||'var(--gray-400)',marginTop:5,flexShrink:0}}/>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:n.is_read?400:600}}>{n.title}</div>
+              <div style={{fontSize:13,color:'var(--gray-500)',marginTop:4}}>{n.message}</div>
+              <div style={{fontSize:11,color:'var(--gray-400)',marginTop:4}}>{n.created_at}</div>
+            </div>
+          </div>
+        ))}{data.notifications.length===0&&<div className="empty-state">알림 없음</div>}
+      </div></div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━ PROFILE ━━━━━━━━━━━━
+function ProfilePage() {
+  const [profile, setProfile] = useState(null); const [editing, setEditing] = useState(false); const [form, setForm] = useState({});
+  const [pwForm, setPwForm] = useState({current_password:'',new_password:'',confirm_password:''});
+  const fileRef = useRef(null);
+  const { showToast, refreshUser } = useApp();
+  const loadProfile = () => api('/auth/profile').then(d=>{setProfile(d.data);setForm(d.data);}).catch(e=>showToast(e.message,'error'));
+  useEffect(()=>{loadProfile();},[]);
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0]; if(!file) return;
+    const fd = new FormData(); fd.append('photo', file);
+    try {
+      const token = localStorage.getItem('atms_token');
+      const res = await fetch(`${API}/upload/photo?user_id=${profile.id}`, {
+        method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error);
+      showToast('사진 업로드 완료','success'); loadProfile(); refreshUser();
+    } catch(e) { showToast(e.message,'error'); }
+  };
+  const handleSave = async () => {
+    try { await api('/auth/profile',{method:'PUT',body:JSON.stringify({name:form.name,email:form.email,phone:form.phone,bio:form.bio})});
+      showToast('프로필 수정 완료','success'); setEditing(false); loadProfile(); refreshUser();
+    } catch(e) { showToast(e.message,'error'); }
+  };
+  const handlePwChange = async () => {
+    if(pwForm.new_password!==pwForm.confirm_password) return showToast('비밀번호 불일치','error');
+    try { await api('/auth/change-password',{method:'POST',body:JSON.stringify(pwForm)});
+      showToast('비밀번호 변경 완료','success'); setPwForm({current_password:'',new_password:'',confirm_password:''});
+    } catch(e) { showToast(e.message,'error'); }
+  };
+  if(!profile) return <div className="page-content"><p>로딩 중...</p></div>;
+  return (
+    <div className="page-content"><div className="grid-2">
+      <div className="card">
+        <div className="card-header"><h3>프로필</h3>{!editing&&<button className="btn btn-outline btn-sm" onClick={()=>setEditing(true)}>수정</button>}</div>
+        <div className="card-body">
+          <div style={{display:'flex',alignItems:'center',gap:20,marginBottom:24}}>
+            <Avatar src={profile.photo_url} name={profile.name} size="xl" onClick={()=>fileRef.current?.click()} />
+            <input type="file" ref={fileRef} accept="image/*" style={{display:'none'}} onChange={handlePhotoUpload} />
+            <div><div style={{fontSize:22,fontWeight:700}}>{profile.name}</div>
+              <div style={{color:'var(--gray-500)',marginTop:4}}>{profile.title||''} &middot; {profile.department||''}</div>
+              <span className="badge badge-blue" style={{marginTop:8}}>{profile.role}</span></div>
+          </div>
+          {editing?(<>
+            <div className="form-group"><label>이름</label><input value={form.name||''} onChange={e=>setForm({...form,name:e.target.value})}/></div>
+            <div className="form-group"><label>이메일</label><input value={form.email||''} onChange={e=>setForm({...form,email:e.target.value})}/></div>
+            <div className="form-group"><label>전화</label><input value={form.phone||''} onChange={e=>setForm({...form,phone:e.target.value})}/></div>
+            <div className="form-group"><label>소개</label><textarea rows="3" value={form.bio||''} onChange={e=>setForm({...form,bio:e.target.value})}/></div>
+            <div style={{display:'flex',gap:8}}><button className="btn btn-primary" onClick={handleSave}>저장</button>
+              <button className="btn btn-outline" onClick={()=>{setEditing(false);setForm(profile);}}>취소</button></div>
+          </>):(<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+            {[['사번',profile.employee_id],['이름',profile.name],['이메일',profile.email],['전화',profile.phone],
+              ['부서',profile.department],['직위',profile.title],['전공',profile.specialty],['생년월일',profile.birthday]
+            ].map(([l,v])=>(<div key={l}><span style={{fontSize:12,color:'var(--gray-500)'}}>{l}</span>
+              <div style={{fontWeight:500,marginTop:2}}>{v||'-'}</div></div>))}
+          </div>)}
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-header"><h3>비밀번호 변경</h3></div>
+        <div className="card-body">
+          <div className="form-group"><label>현재 비밀번호</label><input type="password" value={pwForm.current_password} onChange={e=>setPwForm({...pwForm,current_password:e.target.value})}/></div>
+          <div className="form-group"><label>새 비밀번호</label><input type="password" value={pwForm.new_password} onChange={e=>setPwForm({...pwForm,new_password:e.target.value})}/></div>
+          <div className="form-group"><label>새 비밀번호 확인</label><input type="password" value={pwForm.confirm_password} onChange={e=>setPwForm({...pwForm,confirm_password:e.target.value})}/></div>
+          <button className="btn btn-primary" onClick={handlePwChange}>변경</button>
+        </div>
+      </div>
+    </div></div>
+  );
+}
+
+// ━━━━━━━━━━━━ WEEKLY REPORT SUB-COMPONENT ━━━━━━━━━━━━
+function WeeklyReport({ weekly }) {
+  const totFltPlan = weekly.reduce(function(s,w){return s+w.fltPlan;},0);
+  const totFltDone = weekly.reduce(function(s,w){return s+w.fltDone;},0);
+  const totSimPlan = weekly.reduce(function(s,w){return s+w.simPlan;},0);
+  const totSimDone = weekly.reduce(function(s,w){return s+w.simDone;},0);
+  return (
+    <div>
+      <div className="card"><div className="card-header"><h3>Weekly Report of RMAF Pilot Training</h3>
+        <span className="badge badge-yellow">As of {new Date().toISOString().slice(0,10)}</span></div>
+        <div className="card-body">
+          <div style={{marginBottom:20}}>
+            <div className="stats-grid" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+              <div className="stat-card"><div className="stat-icon" style={{background:'#dbeafe',color:'#2563eb'}}>✈</div>
+                <div className="stat-value">{totFltPlan}</div><div className="stat-label">Total Flight Plan (Sortie)</div></div>
+              <div className="stat-card"><div className="stat-icon" style={{background:'#d1fae5',color:'#059669'}}>✓</div>
+                <div className="stat-value">{totFltDone}</div><div className="stat-label">Flight Done</div></div>
+              <div className="stat-card"><div className="stat-icon" style={{background:'#fef3c7',color:'#d97706'}}>🖥</div>
+                <div className="stat-value">{totSimDone} / {totSimPlan}</div><div className="stat-label">SIM Done / Plan</div></div>
+            </div>
+          </div>
+          <div className="table-wrapper"><table>
+            <thead><tr><th>Pilot</th><th colSpan="3" style={{textAlign:'center',background:'#dbeafe',color:'#1d4ed8'}}>Flight</th>
+              <th colSpan="3" style={{textAlign:'center',background:'#d1fae5',color:'#065f46'}}>Simulator</th>
+              <th colSpan="3" style={{textAlign:'center',background:'#fef3c7',color:'#92400e'}}>Total</th><th>Progress</th></tr>
+            <tr><th></th><th>Plan</th><th>Done</th><th>Remain</th><th>Plan</th><th>Done</th><th>Remain</th>
+              <th>Plan</th><th>Done</th><th>Remain</th><th></th></tr></thead>
+            <tbody>{weekly.map(function(w){
+              var total=w.fltPlan+w.simPlan; var done=w.fltDone+w.simDone;
+              var pct=total?Math.round((done/total)*100):0;
+              return (
+                <tr key={w.id}>
+                  <td><strong>{w.name}</strong></td>
+                  <td className="text-center">{w.fltPlan}</td><td className="text-center" style={{color:'var(--success)',fontWeight:700}}>{w.fltDone}</td>
+                  <td className="text-center" style={{color:'var(--danger)'}}>{w.fltRemain}</td>
+                  <td className="text-center">{w.simPlan}</td><td className="text-center" style={{color:'var(--success)',fontWeight:700}}>{w.simDone}</td>
+                  <td className="text-center" style={{color:'var(--danger)'}}>{w.simRemain}</td>
+                  <td className="text-center">{total}</td><td className="text-center" style={{fontWeight:700}}>{done}</td>
+                  <td className="text-center" style={{color:'var(--danger)'}}>{total-done}</td>
+                  <td style={{width:120}}>
+                    <div className="flex-between" style={{fontSize:11}}><span>{pct}%</span></div>
+                    <div className="progress-bar"><div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg,#2563eb,#059669)'}}/></div>
+                  </td>
+                </tr>
+              );
+            })}</tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━ PILOT PAGE (API-Driven) ━━━━━━━━━━━━
+function PilotPage() {
+  const [pilots, setPilots] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [trainingRecs, setTrainingRecs] = useState([]);
+  const [weekly, setWeekly] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [subTab, setSubTab] = useState('profiles');
+  const [selectedPilot, setSelectedPilot] = useState(null);
+  const [showPilotModal, setShowPilotModal] = useState(false);
+  const [editingPilot, setEditingPilot] = useState(null);
+  const [pilotForm, setPilotForm] = useState({});
+  const [editingCell, setEditingCell] = useState(null);
+  const [cellDate, setCellDate] = useState('');
+  const [cellTime, setCellTime] = useState('1:00');
+  const [cellPos, setCellPos] = useState({x:0,y:0});
+  const { user, showToast } = useApp();
+  const isAdmin = ['admin','ojt_admin'].includes(user.role);
+  const canEditTraining = isAdmin || user.role === 'instructor';
+
+  const loadAll = useCallback(async () => {
+    try {
+      const [p,c,t,w] = await Promise.all([
+        api('/pilots'), api('/pilots/courses'), api('/pilots/training'), api('/pilots/weekly')
+      ]);
+      setPilots((p.data||[]).filter(x=>x.status==='active'));
+      setCourses(c.data||[]);
+      setTrainingRecs(t.data||[]);
+      setWeekly(w.data||[]);
+    } catch(e) { showToast(e.message,'error'); }
+    setLoading(false);
+  }, []);
+  useEffect(()=>{loadAll();},[]);
+
+  const simCourses = courses.filter(c=>c.category==='sim');
+  const fltCourses = courses.filter(c=>c.category==='flight');
+  const totalCourses = courses.length;
+
+  // Build per-pilot training map: { pilotId: { courseId: {date, time} } }
+  const tMap = {};
+  trainingRecs.forEach(r => {
+    if(!tMap[r.pilot_id]) tMap[r.pilot_id]={};
+    tMap[r.pilot_id][r.course_id] = { date: r.completed_date, time: r.completed_time||'1:00' };
+  });
+  const getPilotDone = (pid) => Object.keys(tMap[pid]||{}).length;
+  const getPilotSimDone = (pid) => trainingRecs.filter(r=>r.pilot_id===pid && simCourses.some(c=>c.id===r.course_id)).length;
+  const getPilotFltDone = (pid) => trainingRecs.filter(r=>r.pilot_id===pid && fltCourses.some(c=>c.id===r.course_id)).length;
+
+  // Pilot CRUD
+  const emptyForm = {name:'',short_name:'',rank:'Major',service_number:'',callsign:'',nationality:'Malaysian',
+    squadron:'',date_of_birth:'',course_class:'',training_start_date:'',training_end_date:'',phone:'',email:'',notes:'',sort_order:pilots.length};
+  const openCreate = ()=>{setPilotForm(emptyForm);setEditingPilot(null);setShowPilotModal(true);};
+  const openEdit = (p)=>{setPilotForm({...p});setEditingPilot(p);setShowPilotModal(true);};
+  const savePilot = async ()=>{
+    if(!pilotForm.name||!pilotForm.short_name) return showToast('Name and short name required','error');
+    try {
+      if(editingPilot) { await api(`/pilots/${editingPilot.id}`,{method:'PUT',body:JSON.stringify(pilotForm)}); showToast('Pilot updated','success'); }
+      else { await api('/pilots',{method:'POST',body:JSON.stringify(pilotForm)}); showToast('Pilot created','success'); }
+      setShowPilotModal(false); loadAll();
+    } catch(e) { showToast(e.message,'error'); }
+  };
+  const deactivatePilot = async (p)=>{
+    try { await api(`/pilots/${p.id}`,{method:'DELETE'}); showToast(`${p.short_name} deactivated`,'success'); loadAll();
+    } catch(e) { showToast(e.message,'error'); }
+  };
+
+  // Photo upload
+  const photoRef = useRef(null);
+  const [photoTarget, setPhotoTarget] = useState(null);
+  const handlePhotoUpload = async (e)=>{
+    const file = e.target.files[0]; if(!file||!photoTarget) return;
+    const fd = new FormData(); fd.append('photo', file);
+    try {
+      const token = localStorage.getItem('atms_token');
+      const res = await fetch(`${API}/pilots/${photoTarget}/photo`,{method:'POST',headers:{'Authorization':`Bearer ${token}`},body:fd});
+      const data = await res.json(); if(!res.ok) throw new Error(data.error);
+      showToast('Photo uploaded','success'); loadAll();
+    } catch(e) { showToast(e.message,'error'); }
+    e.target.value='';
+  };
+
+  // Inline training edit
+  const handleCellClick = (e,pilotId,courseId,currentDate,currentTime)=>{
+    if(!canEditTraining) return;
+    const rect = e.target.getBoundingClientRect();
+    setCellPos({x:Math.min(rect.left,window.innerWidth-220),y:rect.bottom+4});
+    setEditingCell({pilotId,courseId}); setCellDate(currentDate||''); setCellTime(currentTime||'1:00');
+  };
+  const saveCell = async ()=>{
+    if(!editingCell) return;
+    try {
+      await api('/pilots/training',{method:'POST',body:JSON.stringify({
+        pilot_id:editingCell.pilotId, course_id:editingCell.courseId,
+        completed_date:cellDate||null, completed_time:cellTime||'1:00'
+      })});
+      setEditingCell(null); loadAll();
+    } catch(e) { showToast(e.message,'error'); }
+  };
+  const deleteCell = async ()=>{
+    if(!editingCell) return;
+    try {
+      await api('/pilots/training',{method:'POST',body:JSON.stringify({
+        pilot_id:editingCell.pilotId, course_id:editingCell.courseId,
+        completed_date:null
+      })});
+      setEditingCell(null); setCellDate(''); setCellTime('1:00');
+      showToast('Record deleted','success'); loadAll();
+    } catch(e) { showToast(e.message,'error'); }
+  };
+
+  const goTo = (idx)=>setActiveIdx(Math.max(0,Math.min(idx,pilots.length-1)));
+
+  if(loading) return <div className="page-content"><p>Loading pilot data...</p></div>;
+
+  // Pilot form modal fields
+  const formField = (label,key,type='text')=>(
+    <div className="form-group"><label>{label}</label>
+      <input type={type} value={pilotForm[key]||''} onChange={e=>setPilotForm({...pilotForm,[key]:e.target.value})}/></div>
+  );
+
+  return (
+    <div className="page-content">
+      <div className="tabs">
+        <div className={`tab ${subTab==='profiles'?'active':''}`} onClick={()=>setSubTab('profiles')}>조종사 프로필</div>
+        <div className={`tab ${subTab==='individual'?'active':''}`} onClick={()=>setSubTab('individual')}>개인별 현황</div>
+        <div className={`tab ${subTab==='weekly'?'active':''}`} onClick={()=>setSubTab('weekly')}>주간 보고</div>
+        {isAdmin && <div className={`tab ${subTab==='manage'?'active':''}`} onClick={()=>setSubTab('manage')}>조종사 관리</div>}
+      </div>
+
+      {/* ── Profiles Carousel ── */}
+      {subTab==='profiles' && pilots.length>0 && (
+        <div className="card">
+          <div className="card-header"><h3>RMAF T-50 Transition Course Pilots</h3>
+            <span className="badge badge-blue">{(pilots[0]&&pilots[0].training_start_date)||''} ~ {(pilots[0]&&pilots[0].training_end_date)||''}</span></div>
+          <div className="card-body">
+            <div className="pilot-carousel">
+              <button className="carousel-nav carousel-prev" onClick={()=>goTo(activeIdx-1)}>&#8249;</button>
+              <button className="carousel-nav carousel-next" onClick={()=>goTo(activeIdx+1)}>&#8250;</button>
+              <div className="pilot-carousel-track" style={{transform:`translateX(-${activeIdx*100}%)`}}>
+                {pilots.map((p,i)=>{
+                  const done=getPilotDone(p.id); const pct=totalCourses?Math.round((done/totalCourses)*100):0;
+                  const sd=getPilotSimDone(p.id); const fd=getPilotFltDone(p.id);
+                  return (
+                    <div className="pilot-card" key={p.id}>
+                      <div className="pilot-profile">
+                        <div className="pilot-photo" onClick={function(){if(isAdmin){setPhotoTarget(p.id);if(photoRef.current)photoRef.current.click();}}}>
+                          {p.photo_url ? <img src={p.photo_url} alt={p.short_name}/> :
+                            <>{(p.short_name||'?')[0]}{(p.short_name||'?').slice(-1)}</>}
+                        </div>
+                        <div className="pilot-name">{p.name}</div>
+                        <div className="pilot-rank">{p.rank} &middot; {p.callsign||p.service_number||'N/A'}</div>
+                        <div style={{margin:'0 auto',maxWidth:300}}>
+                          <div className="flex-between" style={{fontSize:12,marginBottom:4}}>
+                            <span>훈련 진도</span><span style={{fontWeight:700,color:'var(--primary)'}}>{pct}%</span></div>
+                          <div className="progress-bar" style={{height:10}}>
+                            <div className="progress-fill" style={{width:`${pct}%`,background:'linear-gradient(90deg,#2563eb,#7c3aed)'}}/></div>
+                        </div>
+                        <div className="pilot-stats">
+                          <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--primary)'}}>{sd}/{simCourses.length}</div>
+                            <div className="pilot-stat-lbl">SIM Sorties</div></div>
+                          <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--success)'}}>{fd}/{fltCourses.length}</div>
+                            <div className="pilot-stat-lbl">Flight Sorties</div></div>
+                          <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--warning)'}}>{done}/{totalCourses}</div>
+                            <div className="pilot-stat-lbl">Total</div></div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="carousel-dots">
+                {pilots.map((_,i)=><div key={i} className={`carousel-dot ${i===activeIdx?'active':''}`} onClick={()=>goTo(i)}/>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Individual Training Status ── */}
+      {subTab==='individual' && (
+        <div>
+          <div className="filters">
+            <select value={selectedPilot||''} onChange={e=>setSelectedPilot(e.target.value?Number(e.target.value):null)}>
+              <option value="">전체 조종사</option>
+              {pilots.map(p=><option key={p.id} value={p.id}>{p.short_name} ({p.name})</option>)}
+            </select>
+            {canEditTraining && <span style={{fontSize:12,color:'var(--gray-400)'}}>Click a cell to edit</span>}
+          </div>
+          <div className="card"><div className="card-header"><h3>Individual Status of RMAF Pilot Training</h3></div>
+            <div className="card-body"><div className="table-wrapper">
+              <table className="training-table">
+                <thead>
+                  <tr>
+                    <th rowSpan="2">No.</th><th colSpan="2">SIM/CPT</th><th colSpan="2">T-50</th>
+                    <th rowSpan="2">Contents</th>
+                    {(selectedPilot?pilots.filter(p=>p.id===selectedPilot):pilots).map(p=>(
+                      <th key={p.id} colSpan="2" style={{background:'#1e40af'}}>{p.short_name}</th>
+                    ))}
+                  </tr>
+                  <tr>
+                    <th>No.</th><th>Subject</th><th>No.</th><th>Subject</th>
+                    {(selectedPilot?pilots.filter(p=>p.id===selectedPilot):pilots).map(p=>(
+                      <React.Fragment key={p.id}><th>Date</th><th>Time</th></React.Fragment>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colSpan={6+(selectedPilot?2:pilots.length*2)} className="section-header">Simulator Training</td></tr>
+                  {simCourses.map(function(c,ci){
+                    var vis = selectedPilot?pilots.filter(function(p){return p.id===selectedPilot;}):pilots;
+                    return (
+                      <tr key={c.id}>
+                        <td>{c.course_no||('C-'+(ci+1).toString().padStart(2,'0'))}</td>
+                        <td>{ci+1}</td><td><strong>{c.subject}</strong></td><td>-</td><td>-</td>
+                        <td style={{textAlign:'left',fontSize:11}}>{c.contents||''}</td>
+                        {vis.map(function(p){
+                          var rec=(tMap[p.id]||{})[c.id];
+                          return <React.Fragment key={p.id}>
+                            <td className={(rec?'done':'pending')+(canEditTraining?' editable':'')}
+                              onClick={function(e){handleCellClick(e,p.id,c.id,rec&&rec.date,rec&&rec.time);}}>
+                              {rec?rec.date.slice(5):'-'}</td>
+                            <td className={(rec?'done':'pending')+(canEditTraining?' editable':'')}
+                              onClick={function(e){handleCellClick(e,p.id,c.id,rec&&rec.date,rec&&rec.time);}}>
+                              {rec?rec.time:'-'}</td>
+                          </React.Fragment>;
+                        })}
+                      </tr>
+                    );
+                  })}
+                  <tr><td colSpan={6+(selectedPilot?2:pilots.length*2)} className="section-header">Flight Training</td></tr>
+                  {fltCourses.map(function(c,ci){
+                    var vis = selectedPilot?pilots.filter(function(p){return p.id===selectedPilot;}):pilots;
+                    return (
+                      <tr key={c.id}>
+                        <td>{c.course_no||('C-'+(simCourses.length+ci+1).toString().padStart(2,'0'))}</td>
+                        <td>-</td><td>-</td><td>{ci+1}</td><td><strong>{c.subject}</strong></td>
+                        <td style={{textAlign:'left',fontSize:11}}>{c.contents||''}</td>
+                        {vis.map(function(p){
+                          var rec=(tMap[p.id]||{})[c.id];
+                          return <React.Fragment key={p.id}>
+                            <td className={(rec?'done':'pending')+(canEditTraining?' editable':'')}
+                              onClick={function(e){handleCellClick(e,p.id,c.id,rec&&rec.date,rec&&rec.time);}}>
+                              {rec?rec.date.slice(5):'-'}</td>
+                            <td className={(rec?'done':'pending')+(canEditTraining?' editable':'')}
+                              onClick={function(e){handleCellClick(e,p.id,c.id,rec&&rec.date,rec&&rec.time);}}>
+                              {rec?rec.time:'-'}</td>
+                          </React.Fragment>;
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div></div>
+          </div>
+          {/* Cell edit popup */}
+          {editingCell && <div className="cell-edit-popup" style={{left:cellPos.x,top:cellPos.y}}
+            onClick={function(e){e.stopPropagation();}}>
+            <div style={{display:'flex',gap:8}}>
+              <div style={{flex:1}}>
+                <label style={{fontSize:12,fontWeight:600,display:'block',marginBottom:4}}>Date</label>
+                <input type="date" value={cellDate} onChange={function(e){setCellDate(e.target.value);}} autoFocus/>
+              </div>
+              <div style={{width:80}}>
+                <label style={{fontSize:12,fontWeight:600,display:'block',marginBottom:4}}>Time</label>
+                <input type="text" value={cellTime} placeholder="H:MM" onChange={function(e){setCellTime(e.target.value);}}/>
+              </div>
+            </div>
+            <div className="cell-btns">
+              {cellDate && <button className="btn btn-danger btn-sm" onClick={deleteCell}>Delete</button>}
+              <button className="btn btn-outline btn-sm" onClick={function(){setEditingCell(null);}}>Cancel</button>
+              <button className="btn btn-primary btn-sm" onClick={saveCell}>Save</button>
+            </div>
+          </div>}
+        </div>
+      )}
+
+      {/* ── Weekly Report ── */}
+      {subTab==='weekly' && <WeeklyReport weekly={weekly} />}
+
+      {/* ── Pilot Management (Admin) ── */}
+      {subTab==='manage' && isAdmin && (
+        <div>
+          <div className="flex-between mb-4">
+            <span style={{fontSize:14,color:'var(--gray-500)'}}>Active Pilots: {pilots.length}</span>
+            <button className="btn btn-primary" onClick={openCreate}>+ Add Pilot</button>
+          </div>
+          <div className="card"><div className="card-body">
+            <div className="table-wrapper"><table>
+              <thead><tr><th style={{width:50}}></th><th>Short Name</th><th>Full Name</th><th>Rank</th>
+                <th>Service No.</th><th>Callsign</th><th>Squadron</th><th>Course Class</th><th style={{width:120}}></th></tr></thead>
+              <tbody>{pilots.map(p=>(
+                <tr key={p.id}>
+                  <td><Avatar src={p.photo_url} name={p.short_name} size="sm"/></td>
+                  <td><strong>{p.short_name}</strong></td><td>{p.name}</td><td>{p.rank}</td>
+                  <td>{p.service_number||'-'}</td><td>{p.callsign||'-'}</td><td>{p.squadron||'-'}</td><td>{p.course_class||'-'}</td>
+                  <td>
+                    <div style={{display:'flex',gap:4}}>
+                      <button className="btn btn-outline btn-sm" onClick={()=>openEdit(p)}>Edit</button>
+                      <button className="btn btn-danger btn-sm" onClick={()=>deactivatePilot(p)}>Del</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}{pilots.length===0&&<tr><td colSpan="9" className="text-center" style={{padding:40,color:'var(--gray-400)'}}>No pilots</td></tr>}</tbody>
+            </table></div>
+          </div></div>
+        </div>
+      )}
+
+      {/* Photo upload hidden input */}
+      <input type="file" ref={photoRef} accept="image/*" style={{display:'none'}} onChange={handlePhotoUpload}/>
+
+      {/* Pilot Create/Edit Modal */}
+      {showPilotModal && <Modal title={editingPilot?`Edit: ${editingPilot.short_name}`:'Add New Pilot'} onClose={()=>setShowPilotModal(false)}
+        footer={<><button className="btn btn-outline" onClick={()=>setShowPilotModal(false)}>Cancel</button>
+          <button className="btn btn-primary" onClick={savePilot}>{editingPilot?'Update':'Create'}</button></>}>
+        <div className="pilot-admin-grid">
+          {formField('Full Name *','name')}
+          {formField('Short Name *','short_name')}
+          <div className="form-group"><label>Rank</label>
+            <select value={pilotForm.rank||'Major'} onChange={e=>setPilotForm({...pilotForm,rank:e.target.value})}>
+              {['Major','Captain','First Lieutenant','Second Lieutenant','Colonel','Lieutenant Colonel'].map(r=>
+                <option key={r} value={r}>{r}</option>)}
+            </select></div>
+          {formField('Service Number','service_number')}
+          {formField('Callsign','callsign')}
+          {formField('Nationality','nationality')}
+          {formField('Squadron','squadron')}
+          {formField('Date of Birth','date_of_birth','date')}
+          {formField('Course Class','course_class')}
+          {formField('Training Start','training_start_date','date')}
+          {formField('Training End','training_end_date','date')}
+          {formField('Phone','phone','tel')}
+          {formField('Email','email','email')}
+          {formField('Sort Order','sort_order','number')}
+        </div>
+        <div className="form-group" style={{marginTop:12}}><label>Notes</label>
+          <textarea rows="2" value={pilotForm.notes||''} onChange={e=>setPilotForm({...pilotForm,notes:e.target.value})}/></div>
+      </Modal>}
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━ MECHANIC PAGE (placeholder) ━━━━━━━━━━━━
+function MechanicPage() {
+  return (
+    <div className="page-content">
+      <div className="card"><div className="card-header"><h3>정비사 관리</h3></div>
+        <div className="card-body">
+          <div className="empty-state" style={{padding:'80px 20px'}}>
+            <div style={{fontSize:60,marginBottom:16}}>🔧</div>
+            <div style={{fontSize:20,fontWeight:700,color:'var(--gray-700)',marginBottom:8}}>정비사 관리 모듈</div>
+            <div style={{color:'var(--gray-500)',fontSize:14}}>정비사 교육 현황, OJT 관리, 자격 인증 등의 기능이 준비 중입니다.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━ MAIN APP ━━━━━━━━━━━━
+function App() {
+  const [user, setUser] = useState(()=>{ try{return JSON.parse(localStorage.getItem('atms_user'));}catch{return null;} });
+  const [page, setPage] = useState('dashboard');
+  const [toast, setToast] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeUsers, setActiveUsers] = useState(0);
+  const showToast = (message,type='success') => setToast({message,type});
+  const logout = () => { localStorage.removeItem('atms_token'); localStorage.removeItem('atms_user'); setUser(null); };
+  const refreshUser = () => {
+    api('/auth/profile').then(d => {
+      const u = { id:d.data.id, employee_id:d.data.employee_id, name:d.data.name, role:d.data.role,
+        title:d.data.title, department:d.data.department, email:d.data.email, photo_url:d.data.photo_url };
+      localStorage.setItem('atms_user', JSON.stringify(u)); setUser(u);
+    }).catch(()=>{});
+  };
+  const navigate = (p) => { setPage(p); setSidebarOpen(false); };
+  useEffect(()=>{
+    const fetchActive=()=>api('/active-users').then(function(d){setActiveUsers((d.data&&d.data.count)||0);}).catch(function(){});
+    fetchActive(); const iv=setInterval(fetchActive,60000); return ()=>clearInterval(iv);
+  },[]);
+
+  if(!user) return <LoginPage onLogin={setUser}/>;
+
+  const pilotItems = [
+    {id:'pilots',label:'조종사 현황',icon:'✈️'},
+  ];
+  const mechanicItems = [
+    {id:'mechanic',label:'정비사 현황',icon:'🔧'},
+  ];
+  const commonItems = [
+    {id:'dashboard',label:'대시보드',icon:'📊'},
+    {id:'courses',label:'과정 관리',icon:'📚'},
+    {id:'schedule',label:'일정 관리',icon:'📅'},
+    {id:'evaluations',label:'평가 관리',icon:'📝'},
+    {id:'ojt',label:'OJT 관리',icon:'🛠️'},
+    {id:'content',label:'학습 자료',icon:'📖'},
+    {id:'users',label:'사용자 관리',icon:'👤',roles:['admin','ojt_admin','manager']},
+    {id:'reports',label:'리포트',icon:'📈',roles:['admin','instructor','ojt_admin','manager']},
+    {id:'notifications',label:'알림',icon:'🔔'},
+  ];
+  const pn = {dashboard:'대시보드',courses:'과정 관리',schedule:'일정 관리',evaluations:'평가 관리',
+    ojt:'OJT 관리',content:'학습 자료',users:'사용자 관리',reports:'리포트',notifications:'알림',
+    profile:'내 프로필',pilots:'조종사 현황',mechanic:'정비사 현황'};
+
+  const renderPage = () => {
+    switch(page){
+      case 'dashboard': return <Dashboard/>;
+      case 'courses': return <CoursesPage/>;
+      case 'users': return <UsersPage/>;
+      case 'schedule': return <SchedulePage/>;
+      case 'evaluations': return <EvaluationsPage/>;
+      case 'ojt': return <OJTPage/>;
+      case 'content': return <ContentPage/>;
+      case 'reports': return <ReportsPage/>;
+      case 'notifications': return <NotificationsPage/>;
+      case 'profile': return <ProfilePage/>;
+      case 'pilots': return <PilotPage/>;
+      case 'mechanic': return <MechanicPage/>;
+      default: return <Dashboard/>;
+    }
+  };
+
+  const renderNavSection = (title, items) => (
+    <React.Fragment>
+      <div className="nav-section">{title}</div>
+      {items.filter(n=>!n.roles||n.roles.includes(user.role)).map(n=>(
+        <div key={n.id} className={`nav-item ${page===n.id?'active':''}`} onClick={()=>navigate(n.id)}>
+          <span>{n.icon}</span><span>{n.label}</span></div>
+      ))}
+    </React.Fragment>
+  );
+
+  return (
+    <AppContext.Provider value={{user,showToast,refreshUser}}>
+      <div className="app-layout">
+        <div className={`sidebar-overlay ${sidebarOpen?'open':''}`} onClick={()=>setSidebarOpen(false)} />
+        <div className={`sidebar ${sidebarOpen?'open':''} ${sidebarCollapsed?'collapsed':''}`}>
+          <div className="sidebar-header">
+            <h2>ATMS</h2>
+            <button className="sidebar-toggle" onClick={()=>setSidebarCollapsed(!sidebarCollapsed)}
+              title={sidebarCollapsed?'메뉴 펼치기':'메뉴 접기'}>
+              {sidebarCollapsed ? '▶' : '◀'}
+            </button>
+          </div>
+          {!sidebarCollapsed && (
+            <div style={{padding:'0 20px'}}>
+              <div className="sidebar-user" onClick={()=>navigate('profile')}>
+                <Avatar src={user.photo_url} name={user.name} size="sm"/>
+                <div className="user-detail"><div style={{fontSize:14,fontWeight:600,color:'#fff'}}>{user.name}</div>
+                  <div style={{fontSize:11,color:'rgba(255,255,255,0.5)'}}>{user.role}</div></div>
+              </div>
+            </div>
+          )}
+          {sidebarCollapsed && (
+            <div style={{padding:'12px 0',display:'flex',justifyContent:'center'}}>
+              <Avatar src={user.photo_url} name={user.name} size="sm" onClick={()=>navigate('profile')}/>
+            </div>
+          )}
+          <div className="sidebar-nav">
+            {renderNavSection('조종사', pilotItems)}
+            {renderNavSection('정비사', mechanicItems)}
+            {renderNavSection('공통', commonItems)}
+          </div>
+          <div className="sidebar-footer">
+            <div className="nav-item" onClick={()=>navigate('profile')}><span>⚙️</span><span>내 프로필</span></div>
+            <div className="nav-item" onClick={logout}><span>🚪</span><span>로그아웃</span></div>
+          </div>
+        </div>
+        <div className={`main-content ${sidebarCollapsed?'sidebar-collapsed':''}`}>
+          <div className="top-bar">
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <button className="hamburger" onClick={()=>setSidebarOpen(!sidebarOpen)}>☰</button>
+              <h1>{pn[page]||'대시보드'}</h1>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:14}}>
+              <div className="active-indicator"><div className="active-dot"/>{activeUsers} online</div>
+              <span className="desktop-date" style={{fontSize:14,color:'var(--gray-500)'}}>{new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'})}</span>
+              <Avatar src={user.photo_url} name={user.name} size="sm" onClick={()=>navigate('profile')}/>
+            </div>
+          </div>
+          {renderPage()}
+        </div>
+      </div>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={()=>setToast(null)}/>}
+    </AppContext.Provider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
