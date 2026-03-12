@@ -289,8 +289,18 @@ tr:hover { background: #fafbfc; }
 .nat-add-btn { padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer;
   border: 1.5px dashed var(--gray-300); background: transparent; color: var(--gray-400); transition: all 0.2s; }
 .nat-add-btn:hover { border-color: var(--primary); color: var(--primary); }
-.nat-section { position: relative; overflow: hidden; border-radius: var(--radius); margin-bottom: 20px; min-height: 120px; background-size: cover; background-position: center; background-repeat: no-repeat; }
-.nat-section > .card { position: relative; z-index: 1; background: rgba(255,255,255,0.45); backdrop-filter: blur(0.5px); }
+.nat-section { position: relative; overflow: hidden; border-radius: 12px; margin-bottom: 28px; min-height: 140px;
+  background-size: cover; background-position: center; background-repeat: no-repeat; border: 3px solid #ccc; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
+.nat-section::before { content:''; position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(0,0,0,0.10) 100%); pointer-events: none; }
+.nat-section > .card { position: relative; z-index: 1; background: rgba(255,255,255,0.88);
+  border: 2px solid rgba(0,0,0,0.15); border-radius: 8px; margin: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.10); }
+.nat-section.nat-MY { border-color: #cc0001; }
+.nat-section.nat-PL { border-color: #dc143c; }
+.nat-section.nat-IQ { border-color: #007a3d; }
+.nat-section-title { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px 4px; color: #fff; font-weight: 700; font-size: 15px; text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+.nat-section-title .badge { text-shadow: none; }
 
 /* ── Responsive: Tablet ── */
 @media (max-width: 1024px) {
@@ -1365,10 +1375,10 @@ function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap
         var natWeekly = weekly.filter(function(w){ return natPilotIds[w.id]; });
         if (natWeekly.length === 0) return null;
         return (
-          <div className="nat-section" key={nat.code} style={getNatBgStyle(nat.code)}>
+          <div className={'nat-section ' + getNatCss(nat.code)} key={nat.code} style={getNatBgStyle(nat.code)}>
+            <div className="nat-section-title"><h3>{nat.label_ko} - Weekly Report</h3>
+              <span className="badge badge-yellow">As of {new Date().toISOString().slice(0,10)}</span></div>
             <div className="card" style={{marginBottom:0}}>
-              <div className="card-header"><h3>{nat.label_ko} - Weekly Report</h3>
-                <span className="badge badge-yellow">As of {new Date().toISOString().slice(0,10)}</span></div>
               <WeeklyReportTable rows={natWeekly} />
             </div>
           </div>
@@ -1378,15 +1388,20 @@ function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap
   );
 }
 
-// ━━━━━━━━━━━━ NATIONALITY BACKGROUND IMAGES ━━━━━━━━━━━━
-var NAT_BG_MAP = {
-  'Malaysia': '/img/bg_malaysia.png',
-  'Poland': '/img/bg_poland.png',
-  'Iraq': '/img/bg_iraq.png'
+// ━━━━━━━━━━━━ NATIONALITY BACKGROUNDS (CDN Flags) ━━━━━━━━━━━━
+var NAT_FLAG_MAP = {
+  'Malaysia': { url: 'https://flagcdn.com/w1280/my.png', css: 'nat-MY' },
+  'Poland':   { url: 'https://flagcdn.com/w1280/pl.png', css: 'nat-PL' },
+  'Iraq':     { url: 'https://flagcdn.com/w1280/iq.png', css: 'nat-IQ' }
 };
 function getNatBgStyle(code) {
-  var url = NAT_BG_MAP[code] || '/img/bg_default.png';
-  return { backgroundImage: 'url(' + url + ')' };
+  var info = NAT_FLAG_MAP[code];
+  if (!info) return {};
+  return { backgroundImage: 'url(' + info.url + ')' };
+}
+function getNatCss(code) {
+  var info = NAT_FLAG_MAP[code];
+  return info ? info.css : '';
 }
 
 // ━━━━━━━━━━━━ PILOT PAGE (API-Driven) ━━━━━━━━━━━━
@@ -1593,12 +1608,12 @@ function PilotPage() {
             if (groupPilots.length === 0) return null;
             var gIdx = getGroupIdx(nat.code);
             return (
-              <div className="nat-section" key={nat.code} style={getNatBgStyle(nat.code)}>
+              <div className={'nat-section ' + getNatCss(nat.code)} key={nat.code} style={getNatBgStyle(nat.code)}>
+                <div className="nat-section-title">
+                  <h3>{nat.label_ko} Pilots</h3>
+                  <span className="badge badge-blue">{groupPilots.length}명</span>
+                </div>
                 <div className="card" style={{marginBottom:0}}>
-                  <div className="card-header">
-                    <h3>{nat.label_ko} Pilots</h3>
-                    <span className="badge badge-blue">{groupPilots.length}명</span>
-                  </div>
                   <div className="card-body">
                     <div className="pilot-carousel">
                       {groupPilots.length > 1 && <button className="carousel-nav carousel-prev" onClick={function(){goToGroup(nat.code, gIdx-1, groupPilots.length);}}>&#8249;</button>}
@@ -1649,10 +1664,10 @@ function PilotPage() {
 
           {/* ── Single nationality filter → single carousel with bg ── */}
           {natFilter!=='all' && filteredPilots.length > 0 && (
-            <div className="nat-section" style={getNatBgStyle(natFilter)}>
+            <div className={'nat-section ' + getNatCss(natFilter)} style={getNatBgStyle(natFilter)}>
+              <div className="nat-section-title"><h3>{natLabelMap[natFilter]||natFilter} T-50 Transition Course Pilots</h3>
+                <span className="badge badge-blue">{filteredPilots.length}명</span></div>
               <div className="card" style={{marginBottom:0}}>
-                <div className="card-header"><h3>{natLabelMap[natFilter]||natFilter} T-50 Transition Course Pilots</h3>
-                  <span className="badge badge-blue">{filteredPilots.length}명</span></div>
                 <div className="card-body">
                   <div className="pilot-carousel">
                     {filteredPilots.length > 1 && <button className="carousel-nav carousel-prev" onClick={function(){goTo(activeIdx-1);}}>&#8249;</button>}
@@ -1733,10 +1748,10 @@ function PilotPage() {
             }
             if (natPilots.length === 0) return null;
             return (
-              <div className="nat-section" key={nat.code} style={getNatBgStyle(nat.code)}>
+              <div className={'nat-section ' + getNatCss(nat.code)} key={nat.code} style={getNatBgStyle(nat.code)}>
+                <div className="nat-section-title"><h3>{nat.label_ko} - Individual Training Status</h3>
+                  <span className="badge badge-blue">{natPilots.length}명</span></div>
                 <div className="card" style={{marginBottom:0}}>
-                  <div className="card-header"><h3>{nat.label_ko} - Individual Training Status</h3>
-                    <span className="badge badge-blue">{natPilots.length}명</span></div>
                   <div className="card-body"><div className="table-wrapper">
                     <table className="training-table">
                       <thead>
