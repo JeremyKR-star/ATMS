@@ -1747,7 +1747,7 @@ function SchedulePage() {
             {canManage&&<td><button className="btn btn-primary btn-sm" style={{padding:'4px 10px',fontSize:11,marginRight:4}}
               onClick={function(){openAttendance(s);}}>빠른 출석</button><button className="btn btn-danger btn-sm" style={{padding:'4px 10px',fontSize:11}}
               onClick={function(){setDeleteTarget(s);}}>삭제</button></td>}</tr>
-        );}))}{schedules.length===0&&<tr><td colSpan={canManage?8:7} className="text-center" style={{padding:40,color:'var(--gray-400)'}}>일정이 없습니다</td></tr>}</tbody>
+        );})}{schedules.length===0&&<tr><td colSpan={canManage?8:7} className="text-center" style={{padding:40,color:'var(--gray-400)'}}>일정이 없습니다</td></tr>}</tbody>
       </table></div></div></div>
       {attendanceTarget&&<Modal title={'빠른 출석 - ' + attendanceTarget.title} onClose={function(){setAttendanceTarget(null);setEnrolledStudents([]);setAttendanceMap({});}}
         footer={<><button className="btn btn-outline" onClick={function(){setAttendanceTarget(null);setEnrolledStudents([]);setAttendanceMap({});}}>취소</button>
