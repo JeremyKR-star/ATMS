@@ -289,18 +289,20 @@ tr:hover { background: #fafbfc; }
 .nat-add-btn { padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer;
   border: 1.5px dashed var(--gray-300); background: transparent; color: var(--gray-400); transition: all 0.2s; }
 .nat-add-btn:hover { border-color: var(--primary); color: var(--primary); }
-.nat-section { position: relative; overflow: hidden; border-radius: 14px; margin-bottom: 28px; min-height: 160px;
-  border: 3px solid #333; box-shadow: 0 6px 28px rgba(0,0,0,0.25); }
-.nat-canvas-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-.nat-section > .card { position: relative; z-index: 2; background: rgba(255,255,255,0.93);
-  border: 2px solid rgba(0,0,0,0.12); border-radius: 10px; margin: 12px 14px 14px;
-  box-shadow: 0 3px 15px rgba(0,0,0,0.15); backdrop-filter: blur(2px); }
+.nat-section { position: relative; overflow: hidden; border-radius: 12px; margin-bottom: 24px;
+  border: 2px solid #333; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
+.nat-canvas-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: block; }
+.nat-section > .card { position: relative; z-index: 2; background: rgba(255,255,255,0.92);
+  border: 1.5px solid rgba(255,255,255,0.25); border-radius: 8px; margin: 4px 10px 10px;
+  padding: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.nat-section > .card .card-body { padding: 10px 14px; }
+.nat-section > .card .card-header { padding: 8px 14px; }
 .nat-section.nat-MY { border-color: #cc0001; box-shadow: 0 6px 28px rgba(204,0,1,0.3); }
 .nat-section.nat-PL { border-color: #dc143c; box-shadow: 0 6px 28px rgba(220,20,60,0.3); }
 .nat-section.nat-IQ { border-color: #007a3d; box-shadow: 0 6px 28px rgba(0,122,61,0.3); }
-.nat-section-title { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px;
-  padding: 12px 16px 4px; color: #fff; font-weight: 700; font-size: 15px;
-  text-shadow: 0 2px 6px rgba(0,0,0,0.7), 0 0 20px rgba(0,0,0,0.3); }
+.nat-section-title { position: relative; z-index: 2; display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px 2px; color: #fff; font-weight: 700; font-size: 14px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.7), 0 0 15px rgba(0,0,0,0.3); }
 .nat-section-title h3 { margin: 0; font-size: 16px; }
 .nat-section-title .badge { text-shadow: none; }
 
@@ -1393,332 +1395,234 @@ function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap
 
 // ━━━━━━━━━━━━ CANVAS PARTICLE BACKGROUND SYSTEM ━━━━━━━━━━━━
 var NAT_THEMES = {
-  'Malaysia': {
-    css: 'nat-MY',
-    bgGrad: ['#0C1445', '#1a237e'],
-    flagColors: ['#cc0001','#ffffff','#010066','#ffd700'],
-    accentColor: '#cc0001',
-    jetColor: 'rgba(255,215,0,0.7)',
-    particleColors: ['#cc0001','#ffd700','#ffffff','#010066'],
-    flagDraw: function(ctx, w, h) {
-      // Malaysian flag partial - top-left corner
-      var fw = w * 0.28, fh = h * 0.65;
-      ctx.save();
-      ctx.globalAlpha = 0.92;
-      // Stripes
-      var sh = fh / 7;
-      for (var i = 0; i < 7; i++) {
-        ctx.fillStyle = i % 2 === 0 ? '#cc0001' : '#ffffff';
-        ctx.fillRect(0, i * sh, fw, sh);
+  'Malaysia': { css:'nat-MY', bg1:'#0C1445', bg2:'#1a237e',
+    accent:'rgba(204,0,1,0.8)', jetC:'rgba(255,215,0,0.85)', sparkC:'rgba(251,191,36,',
+    pc:['#cc0001','#ffd700','#ffffff','#3b82f6'],
+    flag: function(ctx,fw,fh){ // Jalur Gemilang — 14 stripes + canton + crescent + star
+      var sh=fh/14;
+      for(var i=0;i<14;i++){ctx.fillStyle=i%2===0?'#cc0001':'#ffffff';ctx.fillRect(0,i*sh,fw,sh+1);}
+      var cw=fw*0.5,ch=fh*7/14;
+      ctx.fillStyle='#010066';ctx.fillRect(0,0,cw,ch);
+      var mcx=cw*0.38,mcy=ch*0.5,mr=Math.min(cw,ch)*0.32;
+      ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(mcx,mcy,mr,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#010066';ctx.beginPath();ctx.arc(mcx+mr*0.25,mcy-mr*0.06,mr*0.8,0,Math.PI*2);ctx.fill();
+      _star(ctx,cw*0.7,ch*0.5,mr*0.38,14,'#ffd700');
+    }},
+  'Poland': { css:'nat-PL', bg1:'#3d0c0c', bg2:'#1a0505',
+    accent:'rgba(220,20,60,0.8)', jetC:'rgba(255,255,255,0.8)', sparkC:'rgba(220,20,60,',
+    pc:['#dc143c','#ffffff','#ff6b6b','#fbbf24'],
+    flag: function(ctx,fw,fh){ // Flaga Polski — simple white top, red bottom
+      ctx.fillStyle='#ffffff';ctx.fillRect(0,0,fw,fh/2);
+      ctx.fillStyle='#dc143c';ctx.fillRect(0,fh/2,fw,fh/2+1);
+    }},
+  'Iraq': { css:'nat-IQ', bg1:'#0a2210', bg2:'#051208',
+    accent:'rgba(0,122,61,0.8)', jetC:'rgba(0,220,120,0.8)', sparkC:'rgba(0,200,100,',
+    pc:['#ce1126','#007a3d','#ffffff','#00ff88'],
+    flag: function(ctx,fw,fh){ // Flag of Iraq — red/white/black, green Takbir in white band
+      var th=fh/3;
+      ctx.fillStyle='#ce1126';ctx.fillRect(0,0,fw,th+1);
+      ctx.fillStyle='#ffffff';ctx.fillRect(0,th,fw,th+1);
+      ctx.fillStyle='#000000';ctx.fillRect(0,th*2,fw,th+1);
+      // Takbir (stylized Kufic script representation)
+      ctx.fillStyle='#007a3d';
+      var tx=fw*0.15,tw=fw*0.7,ty=th+th*0.25,tbh=th*0.5;
+      // Simplified geometric Kufic-style Takbir
+      var bw=tw/11;
+      for(var i=0;i<11;i++){
+        var bx=tx+i*bw;
+        var heights=[0.9,0.5,0.6,0.8,0.3,0.9,0.7,0.5,0.8,0.6,0.7];
+        var hh=tbh*heights[i];
+        ctx.fillRect(bx+bw*0.15,ty+tbh-hh,bw*0.7,hh);
+        if(i%3===0){ctx.beginPath();ctx.arc(bx+bw*0.5,ty+tbh-hh-bw*0.2,bw*0.25,0,Math.PI*2);ctx.fill();}
       }
-      // Navy canton
-      var cw = fw * 0.55, ch = fh * 0.58;
-      ctx.fillStyle = '#010066';
-      ctx.fillRect(0, 0, cw, ch);
-      // Crescent
-      var mcx = cw * 0.4, mcy = ch * 0.5, mr = ch * 0.35;
-      ctx.fillStyle = '#ffd700';
-      ctx.beginPath(); ctx.arc(mcx, mcy, mr, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#010066';
-      ctx.beginPath(); ctx.arc(mcx + mr * 0.28, mcy - mr * 0.08, mr * 0.78, 0, Math.PI * 2); ctx.fill();
-      // Star
-      drawStar14(ctx, cw * 0.72, ch * 0.5, mr * 0.42, '#ffd700');
-      // Fade edge
-      ctx.globalAlpha = 1;
-      var grd = ctx.createLinearGradient(fw - 40, 0, fw, 0);
-      grd.addColorStop(0, 'rgba(12,20,69,0)'); grd.addColorStop(1, 'rgba(12,20,69,1)');
-      ctx.fillStyle = grd; ctx.fillRect(fw - 40, 0, 40, fh);
-      var grd2 = ctx.createLinearGradient(0, fh - 30, 0, fh);
-      grd2.addColorStop(0, 'rgba(12,20,69,0)'); grd2.addColorStop(1, 'rgba(12,20,69,1)');
-      ctx.fillStyle = grd2; ctx.fillRect(0, fh - 30, fw, 30);
-      ctx.restore();
-    }
-  },
-  'Poland': {
-    css: 'nat-PL',
-    bgGrad: ['#4a0e0e', '#2d0000'],
-    flagColors: ['#dc143c','#ffffff'],
-    accentColor: '#dc143c',
-    jetColor: 'rgba(255,255,255,0.7)',
-    particleColors: ['#dc143c','#ffffff','#ff6b6b','#ffd700'],
-    flagDraw: function(ctx, w, h) {
-      var fw = w * 0.25, fh = h * 0.6;
-      ctx.save();
-      ctx.globalAlpha = 0.92;
-      // White top
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, fw, fh / 2);
-      // Red bottom
-      ctx.fillStyle = '#dc143c';
-      ctx.fillRect(0, fh / 2, fw, fh / 2);
-      // Checkerboard emblem
-      var cs = fh * 0.09, ecx = fw * 0.5, ecy = fh * 0.35;
-      var colors = ['#dc143c','#ffffff'];
-      for (var r = 0; r < 3; r++) {
-        for (var c = 0; c < 3; c++) {
-          ctx.fillStyle = colors[(r + c) % 2];
-          ctx.fillRect(ecx - cs * 1.5 + c * cs, ecy - cs * 1.5 + r * cs, cs, cs);
-        }
-      }
-      ctx.strokeStyle = '#8b0000'; ctx.lineWidth = 1.5;
-      ctx.strokeRect(ecx - cs * 1.5, ecy - cs * 1.5, cs * 3, cs * 3);
-      // Fade
-      ctx.globalAlpha = 1;
-      var grd = ctx.createLinearGradient(fw - 40, 0, fw, 0);
-      grd.addColorStop(0, 'rgba(74,14,14,0)'); grd.addColorStop(1, 'rgba(74,14,14,1)');
-      ctx.fillStyle = grd; ctx.fillRect(fw - 40, 0, 40, fh);
-      var grd2 = ctx.createLinearGradient(0, fh - 25, 0, fh);
-      grd2.addColorStop(0, 'rgba(74,14,14,0)'); grd2.addColorStop(1, 'rgba(74,14,14,1)');
-      ctx.fillStyle = grd2; ctx.fillRect(0, fh - 25, fw, 25);
-      ctx.restore();
-    }
-  },
-  'Iraq': {
-    css: 'nat-IQ',
-    bgGrad: ['#0a2e14', '#0d1f0d'],
-    flagColors: ['#ce1126','#ffffff','#007a3d','#000000'],
-    accentColor: '#007a3d',
-    jetColor: 'rgba(0,200,100,0.7)',
-    particleColors: ['#ce1126','#007a3d','#ffffff','#00ff88'],
-    flagDraw: function(ctx, w, h) {
-      var fw = w * 0.25, fh = h * 0.65;
-      ctx.save();
-      ctx.globalAlpha = 0.92;
-      var th = fh / 3;
-      ctx.fillStyle = '#ce1126'; ctx.fillRect(0, 0, fw, th);
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, th, fw, th);
-      ctx.fillStyle = '#000000'; ctx.fillRect(0, th * 2, fw, th);
-      // Green stars in white band
-      var starY = th + th / 2;
-      drawStar5(ctx, fw * 0.25, starY, th * 0.28, '#007a3d');
-      drawStar5(ctx, fw * 0.5, starY, th * 0.32, '#007a3d');
-      drawStar5(ctx, fw * 0.75, starY, th * 0.28, '#007a3d');
-      // Fade
-      ctx.globalAlpha = 1;
-      var grd = ctx.createLinearGradient(fw - 40, 0, fw, 0);
-      grd.addColorStop(0, 'rgba(10,46,20,0)'); grd.addColorStop(1, 'rgba(10,46,20,1)');
-      ctx.fillStyle = grd; ctx.fillRect(fw - 40, 0, 40, fh);
-      var grd2 = ctx.createLinearGradient(0, fh - 25, 0, fh);
-      grd2.addColorStop(0, 'rgba(10,46,20,0)'); grd2.addColorStop(1, 'rgba(10,46,20,1)');
-      ctx.fillStyle = grd2; ctx.fillRect(0, fh - 25, fw, 25);
-      ctx.restore();
-    }
-  }
+    }}
 };
 
-function drawStar5(ctx, cx, cy, r, color) {
-  ctx.fillStyle = color; ctx.beginPath();
-  for (var i = 0; i < 10; i++) {
-    var a = Math.PI / 2 * -1 + i * Math.PI / 5;
-    var rr = i % 2 === 0 ? r : r * 0.4;
-    if (i === 0) ctx.moveTo(cx + rr * Math.cos(a), cy + rr * Math.sin(a));
-    else ctx.lineTo(cx + rr * Math.cos(a), cy + rr * Math.sin(a));
-  }
-  ctx.closePath(); ctx.fill();
-}
-
-function drawStar14(ctx, cx, cy, r, color) {
-  ctx.fillStyle = color; ctx.beginPath();
-  for (var i = 0; i < 28; i++) {
-    var a = Math.PI / 2 * -1 + i * Math.PI / 14;
-    var rr = i % 2 === 0 ? r : r * 0.55;
-    if (i === 0) ctx.moveTo(cx + rr * Math.cos(a), cy + rr * Math.sin(a));
-    else ctx.lineTo(cx + rr * Math.cos(a), cy + rr * Math.sin(a));
-  }
-  ctx.closePath(); ctx.fill();
-}
-
-function drawFA50(ctx, x, y, scale, color, angle) {
-  ctx.save();
-  ctx.translate(x, y); ctx.rotate(angle || 0); ctx.scale(scale, scale);
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  // Fuselage
-  ctx.moveTo(0, -42); ctx.lineTo(3, -35); ctx.lineTo(5, -20); ctx.lineTo(6, 0);
-  // Right wing
-  ctx.lineTo(8, 5); ctx.lineTo(32, 16); ctx.lineTo(33, 18); ctx.lineTo(30, 18); ctx.lineTo(9, 10);
-  // Back fuselage
-  ctx.lineTo(8, 20); ctx.lineTo(7, 30);
-  // Right stabilizer
-  ctx.lineTo(17, 35); ctx.lineTo(17, 37); ctx.lineTo(6, 33);
-  // Tail
-  ctx.lineTo(5, 40); ctx.lineTo(3, 42); ctx.lineTo(0, 43);
-  // Left mirror
-  ctx.lineTo(-3, 42); ctx.lineTo(-5, 40); ctx.lineTo(-6, 33);
-  ctx.lineTo(-17, 37); ctx.lineTo(-17, 35); ctx.lineTo(-7, 30);
-  ctx.lineTo(-8, 20); ctx.lineTo(-9, 10);
-  ctx.lineTo(-30, 18); ctx.lineTo(-33, 18); ctx.lineTo(-32, 16);
-  ctx.lineTo(-8, 5); ctx.lineTo(-6, 0); ctx.lineTo(-5, -20); ctx.lineTo(-3, -35);
-  ctx.closePath(); ctx.fill();
-  // Canopy
-  ctx.fillStyle = 'rgba(255,255,255,0.25)';
-  ctx.beginPath();
-  ctx.ellipse(0, -22, 2.5, 10, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // Exhaust
-  ctx.fillStyle = 'rgba(255,150,50,0.5)';
-  ctx.beginPath();
-  ctx.ellipse(0, 45, 2, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+function _star(ctx,cx,cy,r,pts,color){
+  ctx.fillStyle=color;ctx.beginPath();
+  for(var i=0;i<pts*2;i++){
+    var a=-Math.PI/2+i*Math.PI/pts;
+    var rr=i%2===0?r:r*0.55;
+    i===0?ctx.moveTo(cx+rr*Math.cos(a),cy+rr*Math.sin(a)):ctx.lineTo(cx+rr*Math.cos(a),cy+rr*Math.sin(a));
+  }ctx.closePath();ctx.fill();
 }
 
 function NatCanvasBg(props) {
   var code = props.code;
   var canvasRef = React.useRef(null);
   var animRef = React.useRef(null);
-  var stateRef = React.useRef(null);
 
   React.useEffect(function() {
-    var theme = NAT_THEMES[code];
-    if (!theme) return;
-    var canvas = canvasRef.current;
-    if (!canvas) return;
-    var parent = canvas.parentElement;
-    if (!parent) return;
-    var ctx = canvas.getContext('2d');
+    var T = NAT_THEMES[code];
+    if (!T) return;
+    var cvs = canvasRef.current;
+    if (!cvs) return;
+    var par = cvs.parentElement;
+    if (!par) return;
+    var ctx = cvs.getContext('2d');
     var dpr = window.devicePixelRatio || 1;
-    var W = 0, H = 0;
-    var particles = [], jets = [];
-    var t = 0, inited = false;
+    var W, H, t = 0;
+    // State
+    var particles = [], speedLines = [], jets = [], sparks = [];
+
+    function initState() {
+      particles = []; speedLines = []; jets = []; sparks = [];
+      for (var i = 0; i < 50; i++) particles.push(mkPart());
+      for (var i = 0; i < 15; i++) speedLines.push({
+        x: Math.random() * W * 1.5, y: Math.random() * H,
+        len: 30 + Math.random() * 100, speed: 2 + Math.random() * 5,
+        alpha: 0.03 + Math.random() * 0.06
+      });
+      spawnJet(); spawnJet();
+    }
+    function mkPart() {
+      return { x: Math.random() * W, y: Math.random() * H,
+        vx: -0.2 - Math.random() * 0.8, vy: 0, size: 0.4 + Math.random() * 1.5,
+        bright: Math.random(), twinkle: 0.02 + Math.random() * 0.03,
+        color: T.pc[Math.floor(Math.random() * T.pc.length)] };
+    }
+    function spawnJet() {
+      var fromR = Math.random() > 0.3;
+      var sc = Math.min(W, H) / 350 * (0.5 + Math.random() * 0.5);
+      jets.push({ x: fromR ? W + 80 : -120, y: 30 + Math.random() * (H - 60),
+        speed: (2 + Math.random() * 3) * (fromR ? -1 : 1), scale: sc,
+        dir: fromR ? -1 : 1, tilt: (Math.random() - 0.5) * 0.12,
+        trail: [], ab: 0.5 + Math.random() * 0.5, alive: true });
+    }
+
+    function drawJetBody(ctx, j) {
+      ctx.save(); ctx.translate(j.x, j.y);
+      ctx.scale(j.dir * j.scale, j.scale); ctx.rotate(j.tilt);
+      // Afterburner
+      var abL = 25 + Math.sin(t * 0.2) * 12;
+      var abG = ctx.createRadialGradient(-50, 0, 2, -50 - abL, 0, abL);
+      abG.addColorStop(0, T.sparkC + (j.ab * 0.9) + ')');
+      abG.addColorStop(0.4, T.sparkC + (j.ab * 0.5) + ')');
+      abG.addColorStop(1, T.sparkC + '0)');
+      ctx.fillStyle = abG;
+      ctx.beginPath(); ctx.ellipse(-50, 0, abL, 5 + Math.sin(t * 0.25) * 2, 0, 0, Math.PI * 2); ctx.fill();
+      // Body
+      ctx.fillStyle = T.jetC; ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(60, 0); ctx.lineTo(30, -5); ctx.lineTo(10, -18); ctx.lineTo(-10, -20);
+      ctx.lineTo(-20, -12); ctx.lineTo(-45, -8); ctx.lineTo(-55, -22); ctx.lineTo(-48, -22);
+      ctx.lineTo(-42, -8); ctx.lineTo(-50, -6); ctx.lineTo(-50, 6); ctx.lineTo(-42, 8);
+      ctx.lineTo(-48, 22); ctx.lineTo(-55, 22); ctx.lineTo(-45, 8); ctx.lineTo(-20, 12);
+      ctx.lineTo(-10, 20); ctx.lineTo(10, 18); ctx.lineTo(30, 5);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      // Wings
+      ctx.fillStyle = T.accent;
+      ctx.beginPath(); ctx.moveTo(15, -6); ctx.lineTo(-15, -38); ctx.lineTo(-30, -36); ctx.lineTo(-10, -6); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(15, 6); ctx.lineTo(-15, 38); ctx.lineTo(-30, 36); ctx.lineTo(-10, 6); ctx.closePath(); ctx.fill();
+      // Cockpit
+      ctx.fillStyle = 'rgba(147,197,253,0.35)';
+      ctx.beginPath(); ctx.ellipse(25, -2, 10, 4, -0.1, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
 
     function resize() {
-      var rect = parent.getBoundingClientRect();
-      W = Math.max(rect.width, 200);
-      H = Math.max(rect.height, 120);
-      canvas.width = W * dpr;
-      canvas.height = H * dpr;
-      canvas.style.width = W + 'px';
-      canvas.style.height = H + 'px';
+      var rect = par.getBoundingClientRect();
+      W = Math.max(rect.width, 100); H = Math.max(rect.height, 80);
+      cvs.width = W * dpr; cvs.height = H * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      if (!inited) {
-        // Init particles
-        for (var i = 0; i < 45; i++) {
-          particles.push({
-            x: Math.random() * W, y: Math.random() * H,
-            vx: (Math.random() - 0.3) * 1.0,
-            vy: -(Math.random() * 1.0 + 0.2),
-            r: Math.random() * 2 + 0.5,
-            color: theme.particleColors[Math.floor(Math.random() * theme.particleColors.length)],
-            alpha: Math.random() * 0.5 + 0.2,
-            life: Math.random() * 300 + 150
-          });
-        }
-        inited = true;
-      }
-
-      // Scale jets to actual container size
-      var sc = Math.min(W / 600, H / 300, 1.8);
-      jets = [
-        { x: W * 0.58, y: H * 0.5, scale: 2.2 * sc, speed: 0.3, baseX: 0.58 },
-        { x: W * 0.76, y: H * 0.25, scale: 1.4 * sc, speed: 0.25, baseX: 0.76 },
-        { x: W * 0.88, y: H * 0.7, scale: 0.9 * sc, speed: 0.2, baseX: 0.88 }
-      ];
-      stateRef.current = { particles: particles, jets: jets };
+      initState();
     }
-
     resize();
-
-    // Watch for container resize
-    var ro = null;
-    if (window.ResizeObserver) {
-      ro = new ResizeObserver(function() { resize(); });
-      ro.observe(parent);
-    }
+    var ro = window.ResizeObserver ? new ResizeObserver(resize) : null;
+    if (ro) ro.observe(par);
 
     function render() {
       t++;
       ctx.clearRect(0, 0, W, H);
+      // BG gradient
+      var bg = ctx.createRadialGradient(W * 0.3, H * 0.4, 0, W * 0.5, H * 0.5, W * 0.9);
+      bg.addColorStop(0, T.bg1); bg.addColorStop(1, T.bg2);
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-      // Background gradient
-      var bg = ctx.createLinearGradient(0, 0, W, H);
-      bg.addColorStop(0, theme.bgGrad[0]);
-      bg.addColorStop(1, theme.bgGrad[1]);
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, W, H);
-
-      // Subtle grid
-      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-      ctx.lineWidth = 0.5;
-      var gridSp = Math.max(40, Math.min(W, H) / 8);
-      for (var gx = 0; gx < W; gx += gridSp) {
-        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
-      }
-      for (var gy = 0; gy < H; gy += gridSp) {
-        ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+      // Speed lines
+      for (var s = 0; s < speedLines.length; s++) {
+        var sl = speedLines[s]; sl.x -= sl.speed;
+        if (sl.x + sl.len < 0) { sl.x = W + sl.len; sl.y = Math.random() * H; }
+        ctx.strokeStyle = 'rgba(255,255,255,' + sl.alpha + ')'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(sl.x, sl.y); ctx.lineTo(sl.x + sl.len, sl.y); ctx.stroke();
       }
 
-      // Draw flag (scaled to container)
-      theme.flagDraw(ctx, W, H);
-
-      // Jets with contrails
-      for (var j = 0; j < jets.length; j++) {
-        var jet = jets[j];
-        var jy = jet.y + Math.sin(t * 0.02 + j) * 2;
-
-        // Contrails
-        ctx.save();
-        var tLen = 50 * jet.scale;
-        var grdT = ctx.createLinearGradient(jet.x, jy + jet.scale * 15, jet.x, jy + tLen);
-        grdT.addColorStop(0, theme.jetColor);
-        grdT.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.strokeStyle = grdT;
-        ctx.lineWidth = jet.scale * 0.8;
-        ctx.beginPath(); ctx.moveTo(jet.x - jet.scale * 2.5, jy + jet.scale * 15); ctx.lineTo(jet.x - jet.scale * 2.5, jy + tLen); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(jet.x + jet.scale * 2.5, jy + jet.scale * 15); ctx.lineTo(jet.x + jet.scale * 2.5, jy + tLen); ctx.stroke();
-        ctx.restore();
-
-        drawFA50(ctx, jet.x, jy, jet.scale, theme.jetColor, 0);
-
-        jet.y -= jet.speed;
-        if (jet.y < -jet.scale * 50) { jet.y = H + jet.scale * 50; jet.x = W * jet.baseX + (Math.random() - 0.5) * 30; }
-      }
+      // Flag — top-left corner, proportional, with fade
+      var flagW = Math.min(W * 0.22, 200), flagH = Math.min(H * 0.7, flagW * 0.6);
+      ctx.save(); ctx.globalAlpha = 0.88;
+      T.flag(ctx, flagW, flagH);
+      ctx.globalAlpha = 1;
+      // Right fade
+      var gR = ctx.createLinearGradient(flagW * 0.7, 0, flagW, 0);
+      gR.addColorStop(0, 'rgba(0,0,0,0)'); gR.addColorStop(1, T.bg1);
+      ctx.fillStyle = gR; ctx.fillRect(flagW * 0.7, 0, flagW * 0.3, flagH);
+      // Bottom fade
+      var gB = ctx.createLinearGradient(0, flagH * 0.7, 0, flagH);
+      gB.addColorStop(0, 'rgba(0,0,0,0)'); gB.addColorStop(1, T.bg1);
+      ctx.fillStyle = gB; ctx.fillRect(0, flagH * 0.7, flagW, flagH * 0.3);
+      ctx.restore();
 
       // Particles
       for (var p = 0; p < particles.length; p++) {
-        var pt = particles[p];
-        var pa = pt.alpha * (0.5 + 0.5 * Math.sin(t * 0.04 + p));
-        ctx.globalAlpha = pa;
+        var pt = particles[p]; pt.x += pt.vx; pt.bright += pt.twinkle;
+        var alp = 0.2 + Math.sin(pt.bright) * 0.5;
+        if (pt.x < -5) { pt.x = W + 5; pt.y = Math.random() * H; }
+        ctx.globalAlpha = Math.max(0, alp);
         ctx.fillStyle = pt.color;
-        ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2); ctx.fill();
-        // Glow
-        ctx.globalAlpha = pa * 0.12;
-        ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r * 3.5, 0, Math.PI * 2); ctx.fill();
-
-        pt.x += pt.vx; pt.y += pt.vy; pt.life--;
-        if (pt.life <= 0 || pt.x < -10 || pt.x > W + 10 || pt.y < -10 || pt.y > H + 10) {
-          pt.x = Math.random() * W; pt.y = H + Math.random() * 10;
-          pt.life = Math.random() * 300 + 150; pt.vy = -(Math.random() * 1.0 + 0.2);
-        }
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2); ctx.fill();
       }
       ctx.globalAlpha = 1;
 
-      // Speed lines
-      for (var sl = 0; sl < 4; sl++) {
-        var slY = (t * 0.5 + sl * H / 4) % H;
-        ctx.strokeStyle = 'rgba(255,255,255,' + (0.04 + Math.sin(t * 0.025 + sl) * 0.02) + ')';
-        ctx.lineWidth = 0.8;
-        ctx.beginPath(); ctx.moveTo(W * 0.3 + sl * 30, slY); ctx.lineTo(W * 0.3 + sl * 30 + 80 + sl * 15, slY); ctx.stroke();
+      // Jets
+      if (Math.random() < 0.006 && jets.length < 4) spawnJet();
+      for (var ji = jets.length - 1; ji >= 0; ji--) {
+        var jt = jets[ji]; jt.x += jt.speed; jt.y += Math.sin(t * 0.025 + ji) * 0.3;
+        // Trail
+        jt.trail.push({ x: jt.x - jt.dir * 45 * jt.scale, y: jt.y, a: 0.4 });
+        if (jt.trail.length > 40) jt.trail.shift();
+        for (var ti = 0; ti < jt.trail.length; ti++) {
+          var tp = jt.trail[ti]; tp.a *= 0.96;
+          ctx.fillStyle = 'rgba(255,255,255,' + (tp.a * 0.1) + ')';
+          ctx.beginPath(); ctx.arc(tp.x, tp.y, 2 + (jt.trail.length - ti) * 0.12, 0, Math.PI * 2); ctx.fill();
+        }
+        drawJetBody(ctx, jt);
+        // Sparks
+        if (Math.random() < 0.04) {
+          for (var si = 0; si < 4; si++) sparks.push({
+            x: jt.x, y: jt.y, vx: (Math.random()-0.5)*3, vy: (Math.random()-0.5)*3,
+            life: 1, decay: 0.03 + Math.random() * 0.03 });
+        }
+        if ((jt.dir === 1 && jt.x > W + 200) || (jt.dir === -1 && jt.x < -200)) jets.splice(ji, 1);
       }
+
+      // Sparks
+      for (var si = sparks.length - 1; si >= 0; si--) {
+        var sp = sparks[si]; sp.x += sp.vx; sp.y += sp.vy; sp.life -= sp.decay;
+        if (sp.life <= 0) { sparks.splice(si, 1); continue; }
+        ctx.fillStyle = T.sparkC + sp.life + ')';
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, 1.2 * sp.life, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Subtle HUD text
+      ctx.save(); ctx.font = Math.max(9, H * 0.06) + 'px "Courier New",monospace';
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.15 + Math.sin(t * 0.03) * 0.05) + ')';
+      ctx.fillText('ATMS // FA-50', 10, H - 10);
+      ctx.textAlign = 'right';
+      ctx.fillText('MODE: TRAINING', W - 10, H - 10);
+      ctx.restore();
 
       animRef.current = requestAnimationFrame(render);
     }
 
-    // Small delay to ensure parent has layout
-    var startTimer = setTimeout(function() { resize(); render(); }, 50);
-
+    var timer = setTimeout(function() { resize(); render(); }, 60);
     return function() {
-      clearTimeout(startTimer);
+      clearTimeout(timer);
       if (animRef.current) cancelAnimationFrame(animRef.current);
       if (ro) ro.disconnect();
     };
   }, [code]);
 
-  return React.createElement('canvas', {
-    ref: canvasRef,
-    className: 'nat-canvas-bg'
-  });
+  return React.createElement('canvas', { ref: canvasRef, className: 'nat-canvas-bg' });
 }
 
 function getNatCss(code) {
