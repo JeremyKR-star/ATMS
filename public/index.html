@@ -289,9 +289,8 @@ tr:hover { background: #fafbfc; }
 .nat-add-btn { padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer;
   border: 1.5px dashed var(--gray-300); background: transparent; color: var(--gray-400); transition: all 0.2s; }
 .nat-add-btn:hover { border-color: var(--primary); color: var(--primary); }
-.nat-section { position: relative; overflow: hidden; border-radius: var(--radius); margin-bottom: 20px; min-height: 120px; }
-.nat-section-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; width: 100%; height: 100%; }
-.nat-section > .card { position: relative; z-index: 1; background: rgba(255,255,255,0.72); }
+.nat-section { position: relative; overflow: hidden; border-radius: var(--radius); margin-bottom: 20px; min-height: 120px; background-size: cover; background-position: center; background-repeat: no-repeat; }
+.nat-section > .card { position: relative; z-index: 1; background: rgba(255,255,255,0.55); backdrop-filter: blur(1px); }
 
 /* ── Responsive: Tablet ── */
 @media (max-width: 1024px) {
@@ -1366,8 +1365,7 @@ function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap
         var natWeekly = weekly.filter(function(w){ return natPilotIds[w.id]; });
         if (natWeekly.length === 0) return null;
         return (
-          <div className="nat-section" key={nat.code}>
-            <NatSectionBg code={nat.code} />
+          <div className="nat-section" key={nat.code} style={getNatBgStyle(nat.code)}>
             <div className="card" style={{marginBottom:0}}>
               <div className="card-header"><h3>{nat.label_ko} - Weekly Report</h3>
                 <span className="badge badge-yellow">As of {new Date().toISOString().slice(0,10)}</span></div>
@@ -1380,144 +1378,15 @@ function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap
   );
 }
 
-// ━━━━━━━━━━━━ FLAG + JET SVG BACKGROUNDS ━━━━━━━━━━━━
-function NatSectionBg({ code }) {
-  // FA-50 jet silhouette path (reusable)
-  var jetPath = "M80 0 L55 -5 L25 -20 L0 -24 L-15 -16 L-50 -12 L-65 -30 L-55 -30 L-42 -12 L-56 -9 L-56 9 L-42 12 L-55 30 L-65 30 L-50 12 L-15 16 L0 24 L25 20 L55 5 Z";
-
-  if (code === 'Malaysia') {
-    return (
-      <svg className="nat-section-bg" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-        {/* Malaysian flag - red/white stripes */}
-        <rect x="0" y="0" width="1200" height="29" fill="#cc0001" opacity="0.18"/>
-        <rect x="0" y="29" width="1200" height="29" fill="#fff" opacity="0.06"/>
-        <rect x="0" y="58" width="1200" height="29" fill="#cc0001" opacity="0.15"/>
-        <rect x="0" y="87" width="1200" height="29" fill="#fff" opacity="0.06"/>
-        <rect x="0" y="116" width="1200" height="29" fill="#cc0001" opacity="0.12"/>
-        <rect x="0" y="145" width="1200" height="29" fill="#fff" opacity="0.06"/>
-        <rect x="0" y="174" width="1200" height="29" fill="#cc0001" opacity="0.10"/>
-        {/* Navy canton area */}
-        <rect x="0" y="0" width="350" height="200" fill="#010066" opacity="0.15"/>
-        {/* Crescent moon */}
-        <circle cx="150" cy="100" r="55" fill="#ffd700" opacity="0.22"/>
-        <circle cx="165" cy="95" r="45" fill="#010066" opacity="0.22"/>
-        {/* 14-point star */}
-        <polygon points="230,100 238,78 260,78 242,64 248,42 230,56 212,42 218,64 200,78 222,78" fill="#ffd700" opacity="0.25"/>
-        {/* Large FA-50 jet - right side */}
-        <g transform="translate(950,200) scale(2.8)" opacity="0.18" fill="#cc0001">
-          <path d={jetPath}/>
-          <ellipse cx="40" cy="0" rx="12" ry="5" opacity="0.4"/>
-        </g>
-        {/* Smaller jet - upper area */}
-        <g transform="translate(700,70) scale(1.5) rotate(-10)" opacity="0.10" fill="#010066">
-          <path d={jetPath}/>
-        </g>
-        {/* Speed lines */}
-        <line x1="400" y1="120" x2="750" y2="120" stroke="#cc0001" strokeWidth="3" opacity="0.12"/>
-        <line x1="500" y1="150" x2="850" y2="150" stroke="#010066" strokeWidth="2" opacity="0.10"/>
-        <line x1="350" y1="300" x2="700" y2="300" stroke="#cc0001" strokeWidth="2" opacity="0.10"/>
-        {/* RMAF roundel */}
-        <circle cx="480" cy="300" r="50" fill="none" stroke="#010066" strokeWidth="3" opacity="0.12"/>
-        <circle cx="480" cy="300" r="32" fill="#cc0001" opacity="0.08"/>
-        <circle cx="480" cy="300" r="16" fill="#ffd700" opacity="0.12"/>
-      </svg>
-    );
-  }
-
-  if (code === 'Poland') {
-    return (
-      <svg className="nat-section-bg" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-        {/* Polish flag - white top, red bottom */}
-        <rect x="0" y="0" width="1200" height="200" fill="#f0f0f0" opacity="0.12"/>
-        <rect x="0" y="200" width="1200" height="200" fill="#dc143c" opacity="0.16"/>
-        {/* Checkerboard pattern (Polish Air Force) */}
-        <rect x="50" y="50" width="60" height="60" fill="#dc143c" opacity="0.12"/>
-        <rect x="110" y="50" width="60" height="60" fill="#f0f0f0" opacity="0.08"/>
-        <rect x="50" y="110" width="60" height="60" fill="#f0f0f0" opacity="0.08"/>
-        <rect x="110" y="110" width="60" height="60" fill="#dc143c" opacity="0.12"/>
-        {/* Larger checker top-right */}
-        <rect x="1020" y="30" width="50" height="50" fill="#dc143c" opacity="0.10"/>
-        <rect x="1070" y="30" width="50" height="50" fill="#fff" opacity="0.06"/>
-        <rect x="1020" y="80" width="50" height="50" fill="#fff" opacity="0.06"/>
-        <rect x="1070" y="80" width="50" height="50" fill="#dc143c" opacity="0.10"/>
-        {/* Eagle silhouette (simplified Polish White Eagle) */}
-        <g transform="translate(200,180) scale(1.2)" opacity="0.14" fill="#dc143c">
-          <ellipse cx="0" cy="0" rx="40" ry="50"/>
-          <path d="M-35,-30 Q-60,-70 -30,-65 Q-10,-60 0,-45 Q10,-60 30,-65 Q60,-70 35,-30"/>
-          <path d="M-25,35 Q-40,60 -20,55 L0,40 L20,55 Q40,60 25,35"/>
-          <circle cx="0" cy="-5" r="8" fill="#ffd700" opacity="0.5"/>
-        </g>
-        {/* Large FA-50 jet - right */}
-        <g transform="translate(900,190) scale(2.8)" opacity="0.18" fill="#dc143c">
-          <path d={jetPath}/>
-          <ellipse cx="40" cy="0" rx="12" ry="5" opacity="0.4"/>
-        </g>
-        {/* Smaller jet - bottom left */}
-        <g transform="translate(500,330) scale(1.4) rotate(5)" opacity="0.10" fill="#8b0000">
-          <path d={jetPath}/>
-        </g>
-        {/* Speed lines */}
-        <line x1="350" y1="100" x2="700" y2="100" stroke="#dc143c" strokeWidth="3" opacity="0.12"/>
-        <line x1="450" y1="130" x2="800" y2="130" stroke="#8b0000" strokeWidth="2" opacity="0.08"/>
-        <line x1="300" y1="280" x2="650" y2="280" stroke="#dc143c" strokeWidth="2" opacity="0.10"/>
-        {/* Polish Air Force roundel (red/white check) */}
-        <rect x="620" y="270" width="30" height="30" fill="#dc143c" opacity="0.12"/>
-        <rect x="650" y="270" width="30" height="30" fill="#fff" opacity="0.08"/>
-        <rect x="620" y="300" width="30" height="30" fill="#fff" opacity="0.08"/>
-        <rect x="650" y="300" width="30" height="30" fill="#dc143c" opacity="0.12"/>
-      </svg>
-    );
-  }
-
-  if (code === 'Iraq') {
-    return (
-      <svg className="nat-section-bg" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-        {/* Iraqi flag - red / white / black + green text area */}
-        <rect x="0" y="0" width="1200" height="133" fill="#ce1126" opacity="0.18"/>
-        <rect x="0" y="133" width="1200" height="134" fill="#f8f8f8" opacity="0.06"/>
-        <rect x="0" y="267" width="1200" height="133" fill="#1a1a1a" opacity="0.12"/>
-        {/* Takbir green text representation - stylized */}
-        <text x="600" y="210" textAnchor="middle" fontSize="48" fontFamily="serif" fill="#007a3d" opacity="0.16" fontWeight="bold">&#9733; &#9733; &#9733;</text>
-        {/* Large green star */}
-        <polygon points="150,100 162,140 205,140 170,165 182,205 150,180 118,205 130,165 95,140 138,140" fill="#007a3d" opacity="0.18"/>
-        {/* Second star */}
-        <polygon points="300,300 308,325 335,325 313,340 320,365 300,350 280,365 287,340 265,325 292,325" fill="#007a3d" opacity="0.14"/>
-        {/* Large FA-50 jet - right */}
-        <g transform="translate(950,200) scale(2.8)" opacity="0.18" fill="#007a3d">
-          <path d={jetPath}/>
-          <ellipse cx="40" cy="0" rx="12" ry="5" opacity="0.4"/>
-        </g>
-        {/* Smaller jet - upper center */}
-        <g transform="translate(600,60) scale(1.6) rotate(-8)" opacity="0.12" fill="#ce1126">
-          <path d={jetPath}/>
-        </g>
-        {/* Speed lines */}
-        <line x1="350" y1="90" x2="700" y2="90" stroke="#ce1126" strokeWidth="3" opacity="0.14"/>
-        <line x1="400" y1="115" x2="780" y2="115" stroke="#007a3d" strokeWidth="2" opacity="0.10"/>
-        <line x1="300" y1="310" x2="650" y2="310" stroke="#1a1a1a" strokeWidth="2" opacity="0.10"/>
-        {/* Iraqi Air Force roundel */}
-        <circle cx="480" cy="300" r="45" fill="#ce1126" opacity="0.10"/>
-        <circle cx="480" cy="300" r="30" fill="#fff" opacity="0.06"/>
-        <circle cx="480" cy="300" r="16" fill="#007a3d" opacity="0.12"/>
-      </svg>
-    );
-  }
-
-  // Default fallback for unknown nationalities
-  var fc = { c1:'#2563eb', c2:'#dbeafe', c3:'#1e40af' };
-  return (
-    <svg className="nat-section-bg" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="1200" height="200" fill={fc.c1} opacity="0.12"/>
-      <rect x="0" y="200" width="1200" height="200" fill={fc.c3} opacity="0.10"/>
-      <g transform="translate(950,200) scale(2.8)" opacity="0.16" fill={fc.c1}>
-        <path d={jetPath}/>
-      </g>
-      <g transform="translate(300,80) scale(1.4) rotate(-8)" opacity="0.08" fill={fc.c3}>
-        <path d={jetPath}/>
-      </g>
-      <circle cx="600" cy="200" r="80" fill="none" stroke={fc.c1} strokeWidth="3" opacity="0.10"/>
-    </svg>
-  );
+// ━━━━━━━━━━━━ NATIONALITY BACKGROUND IMAGES ━━━━━━━━━━━━
+var NAT_BG_MAP = {
+  'Malaysia': '/img/bg_malaysia.png',
+  'Poland': '/img/bg_poland.png',
+  'Iraq': '/img/bg_iraq.png'
+};
+function getNatBgStyle(code) {
+  var url = NAT_BG_MAP[code] || '/img/bg_default.png';
+  return { backgroundImage: 'url(' + url + ')' };
 }
 
 // ━━━━━━━━━━━━ PILOT PAGE (API-Driven) ━━━━━━━━━━━━
@@ -1724,8 +1593,7 @@ function PilotPage() {
             if (groupPilots.length === 0) return null;
             var gIdx = getGroupIdx(nat.code);
             return (
-              <div className="nat-section" key={nat.code}>
-                <NatSectionBg code={nat.code} />
+              <div className="nat-section" key={nat.code} style={getNatBgStyle(nat.code)}>
                 <div className="card" style={{marginBottom:0}}>
                   <div className="card-header">
                     <h3>{nat.label_ko} Pilots</h3>
@@ -1781,8 +1649,7 @@ function PilotPage() {
 
           {/* ── Single nationality filter → single carousel with bg ── */}
           {natFilter!=='all' && filteredPilots.length > 0 && (
-            <div className="nat-section">
-              <NatSectionBg code={natFilter} />
+            <div className="nat-section" style={getNatBgStyle(natFilter)}>
               <div className="card" style={{marginBottom:0}}>
                 <div className="card-header"><h3>{natLabelMap[natFilter]||natFilter} T-50 Transition Course Pilots</h3>
                   <span className="badge badge-blue">{filteredPilots.length}명</span></div>
@@ -1866,8 +1733,7 @@ function PilotPage() {
             }
             if (natPilots.length === 0) return null;
             return (
-              <div className="nat-section" key={nat.code}>
-                <NatSectionBg code={nat.code} />
+              <div className="nat-section" key={nat.code} style={getNatBgStyle(nat.code)}>
                 <div className="card" style={{marginBottom:0}}>
                   <div className="card-header"><h3>{nat.label_ko} - Individual Training Status</h3>
                     <span className="badge badge-blue">{natPilots.length}명</span></div>
