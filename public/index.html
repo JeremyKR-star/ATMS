@@ -1898,15 +1898,13 @@ function OJTPage() {
                 <div key={t.id} style={{padding:'10px 0',borderBottom:'1px solid var(--gray-50)'}}>
                   <strong>{t.order_num}. {t.name}</strong>
                   <div style={{fontSize:12,color:'var(--gray-500)'}}>{t.description} | {t.required_hours}h</div></div>
-              );
-              )}}
+              );})}
               <h4 style={{marginTop:20,marginBottom:10}}>참여자 ({(detail.enrollments||[]).length})</h4>
               {(detail.enrollments||[]).map(function(e){return (
                 <div key={e.id} style={{padding:'8px 0',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid var(--gray-50)'}}>
                   <div style={{display:'flex',alignItems:'center',gap:8}}><Avatar name={e.trainee_name} size="xs"/>{e.trainee_name}</div>
                   <span><StatusBadge status={e.status}/> {e.progress}%</span></div>
-              );
-              )}}
+              );})}
             </>):<div className="empty-state">프로그램 선택</div>}
           </div></div>
         </div>
