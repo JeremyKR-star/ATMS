@@ -1382,13 +1382,10 @@ function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap
         var natWeekly = weekly.filter(function(w){ return natPilotIds[w.id]; });
         if (natWeekly.length === 0) return null;
         return (
-          <div className={'nat-section ' + getNatCss(nat.code)} key={nat.code}>
-            <NatCanvasBg code={nat.code} />
-            <div className="nat-section-title"><h3>{nat.label_ko} - Weekly Report</h3>
-              <span className="badge badge-yellow">As of {new Date().toISOString().slice(0,10)}</span></div>
-            <div className="card" style={{marginBottom:0}}>
-              <WeeklyReportTable rows={natWeekly} />
-            </div>
+          <div className="card" key={nat.code} style={{marginBottom:16}}>
+            <div className="card-header"><h3 style={{margin:0,fontSize:16}}>{nat.label_ko} - Weekly Report</h3>
+              <span className="badge badge-yellow" style={{marginLeft:8}}>As of {new Date().toISOString().slice(0,10)}</span></div>
+            <WeeklyReportTable rows={natWeekly} />
           </div>
         );
       })}
@@ -1979,12 +1976,10 @@ function PilotPage() {
             }
             if (natPilots.length === 0) return null;
             return (
-              <div className={'nat-section ' + getNatCss(nat.code)} key={nat.code}>
-                <NatCanvasBg code={nat.code} />
-                <div className="nat-section-title"><h3>{nat.label_ko} - Individual Training Status</h3>
-                  <span className="badge badge-blue">{natPilots.length}명</span></div>
-                <div className="card" style={{marginBottom:0}}>
-                  <div className="card-body"><div className="table-wrapper">
+              <div className="card" key={nat.code} style={{marginBottom:16}}>
+                <div className="card-header"><h3 style={{margin:0,fontSize:16}}>{nat.label_ko} - Individual Training Status</h3>
+                  <span className="badge badge-blue" style={{marginLeft:8}}>{natPilots.length}명</span></div>
+                <div className="card-body"><div className="table-wrapper">
                     <table className="training-table">
                       <thead>
                         <tr>
@@ -2047,7 +2042,6 @@ function PilotPage() {
                       </tbody>
                     </table>
                   </div></div>
-                </div>
               </div>
             );
           })}
