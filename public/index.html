@@ -233,8 +233,10 @@ tr:hover { background: #fafbfc; }
 /* ── Pilot Carousel ── */
 .pilot-carousel { position: relative; overflow: hidden; }
 .pilot-carousel-track { display: flex; transition: transform 0.5s cubic-bezier(0.4,0,0.2,1); }
-.pilot-card { min-width: 100%; display: flex; justify-content: center; padding: 20px; }
-.pilot-profile { text-align: center; width: 100%; max-width: 400px; }
+.pilot-card { min-width: 100%; display: flex; justify-content: center; padding: 12px 20px; }
+.pilot-profile { text-align: center; width: 100%; max-width: 400px;
+  background: rgba(255,255,255,0.92); border-radius: 12px; padding: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25); border: 1.5px solid rgba(255,255,255,0.3); }
 .pilot-photo { width: 160px; height: 160px; border-radius: 50%; margin: 0 auto 20px;
   background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); display: flex; align-items: center;
   justify-content: center; font-size: 56px; font-weight: 800; color: var(--primary-dark);
@@ -256,8 +258,10 @@ tr:hover { background: #fafbfc; }
 .carousel-prev { left: 10px; }
 .carousel-next { right: 10px; }
 .carousel-dots { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
-.carousel-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gray-200); cursor: pointer; transition: all 0.3s; }
-.carousel-dot.active { background: var(--primary); width: 28px; border-radius: 5px; }
+.carousel-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.4); cursor: pointer; transition: all 0.3s; }
+.carousel-dot.active { background: rgba(255,255,255,0.9); width: 28px; border-radius: 5px; }
+.nat-section .carousel-nav { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; }
+.nat-section .carousel-nav:hover { background: rgba(255,255,255,0.3); color: #fff; }
 
 /* ── Training Progress ── */
 .training-table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -292,10 +296,9 @@ tr:hover { background: #fafbfc; }
 .nat-section { position: relative; overflow: hidden; border-radius: 12px; margin-bottom: 24px;
   border: 2px solid #333; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
 .nat-canvas-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: block; }
-.nat-section > .card { position: relative; z-index: 2; background: rgba(255,255,255,0.92);
-  border: 1.5px solid rgba(255,255,255,0.25); border-radius: 8px; margin: 4px 10px 10px;
-  padding: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-.nat-section > .card .card-body { padding: 10px 14px; }
+.nat-section > .card { position: relative; z-index: 2; background: transparent;
+  border: none; border-radius: 0; margin: 0; padding: 0; box-shadow: none; }
+.nat-section > .card .card-body { padding: 10px 14px; background: transparent; }
 .nat-section > .card .card-header { padding: 8px 14px; }
 .nat-section.nat-MY { border-color: #cc0001; box-shadow: 0 6px 28px rgba(204,0,1,0.3); }
 .nat-section.nat-PL { border-color: #dc143c; box-shadow: 0 6px 28px rgba(220,20,60,0.3); }
