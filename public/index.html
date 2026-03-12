@@ -589,13 +589,20 @@ const { useState, useEffect, useCallback, useRef, createContext, useContext } = 
 
 // ─── API ───
 const API = window.location.origin + '/api';
-async function api(path, options = {}) {
-  const token = localStorage.getItem('atms_token');
-  const headers = {};
+async function api(path, options) {
+  if (!options) options = {};
+  var token = localStorage.getItem('atms_token');
+  var headers = {};
   if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API}${path}`, { ...options, headers: { ...headers, ...options.headers } });
-  const data = await res.json();
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  var res = await fetch(API + path, Object.assign({}, options, { headers: Object.assign({}, headers, options.headers || {}) }));
+  var data = await res.json();
+  if (res.status === 401) {
+    localStorage.removeItem('atms_token');
+    localStorage.removeItem('atms_user');
+    window.location.reload();
+    throw new Error('세션이 만료되었습니다. 다시 로그인해주세요.');
+  }
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
 }
