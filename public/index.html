@@ -18,6 +18,10 @@
   --gray-400: #9ca3af; --gray-500: #6b7280; --gray-600: #4b5563; --gray-700: #374151;
   --gray-800: #1f2937; --gray-900: #111827;
   --sidebar-w: 260px; --sidebar-collapsed-w: 68px; --radius: 12px;
+  /* Weekly Report color scheme */
+  --wr-flight: #2563eb; --wr-flight-bg: #dbeafe; --wr-flight-text: #1d4ed8;
+  --wr-sim: #7c3aed; --wr-sim-bg: #ede9fe; --wr-sim-text: #5b21b6;
+  --wr-total: #b45309; --wr-total-bg: #fef3c7; --wr-total-text: #92400e;
 }
 body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f2f5; color: var(--gray-800); }
 a { color: var(--primary); text-decoration: none; }
@@ -277,6 +281,14 @@ tr:hover { background: #fafbfc; }
 .active-indicator { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--gray-500); }
 .active-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: activePulse 2s infinite; }
 @keyframes activePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.nat-filter-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+.nat-chip { padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+  border: 1.5px solid var(--gray-200); background: #fff; color: var(--gray-600); transition: all 0.2s; }
+.nat-chip:hover { border-color: var(--primary); color: var(--primary); }
+.nat-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.nat-add-btn { padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+  border: 1.5px dashed var(--gray-300); background: transparent; color: var(--gray-400); transition: all 0.2s; }
+.nat-add-btn:hover { border-color: var(--primary); color: var(--primary); }
 
 /* ── Responsive: Tablet ── */
 @media (max-width: 1024px) {
@@ -658,7 +670,7 @@ function LoginBackground() {
       ctx.save();
       ctx.font = '11px "Courier New", monospace';
       ctx.fillStyle = 'rgba(96,165,250,' + (0.3 + Math.sin(time * 2) * 0.15) + ')';
-      ctx.fillText('RMAF // FA-50 // T-50i', 30, 40);
+      ctx.fillText('ATMS // FA-50 // T-50i', 30, 40);
       ctx.fillText('TACTICAL TRAINING SYSTEM', 30, 56);
       ctx.fillStyle = 'rgba(96,165,250,' + (0.3 + Math.sin(time * 2.5 + 1) * 0.15) + ')';
       ctx.fillText('ALT 35,000 FT', W - 170, 40);
@@ -1301,23 +1313,23 @@ function WeeklyReport({ weekly }) {
   const totSimDone = weekly.reduce(function(s,w){return s+w.simDone;},0);
   return (
     <div>
-      <div className="card"><div className="card-header"><h3>Weekly Report of RMAF Pilot Training</h3>
+      <div className="card"><div className="card-header"><h3>Weekly Report of Pilot Training</h3>
         <span className="badge badge-yellow">As of {new Date().toISOString().slice(0,10)}</span></div>
         <div className="card-body">
           <div style={{marginBottom:20}}>
             <div className="stats-grid" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-              <div className="stat-card"><div className="stat-icon" style={{background:'#dbeafe',color:'#2563eb'}}>✈</div>
-                <div className="stat-value">{totFltPlan}</div><div className="stat-label">Total Flight Plan (Sortie)</div></div>
-              <div className="stat-card"><div className="stat-icon" style={{background:'#d1fae5',color:'#059669'}}>✓</div>
-                <div className="stat-value">{totFltDone}</div><div className="stat-label">Flight Done</div></div>
-              <div className="stat-card"><div className="stat-icon" style={{background:'#fef3c7',color:'#d97706'}}>🖥</div>
-                <div className="stat-value">{totSimDone} / {totSimPlan}</div><div className="stat-label">SIM Done / Plan</div></div>
+              <div className="stat-card"><div className="stat-icon" style={{background:'var(--wr-flight-bg)',color:'var(--wr-flight)'}}>✈</div>
+                <div className="stat-value" style={{color:'var(--wr-flight)'}}>{totFltPlan}</div><div className="stat-label">Total Flight Plan (Sortie)</div></div>
+              <div className="stat-card"><div className="stat-icon" style={{background:'var(--wr-sim-bg)',color:'var(--wr-sim)'}}>🖥</div>
+                <div className="stat-value" style={{color:'var(--wr-sim)'}}>{totSimDone} / {totSimPlan}</div><div className="stat-label">SIM Done / Plan</div></div>
+              <div className="stat-card"><div className="stat-icon" style={{background:'var(--wr-total-bg)',color:'var(--wr-total)'}}>✓</div>
+                <div className="stat-value" style={{color:'var(--wr-total)'}}>{totFltDone + totSimDone}</div><div className="stat-label">Total Done</div></div>
             </div>
           </div>
           <div className="table-wrapper"><table>
-            <thead><tr><th>Pilot</th><th colSpan="3" style={{textAlign:'center',background:'#dbeafe',color:'#1d4ed8'}}>Flight</th>
-              <th colSpan="3" style={{textAlign:'center',background:'#d1fae5',color:'#065f46'}}>Simulator</th>
-              <th colSpan="3" style={{textAlign:'center',background:'#fef3c7',color:'#92400e'}}>Total</th><th>Progress</th></tr>
+            <thead><tr><th>Pilot</th><th colSpan="3" style={{textAlign:'center',background:'var(--wr-flight-bg)',color:'var(--wr-flight-text)'}}>Flight</th>
+              <th colSpan="3" style={{textAlign:'center',background:'var(--wr-sim-bg)',color:'var(--wr-sim-text)'}}>Simulator</th>
+              <th colSpan="3" style={{textAlign:'center',background:'var(--wr-total-bg)',color:'var(--wr-total-text)'}}>Total</th><th>Progress</th></tr>
             <tr><th></th><th>Plan</th><th>Done</th><th>Remain</th><th>Plan</th><th>Done</th><th>Remain</th>
               <th>Plan</th><th>Done</th><th>Remain</th><th></th></tr></thead>
             <tbody>{weekly.map(function(w){
@@ -1326,15 +1338,15 @@ function WeeklyReport({ weekly }) {
               return (
                 <tr key={w.id}>
                   <td><strong>{w.name}</strong></td>
-                  <td className="text-center">{w.fltPlan}</td><td className="text-center" style={{color:'var(--success)',fontWeight:700}}>{w.fltDone}</td>
+                  <td className="text-center">{w.fltPlan}</td><td className="text-center" style={{color:'var(--wr-flight)',fontWeight:700}}>{w.fltDone}</td>
                   <td className="text-center" style={{color:'var(--danger)'}}>{w.fltRemain}</td>
-                  <td className="text-center">{w.simPlan}</td><td className="text-center" style={{color:'var(--success)',fontWeight:700}}>{w.simDone}</td>
+                  <td className="text-center">{w.simPlan}</td><td className="text-center" style={{color:'var(--wr-sim)',fontWeight:700}}>{w.simDone}</td>
                   <td className="text-center" style={{color:'var(--danger)'}}>{w.simRemain}</td>
-                  <td className="text-center">{total}</td><td className="text-center" style={{fontWeight:700}}>{done}</td>
+                  <td className="text-center">{total}</td><td className="text-center" style={{fontWeight:700,color:'var(--wr-total)'}}>{done}</td>
                   <td className="text-center" style={{color:'var(--danger)'}}>{total-done}</td>
                   <td style={{width:120}}>
                     <div className="flex-between" style={{fontSize:11}}><span>{pct}%</span></div>
-                    <div className="progress-bar"><div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg,#2563eb,#059669)'}}/></div>
+                    <div className="progress-bar"><div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg, var(--wr-flight), var(--wr-sim))'}}/></div>
                   </td>
                 </tr>
               );
@@ -1363,19 +1375,36 @@ function PilotPage() {
   const [cellDate, setCellDate] = useState('');
   const [cellTime, setCellTime] = useState('1:00');
   const [cellPos, setCellPos] = useState({x:0,y:0});
+  const [nationalities, setNationalities] = useState([]);
+  const [natFilter, setNatFilter] = useState('all');
+  const [showNatAdd, setShowNatAdd] = useState(false);
+  const [newNatCode, setNewNatCode] = useState('');
+  const [newNatLabel, setNewNatLabel] = useState('');
   const { user, showToast } = useApp();
   const isAdmin = ['admin','ojt_admin'].includes(user.role);
   const canEditTraining = isAdmin || user.role === 'instructor';
 
+  // Nationality label map: code -> ko label
+  var natLabelMap = {'Malaysia':'말레이시아','Poland':'폴란드','Iraq':'이라크'};
+  nationalities.forEach(function(n){ natLabelMap[n.code] = n.label_ko; });
+
+  // Compat: also map old 'Malaysian' -> Malaysia
+  var normalizeNat = function(val) {
+    if (val === 'Malaysian') return 'Malaysia';
+    return val || '';
+  };
+
   const loadAll = useCallback(async () => {
     try {
-      const [p,c,t,w] = await Promise.all([
-        api('/pilots'), api('/pilots/courses'), api('/pilots/training'), api('/pilots/weekly')
+      const [p,c,t,w,n] = await Promise.all([
+        api('/pilots'), api('/pilots/courses'), api('/pilots/training'), api('/pilots/weekly'),
+        api('/pilots/nationalities')
       ]);
       setPilots((p.data||[]).filter(x=>x.status==='active'));
       setCourses(c.data||[]);
       setTrainingRecs(t.data||[]);
       setWeekly(w.data||[]);
+      setNationalities(n.data||[]);
     } catch(e) { showToast(e.message,'error'); }
     setLoading(false);
   }, []);
@@ -1396,7 +1425,7 @@ function PilotPage() {
   const getPilotFltDone = (pid) => trainingRecs.filter(r=>r.pilot_id===pid && fltCourses.some(c=>c.id===r.course_id)).length;
 
   // Pilot CRUD
-  const emptyForm = {name:'',short_name:'',rank:'Major',service_number:'',callsign:'',nationality:'Malaysian',
+  const emptyForm = {name:'',short_name:'',rank:'Major',service_number:'',callsign:'',nationality:'Malaysia',
     squadron:'',date_of_birth:'',course_class:'',training_start_date:'',training_end_date:'',phone:'',email:'',notes:'',sort_order:pilots.length};
   const openCreate = ()=>{setPilotForm(emptyForm);setEditingPilot(null);setShowPilotModal(true);};
   const openEdit = (p)=>{setPilotForm({...p});setEditingPilot(p);setShowPilotModal(true);};
@@ -1457,7 +1486,26 @@ function PilotPage() {
     } catch(e) { showToast(e.message,'error'); }
   };
 
-  const goTo = (idx)=>setActiveIdx(Math.max(0,Math.min(idx,pilots.length-1)));
+  // Filter pilots by nationality
+  var filteredPilots = natFilter === 'all' ? pilots : pilots.filter(function(p) {
+    return normalizeNat(p.nationality) === natFilter;
+  });
+
+  // Reset carousel index when filter changes
+  useEffect(function(){setActiveIdx(0);},[natFilter]);
+
+  const goTo = (idx)=>setActiveIdx(Math.max(0,Math.min(idx,filteredPilots.length-1)));
+
+  // Add nationality handler
+  var addNationality = async function() {
+    if (!newNatCode || !newNatLabel) return showToast('Code and label required','error');
+    try {
+      await api('/pilots/nationalities',{method:'POST',body:JSON.stringify({code:newNatCode,label_ko:newNatLabel})});
+      showToast('Nationality added','success');
+      setNewNatCode(''); setNewNatLabel(''); setShowNatAdd(false);
+      loadAll();
+    } catch(e) { showToast(e.message,'error'); }
+  };
 
   if(loading) return <div className="page-content"><p>Loading pilot data...</p></div>;
 
@@ -1476,52 +1524,85 @@ function PilotPage() {
         {isAdmin && <div className={`tab ${subTab==='manage'?'active':''}`} onClick={()=>setSubTab('manage')}>조종사 관리</div>}
       </div>
 
-      {/* ── Profiles Carousel ── */}
-      {subTab==='profiles' && pilots.length>0 && (
-        <div className="card">
-          <div className="card-header"><h3>RMAF T-50 Transition Course Pilots</h3>
-            <span className="badge badge-blue">{(pilots[0]&&pilots[0].training_start_date)||''} ~ {(pilots[0]&&pilots[0].training_end_date)||''}</span></div>
-          <div className="card-body">
-            <div className="pilot-carousel">
-              <button className="carousel-nav carousel-prev" onClick={()=>goTo(activeIdx-1)}>&#8249;</button>
-              <button className="carousel-nav carousel-next" onClick={()=>goTo(activeIdx+1)}>&#8250;</button>
-              <div className="pilot-carousel-track" style={{transform:`translateX(-${activeIdx*100}%)`}}>
-                {pilots.map((p,i)=>{
-                  const done=getPilotDone(p.id); const pct=totalCourses?Math.round((done/totalCourses)*100):0;
-                  const sd=getPilotSimDone(p.id); const fd=getPilotFltDone(p.id);
-                  return (
-                    <div className="pilot-card" key={p.id}>
-                      <div className="pilot-profile">
-                        <div className="pilot-photo" onClick={function(){if(isAdmin){setPhotoTarget(p.id);if(photoRef.current)photoRef.current.click();}}}>
-                          {p.photo_url ? <img src={p.photo_url} alt={p.short_name}/> :
-                            <>{(p.short_name||'?')[0]}{(p.short_name||'?').slice(-1)}</>}
-                        </div>
-                        <div className="pilot-name">{p.name}</div>
-                        <div className="pilot-rank">{p.rank} &middot; {p.callsign||p.service_number||'N/A'}</div>
-                        <div style={{margin:'0 auto',maxWidth:300}}>
-                          <div className="flex-between" style={{fontSize:12,marginBottom:4}}>
-                            <span>훈련 진도</span><span style={{fontWeight:700,color:'var(--primary)'}}>{pct}%</span></div>
-                          <div className="progress-bar" style={{height:10}}>
-                            <div className="progress-fill" style={{width:`${pct}%`,background:'linear-gradient(90deg,#2563eb,#7c3aed)'}}/></div>
-                        </div>
-                        <div className="pilot-stats">
-                          <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--primary)'}}>{sd}/{simCourses.length}</div>
-                            <div className="pilot-stat-lbl">SIM Sorties</div></div>
-                          <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--success)'}}>{fd}/{fltCourses.length}</div>
-                            <div className="pilot-stat-lbl">Flight Sorties</div></div>
-                          <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--warning)'}}>{done}/{totalCourses}</div>
-                            <div className="pilot-stat-lbl">Total</div></div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+      {/* ── Nationality Filter (shared across profiles tab) ── */}
+      {subTab==='profiles' && (
+        <div>
+          <div className="nat-filter-bar">
+            <span style={{fontSize:13,fontWeight:600,color:'var(--gray-500)',marginRight:4}}>국적:</span>
+            <button className={'nat-chip'+(natFilter==='all'?' active':'')} onClick={function(){setNatFilter('all');}}>전체</button>
+            {nationalities.map(function(n){return (
+              <button key={n.id} className={'nat-chip'+(natFilter===n.code?' active':'')} onClick={function(){setNatFilter(n.code);}}>
+                {n.label_ko}</button>
+            );})}
+            {!showNatAdd && <button className="nat-add-btn" onClick={function(){setShowNatAdd(true);}}>+ 국적 추가</button>}
+            {showNatAdd && (
+              <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                <input style={{padding:'5px 10px',borderRadius:8,border:'1.5px solid var(--gray-200)',fontSize:13,width:100}}
+                  placeholder="Code (English)" value={newNatCode} onChange={function(e){setNewNatCode(e.target.value);}}/>
+                <input style={{padding:'5px 10px',borderRadius:8,border:'1.5px solid var(--gray-200)',fontSize:13,width:100}}
+                  placeholder="라벨 (한글)" value={newNatLabel} onChange={function(e){setNewNatLabel(e.target.value);}}/>
+                <button className="btn btn-primary btn-sm" onClick={addNationality}>추가</button>
+                <button className="btn btn-outline btn-sm" onClick={function(){setShowNatAdd(false);setNewNatCode('');setNewNatLabel('');}}>취소</button>
               </div>
-              <div className="carousel-dots">
-                {pilots.map((_,i)=><div key={i} className={`carousel-dot ${i===activeIdx?'active':''}`} onClick={()=>goTo(i)}/>)}
+            )}
+          </div>
+
+          {filteredPilots.length > 0 ? (
+            <div className="card">
+              <div className="card-header"><h3>T-50 Transition Course Pilots</h3>
+                <span className="badge badge-blue">{(filteredPilots[0]&&filteredPilots[0].training_start_date)||''} ~ {(filteredPilots[0]&&filteredPilots[0].training_end_date)||''}</span></div>
+              <div className="card-body">
+                <div className="pilot-carousel">
+                  <button className="carousel-nav carousel-prev" onClick={()=>goTo(activeIdx-1)}>&#8249;</button>
+                  <button className="carousel-nav carousel-next" onClick={()=>goTo(activeIdx+1)}>&#8250;</button>
+                  <div className="pilot-carousel-track" style={{transform:'translateX(-'+activeIdx*100+'%)'}}>
+                    {filteredPilots.map(function(p,i){
+                      var done=getPilotDone(p.id); var pct=totalCourses?Math.round((done/totalCourses)*100):0;
+                      var sd=getPilotSimDone(p.id); var fd=getPilotFltDone(p.id);
+                      var natLabel = natLabelMap[normalizeNat(p.nationality)] || p.nationality || '-';
+                      return (
+                        <div className="pilot-card" key={p.id}>
+                          <div className="pilot-profile">
+                            <div className="pilot-photo" onClick={function(){if(isAdmin){setPhotoTarget(p.id);if(photoRef.current)photoRef.current.click();}}}>
+                              {p.photo_url ? <img src={p.photo_url} alt={p.short_name}/> :
+                                <>{(p.short_name||'?')[0]}{(p.short_name||'?').slice(-1)}</>}
+                            </div>
+                            <div className="pilot-name">{p.name}</div>
+                            <div className="pilot-rank">{p.rank} &middot; {p.callsign||p.service_number||'N/A'} &middot; <span className="badge badge-blue">{natLabel}</span></div>
+                            <div style={{margin:'0 auto',maxWidth:300}}>
+                              <div className="flex-between" style={{fontSize:12,marginBottom:4}}>
+                                <span>훈련 진도</span><span style={{fontWeight:700,color:'var(--primary)'}}>{pct}%</span></div>
+                              <div className="progress-bar" style={{height:10}}>
+                                <div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg,#2563eb,#7c3aed)'}}/></div>
+                            </div>
+                            <div className="pilot-stats">
+                              <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--primary)'}}>{sd}/{simCourses.length}</div>
+                                <div className="pilot-stat-lbl">SIM Sorties</div></div>
+                              <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--success)'}}>{fd}/{fltCourses.length}</div>
+                                <div className="pilot-stat-lbl">Flight Sorties</div></div>
+                              <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--warning)'}}>{done}/{totalCourses}</div>
+                                <div className="pilot-stat-lbl">Total</div></div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="carousel-dots">
+                    {filteredPilots.map(function(_,i){return <div key={i} className={'carousel-dot '+(i===activeIdx?'active':'')} onClick={function(){goTo(i);}}/> ;})}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="card"><div className="card-body">
+              <div className="empty-state" style={{padding:'60px 20px'}}>
+                <div style={{fontSize:48,marginBottom:12}}>🌍</div>
+                <div style={{fontSize:16,fontWeight:600,color:'var(--gray-600)',marginBottom:6}}>해당 국적의 조종사가 없습니다</div>
+                <div style={{fontSize:13,color:'var(--gray-400)'}}>다른 국적을 선택하거나 조종사 관리 탭에서 조종사를 추가해주세요.</div>
+              </div>
+            </div></div>
+          )}
         </div>
       )}
 
@@ -1535,7 +1616,7 @@ function PilotPage() {
             </select>
             {canEditTraining && <span style={{fontSize:12,color:'var(--gray-400)'}}>Click a cell to edit</span>}
           </div>
-          <div className="card"><div className="card-header"><h3>Individual Status of RMAF Pilot Training</h3></div>
+          <div className="card"><div className="card-header"><h3>Individual Pilot Training Status</h3></div>
             <div className="card-body"><div className="table-wrapper">
               <table className="training-table">
                 <thead>
@@ -1637,20 +1718,23 @@ function PilotPage() {
           <div className="card"><div className="card-body">
             <div className="table-wrapper"><table>
               <thead><tr><th style={{width:50}}></th><th>Short Name</th><th>Full Name</th><th>Rank</th>
-                <th>Service No.</th><th>Callsign</th><th>Squadron</th><th>Course Class</th><th style={{width:120}}></th></tr></thead>
-              <tbody>{pilots.map(p=>(
+                <th>Nationality</th><th>Service No.</th><th>Callsign</th><th>Squadron</th><th style={{width:120}}></th></tr></thead>
+              <tbody>{pilots.map(function(p){
+                var natLabel = natLabelMap[normalizeNat(p.nationality)] || p.nationality || '-';
+                return (
                 <tr key={p.id}>
                   <td><Avatar src={p.photo_url} name={p.short_name} size="sm"/></td>
                   <td><strong>{p.short_name}</strong></td><td>{p.name}</td><td>{p.rank}</td>
-                  <td>{p.service_number||'-'}</td><td>{p.callsign||'-'}</td><td>{p.squadron||'-'}</td><td>{p.course_class||'-'}</td>
+                  <td><span className="badge badge-blue">{natLabel}</span></td>
+                  <td>{p.service_number||'-'}</td><td>{p.callsign||'-'}</td><td>{p.squadron||'-'}</td>
                   <td>
                     <div style={{display:'flex',gap:4}}>
-                      <button className="btn btn-outline btn-sm" onClick={()=>openEdit(p)}>Edit</button>
-                      <button className="btn btn-danger btn-sm" onClick={()=>deactivatePilot(p)}>Del</button>
+                      <button className="btn btn-outline btn-sm" onClick={function(){openEdit(p);}}>Edit</button>
+                      <button className="btn btn-danger btn-sm" onClick={function(){deactivatePilot(p);}}>Del</button>
                     </div>
                   </td>
                 </tr>
-              ))}{pilots.length===0&&<tr><td colSpan="9" className="text-center" style={{padding:40,color:'var(--gray-400)'}}>No pilots</td></tr>}</tbody>
+              );})}{pilots.length===0&&<tr><td colSpan="9" className="text-center" style={{padding:40,color:'var(--gray-400)'}}>No pilots</td></tr>}</tbody>
             </table></div>
           </div></div>
         </div>
@@ -1673,7 +1757,14 @@ function PilotPage() {
             </select></div>
           {formField('Service Number','service_number')}
           {formField('Callsign','callsign')}
-          {formField('Nationality','nationality')}
+          <div className="form-group"><label>Nationality</label>
+            <div style={{display:'flex',gap:6}}>
+              <select style={{flex:1}} value={pilotForm.nationality||''} onChange={function(e){setPilotForm({...pilotForm,nationality:e.target.value});}}>
+                <option value="">Select</option>
+                {nationalities.map(function(n){return <option key={n.id} value={n.code}>{n.label_ko} ({n.code})</option>;})}
+              </select>
+            </div>
+          </div>
           {formField('Squadron','squadron')}
           {formField('Date of Birth','date_of_birth','date')}
           {formField('Course Class','course_class')}

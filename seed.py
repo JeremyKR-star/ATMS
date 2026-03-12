@@ -182,29 +182,57 @@ def seed():
     ])
 
     # ═══════════════════════════════════════════════
-    # ── RMAF Pilot Data ──
+    # ── Pilot Nationalities ──
+    # ═══════════════════════════════════════════════
+    nationalities = [
+        ('Malaysia', '말레이시아', 1),
+        ('Poland', '폴란드', 2),
+        ('Iraq', '이라크', 3),
+    ]
+    c.executemany("INSERT INTO pilot_nationalities (code, label_ko, sort_order) VALUES (?,?,?)", nationalities)
+
+    # ═══════════════════════════════════════════════
+    # ── Pilot Data ──
     # ═══════════════════════════════════════════════
 
     # ── Pilots (personal records) ──
     pilots = [
-        ('Mohd Jamil bin Awang', 'Jamil', 'Major', 'RMAF-2019-0451', 'RMAF-01', 'Malaysian',
+        ('Mohd Jamil bin Awang', 'Jamil', 'Major', 'RMAF-2019-0451', 'RMAF-01', 'Malaysia',
          'No. 12 Squadron', '1990-04-12', 'T-50 Transition Batch 1', '2026-01-26', '2026-05-08',
          '+60-11-2345-6701', 'jamil@rmaf.mil.my', '', 1),
-        ('Muhmmad Ashraf bin Wahab', 'Ashraf', 'Major', 'RMAF-2019-0467', 'RMAF-02', 'Malaysian',
+        ('Muhmmad Ashraf bin Wahab', 'Ashraf', 'Major', 'RMAF-2019-0467', 'RMAF-02', 'Malaysia',
          'No. 12 Squadron', '1991-08-23', 'T-50 Transition Batch 1', '2026-01-26', '2026-05-08',
          '+60-11-2345-6702', 'ashraf@rmaf.mil.my', '', 2),
-        ('Ahmad Nur Ikhwan bin Ahmad Tridi', 'Ikhwan', 'Major', 'RMAF-2020-0512', 'RMAF-03', 'Malaysian',
+        ('Ahmad Nur Ikhwan bin Ahmad Tridi', 'Ikhwan', 'Major', 'RMAF-2020-0512', 'RMAF-03', 'Malaysia',
          'No. 15 Squadron', '1992-01-15', 'T-50 Transition Batch 1', '2026-01-26', '2026-05-08',
          '+60-11-2345-6703', 'ikhwan@rmaf.mil.my', '', 3),
-        ('Muhammad Faiz bin Abdul Kadir', 'Faiz', 'Major', 'RMAF-2020-0528', 'RMAF-04', 'Malaysian',
+        ('Muhammad Faiz bin Abdul Kadir', 'Faiz', 'Major', 'RMAF-2020-0528', 'RMAF-04', 'Malaysia',
          'No. 15 Squadron', '1991-11-30', 'T-50 Transition Batch 1', '2026-01-26', '2026-05-08',
          '+60-11-2345-6704', 'faiz@rmaf.mil.my', '', 4),
-        ('Muhamad Luqman bin Mohamad Aziz', 'Luqman', 'Major', 'RMAF-2020-0541', 'RMAF-05', 'Malaysian',
+        ('Muhamad Luqman bin Mohamad Aziz', 'Luqman', 'Major', 'RMAF-2020-0541', 'RMAF-05', 'Malaysia',
          'No. 18 Squadron', '1993-06-08', 'T-50 Transition Batch 1', '2026-01-26', '2026-05-08',
          '+60-11-2345-6705', 'luqman@rmaf.mil.my', '', 5),
-        ('Abdul Samad bin Daud', 'Samad', 'Major', 'RMAF-2021-0603', 'RMAF-06', 'Malaysian',
+        ('Abdul Samad bin Daud', 'Samad', 'Major', 'RMAF-2021-0603', 'RMAF-06', 'Malaysia',
          'No. 18 Squadron', '1994-03-21', 'T-50 Transition Batch 1', '2026-01-26', '2026-05-08',
          '+60-11-2345-6706', 'samad@rmaf.mil.my', '', 6),
+    ]
+    # Polish pilots
+    pilots += [
+        ('Tomasz Kowalski', 'Kowalski', 'Captain', 'PAF-2024-0112', 'PLK-01', 'Poland',
+         'No. 12 Squadron', '1992-05-18', 'T-50 Transition Batch 1', '2026-01-26', '2026-05-08',
+         '+48-501-234-567', 'kowalski@paf.mil.pl', '', 7),
+        ('Jakub Wiśniewski', 'Wisniewski', 'First Lieutenant', 'PAF-2024-0118', 'PLK-02', 'Poland',
+         'No. 15 Squadron', '1994-09-03', 'T-50 Transition Batch 1', '2026-01-26', '2026-05-08',
+         '+48-502-345-678', 'wisniewski@paf.mil.pl', '', 8),
+    ]
+    # Iraqi pilots
+    pilots += [
+        ('Ahmed Al-Rashid', 'Al-Rashid', 'Major', 'IQAF-2023-0301', 'IQA-01', 'Iraq',
+         'No. 18 Squadron', '1991-03-27', 'T-50 Transition Batch 1', '2026-01-26', '2026-05-08',
+         '+964-770-123-4567', 'alrashid@iqaf.mil.iq', '', 9),
+        ('Omar Hassan', 'Hassan', 'Captain', 'IQAF-2023-0315', 'IQA-02', 'Iraq',
+         'No. 18 Squadron', '1993-11-14', 'T-50 Transition Batch 1', '2026-01-26', '2026-05-08',
+         '+964-770-234-5678', 'hassan@iqaf.mil.iq', '', 10),
     ]
     c.executemany("""
         INSERT INTO pilots (name, short_name, rank, service_number, callsign, nationality,
@@ -283,6 +311,16 @@ def seed():
         (6, 4, '2026-02-13', '1:00'), (6, 5, '2026-02-20', '1:00'), (6, 6, '2026-02-23', '1:00'),
         (6, 7, '2026-03-04', '1:00'), (6, 8, '2026-03-05', '1:00'), (6, 9, '2026-03-05', '1:00'),
         (6, 10, '2026-02-27', '1:00'), (6, 11, '2026-03-03', '1:00'),
+        # Kowalski (pilot 7 - Poland): SIM TR-1S..TR-4S, INST-1S
+        (7, 1, '2026-02-10', '1:00'), (7, 2, '2026-02-12', '1:00'), (7, 3, '2026-02-13', '1:00'),
+        (7, 4, '2026-02-19', '1:00'), (7, 10, '2026-02-25', '1:00'),
+        # Wisniewski (pilot 8 - Poland): SIM TR-1S..TR-3S
+        (8, 1, '2026-02-10', '1:00'), (8, 2, '2026-02-12', '1:00'), (8, 3, '2026-02-14', '1:00'),
+        # Al-Rashid (pilot 9 - Iraq): SIM TR-1S..TR-5S, INST-1S
+        (9, 1, '2026-02-09', '1:00'), (9, 2, '2026-02-11', '1:00'), (9, 3, '2026-02-12', '1:00'),
+        (9, 4, '2026-02-14', '1:00'), (9, 5, '2026-02-25', '1:00'), (9, 10, '2026-02-27', '1:00'),
+        # Hassan (pilot 10 - Iraq): SIM TR-1S..TR-3S
+        (10, 1, '2026-02-10', '1:00'), (10, 2, '2026-02-12', '1:00'), (10, 3, '2026-02-14', '1:00'),
     ]
     c.executemany("INSERT INTO pilot_training (pilot_id, course_id, completed_date, completed_time) VALUES (?,?,?,?)", training_records)
 
@@ -295,7 +333,8 @@ def seed():
     print("  - 8 evaluations, 6 content items")
     print("  - 2 OJT programs, 6 OJT tasks, 2 OJT enrollments")
     print("  - 5 notifications, 3 surveys")
-    print("  - 6 RMAF pilots, 31 training courses, 55 training records")
+    print("  - 10 pilots (6 Malaysian + 2 Polish + 2 Iraqi), 3 nationalities")
+    print("  - 31 training courses, 70+ training records")
     print()
     print("Login credentials:")
     print("  Admin:      ADM001 / admin1234")

@@ -1,4 +1,4 @@
-"""Pilot Routes: RMAF Pilot Personal Records, Training Syllabus, Training Status, Weekly Report"""
+"""Pilot Routes: Pilot Personal Records, Training Syllabus, Training Status, Weekly Report"""
 import os
 import time
 import uuid
@@ -49,7 +49,7 @@ class PilotsHandler(BaseHandler):
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (name, short_name, body.get('rank', 'Major'),
              body.get('service_number', ''), body.get('callsign', ''),
-             body.get('nationality', 'Malaysian'), body.get('squadron', ''),
+             body.get('nationality', 'Malaysia'), body.get('squadron', ''),
              body.get('date_of_birth', ''), body.get('course_class', ''),
              body.get('training_start_date', ''), body.get('training_end_date', ''),
              body.get('phone', ''), body.get('email', ''),
@@ -257,3 +257,38 @@ class PilotWeeklyHandler(BaseHandler):
             })
         conn.close()
         self.success(result)
+
+
+class PilotNationalitiesHandler(BaseHandler):
+    """GET list of nationalities, POST add new nationality"""
+
+    @require_auth()
+    def get(self):
+        conn = get_db()
+        rows = dicts_from_rows(conn.execute(
+            "SELECT * FROM pilot_nationalities ORDER BY sort_order, id"
+        ).fetchall())
+        conn.close()
+        self.success(rows)
+
+    @require_auth()
+    def post(self):
+        body = self.get_json_body()
+        code = (body.get('code') or '').strip()
+        label_ko = (body.get('label_ko') or '').strip()
+        if not code or not label_ko:
+            return self.error("code and label_ko are required")
+        conn = get_db()
+        existing = conn.execute("SELECT id FROM pilot_nationalities WHERE code=?", (code,)).fetchone()
+        if existing:
+            conn.close()
+            return self.error("Nationality already exists")
+        sort_order = body.get('sort_order', 0)
+        cur = conn.execute(
+            "INSERT INTO pilot_nationalities (code, label_ko, sort_order) VALUES (?,?,?)",
+            (code, label_ko, sort_order)
+        )
+        conn.commit()
+        row = dict_from_row(conn.execute("SELECT * FROM pilot_nationalities WHERE id=?", (cur.lastrowid,)).fetchone())
+        conn.close()
+        self.success(row, "Nationality added")

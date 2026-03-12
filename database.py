@@ -257,7 +257,24 @@ def init_db():
         )
     """)
 
-    # ── Pilots (RMAF) ──
+    # ── Pilot Nationalities ──
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS pilot_nationalities (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            label_ko TEXT NOT NULL,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── Migrate: Malaysian -> Malaysia ──
+    try:
+        c.execute("UPDATE pilots SET nationality='Malaysia' WHERE nationality='Malaysian'")
+    except Exception:
+        pass  # table may not exist yet on fresh DB
+
+    # ── Pilots ──
     c.execute("""
         CREATE TABLE IF NOT EXISTS pilots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
