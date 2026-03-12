@@ -289,6 +289,9 @@ tr:hover { background: #fafbfc; }
 .nat-add-btn { padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer;
   border: 1.5px dashed var(--gray-300); background: transparent; color: var(--gray-400); transition: all 0.2s; }
 .nat-add-btn:hover { border-color: var(--primary); color: var(--primary); }
+.nat-section { position: relative; overflow: hidden; border-radius: var(--radius); margin-bottom: 20px; }
+.nat-section-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.06; }
+.nat-section > .card { position: relative; z-index: 1; background: rgba(255,255,255,0.92); backdrop-filter: blur(2px); }
 
 /* ── Responsive: Tablet ── */
 @media (max-width: 1024px) {
@@ -1358,6 +1361,47 @@ function WeeklyReport({ weekly }) {
   );
 }
 
+// ━━━━━━━━━━━━ FLAG + JET SVG BACKGROUNDS ━━━━━━━━━━━━
+function NatSectionBg({ code }) {
+  // Each nationality gets a unique flag+jet SVG background
+  var flagColors = {
+    'Malaysia': { c1:'#cc0001', c2:'#fff', c3:'#010066', accent:'#fc0' },
+    'Poland':   { c1:'#fff', c2:'#dc143c', c3:'#dc143c', accent:'#fff' },
+    'Iraq':     { c1:'#ce1126', c2:'#fff', c3:'#007a3d', accent:'#000' }
+  };
+  var fc = flagColors[code] || { c1:'#2563eb', c2:'#fff', c3:'#1e40af', accent:'#60a5fa' };
+
+  return (
+    <svg className="nat-section-bg" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      {/* Flag stripes */}
+      <rect x="0" y="0" width="1200" height="133" fill={fc.c1} opacity="0.5"/>
+      <rect x="0" y="133" width="1200" height="134" fill={fc.c2} opacity="0.3"/>
+      <rect x="0" y="267" width="1200" height="133" fill={fc.c3} opacity="0.5"/>
+
+      {/* Fighter jet silhouette - right side */}
+      <g transform="translate(900,180) scale(1.8)" opacity="0.7" fill={fc.accent}>
+        <path d="M80 0 L50 -6 L20 -22 L-5 -24 L-20 -14 L-55 -10 L-70 -28 L-60 -28 L-48 -10 L-60 -8 L-60 8 L-48 10 L-60 28 L-70 28 L-55 10 L-20 14 L-5 24 L20 22 L50 6 Z"/>
+        <ellipse cx="38" cy="-2" rx="14" ry="6" opacity="0.3"/>
+      </g>
+
+      {/* Second jet silhouette - upper left */}
+      <g transform="translate(180,90) scale(1.0) rotate(-5)" opacity="0.4" fill={fc.c3}>
+        <path d="M80 0 L50 -6 L20 -22 L-5 -24 L-20 -14 L-55 -10 L-70 -28 L-60 -28 L-48 -10 L-60 -8 L-60 8 L-48 10 L-60 28 L-70 28 L-55 10 L-20 14 L-5 24 L20 22 L50 6 Z"/>
+      </g>
+
+      {/* Decorative speed lines */}
+      <line x1="300" y1="100" x2="500" y2="100" stroke={fc.accent} strokeWidth="2" opacity="0.3"/>
+      <line x1="350" y1="120" x2="600" y2="120" stroke={fc.c1} strokeWidth="1.5" opacity="0.25"/>
+      <line x1="400" y1="290" x2="650" y2="290" stroke={fc.accent} strokeWidth="2" opacity="0.3"/>
+      <line x1="250" y1="310" x2="550" y2="310" stroke={fc.c3} strokeWidth="1.5" opacity="0.25"/>
+
+      {/* Circular emblem hint */}
+      <circle cx="600" cy="200" r="120" fill="none" stroke={fc.accent} strokeWidth="2" opacity="0.15"/>
+      <circle cx="600" cy="200" r="90" fill="none" stroke={fc.c1} strokeWidth="1" opacity="0.1" strokeDasharray="8 6"/>
+    </svg>
+  );
+}
+
 // ━━━━━━━━━━━━ PILOT PAGE (API-Driven) ━━━━━━━━━━━━
 function PilotPage() {
   const [pilots, setPilots] = useState([]);
@@ -1380,6 +1424,7 @@ function PilotPage() {
   const [showNatAdd, setShowNatAdd] = useState(false);
   const [newNatCode, setNewNatCode] = useState('');
   const [newNatLabel, setNewNatLabel] = useState('');
+  const [idxMap, setIdxMap] = useState({});
   const { user, showToast } = useApp();
   const isAdmin = ['admin','ojt_admin'].includes(user.role);
   const canEditTraining = isAdmin || user.role === 'instructor';
@@ -1492,9 +1537,17 @@ function PilotPage() {
   });
 
   // Reset carousel index when filter changes
-  useEffect(function(){setActiveIdx(0);},[natFilter]);
+  useEffect(function(){setActiveIdx(0);setIdxMap({});},[natFilter]);
 
-  const goTo = (idx)=>setActiveIdx(Math.max(0,Math.min(idx,filteredPilots.length-1)));
+  const goTo = function(idx){setActiveIdx(Math.max(0,Math.min(idx,filteredPilots.length-1)));};
+  var goToGroup = function(code, idx, max) {
+    var clamped = Math.max(0, Math.min(idx, max - 1));
+    var newMap = {};
+    for (var k in idxMap) { newMap[k] = idxMap[k]; }
+    newMap[code] = clamped;
+    setIdxMap(newMap);
+  };
+  var getGroupIdx = function(code) { return idxMap[code] || 0; };
 
   // Add nationality handler
   var addNationality = async function() {
@@ -1524,7 +1577,7 @@ function PilotPage() {
         {isAdmin && <div className={`tab ${subTab==='manage'?'active':''}`} onClick={()=>setSubTab('manage')}>조종사 관리</div>}
       </div>
 
-      {/* ── Nationality Filter (shared across profiles tab) ── */}
+      {/* ── Nationality Filter + Profiles ── */}
       {subTab==='profiles' && (
         <div>
           <div className="nat-filter-bar">
@@ -1547,54 +1600,123 @@ function PilotPage() {
             )}
           </div>
 
-          {filteredPilots.length > 0 ? (
-            <div className="card">
-              <div className="card-header"><h3>T-50 Transition Course Pilots</h3>
-                <span className="badge badge-blue">{(filteredPilots[0]&&filteredPilots[0].training_start_date)||''} ~ {(filteredPilots[0]&&filteredPilots[0].training_end_date)||''}</span></div>
-              <div className="card-body">
-                <div className="pilot-carousel">
-                  <button className="carousel-nav carousel-prev" onClick={()=>goTo(activeIdx-1)}>&#8249;</button>
-                  <button className="carousel-nav carousel-next" onClick={()=>goTo(activeIdx+1)}>&#8250;</button>
-                  <div className="pilot-carousel-track" style={{transform:'translateX(-'+activeIdx*100+'%)'}}>
-                    {filteredPilots.map(function(p,i){
-                      var done=getPilotDone(p.id); var pct=totalCourses?Math.round((done/totalCourses)*100):0;
-                      var sd=getPilotSimDone(p.id); var fd=getPilotFltDone(p.id);
-                      var natLabel = natLabelMap[normalizeNat(p.nationality)] || p.nationality || '-';
-                      return (
-                        <div className="pilot-card" key={p.id}>
-                          <div className="pilot-profile">
-                            <div className="pilot-photo" onClick={function(){if(isAdmin){setPhotoTarget(p.id);if(photoRef.current)photoRef.current.click();}}}>
-                              {p.photo_url ? <img src={p.photo_url} alt={p.short_name}/> :
-                                <>{(p.short_name||'?')[0]}{(p.short_name||'?').slice(-1)}</>}
+          {/* ── "전체" → grouped by nationality ── */}
+          {natFilter==='all' && nationalities.map(function(nat){
+            var groupPilots = pilots.filter(function(p){ return normalizeNat(p.nationality) === nat.code; });
+            if (groupPilots.length === 0) return null;
+            var gIdx = getGroupIdx(nat.code);
+            return (
+              <div className="nat-section" key={nat.code}>
+                <NatSectionBg code={nat.code} />
+                <div className="card" style={{marginBottom:0}}>
+                  <div className="card-header">
+                    <h3>{nat.label_ko} Pilots</h3>
+                    <span className="badge badge-blue">{groupPilots.length}명</span>
+                  </div>
+                  <div className="card-body">
+                    <div className="pilot-carousel">
+                      {groupPilots.length > 1 && <button className="carousel-nav carousel-prev" onClick={function(){goToGroup(nat.code, gIdx-1, groupPilots.length);}}>&#8249;</button>}
+                      {groupPilots.length > 1 && <button className="carousel-nav carousel-next" onClick={function(){goToGroup(nat.code, gIdx+1, groupPilots.length);}}>&#8250;</button>}
+                      <div className="pilot-carousel-track" style={{transform:'translateX(-'+gIdx*100+'%)'}}>
+                        {groupPilots.map(function(p){
+                          var done=getPilotDone(p.id); var pct=totalCourses?Math.round((done/totalCourses)*100):0;
+                          var sd=getPilotSimDone(p.id); var fd=getPilotFltDone(p.id);
+                          return (
+                            <div className="pilot-card" key={p.id}>
+                              <div className="pilot-profile">
+                                <div className="pilot-photo" onClick={function(){if(isAdmin){setPhotoTarget(p.id);if(photoRef.current)photoRef.current.click();}}}>
+                                  {p.photo_url ? <img src={p.photo_url} alt={p.short_name}/> :
+                                    <>{(p.short_name||'?')[0]}{(p.short_name||'?').slice(-1)}</>}
+                                </div>
+                                <div className="pilot-name">{p.name}</div>
+                                <div className="pilot-rank">{p.rank} &middot; {p.callsign||p.service_number||'N/A'}</div>
+                                <div style={{margin:'0 auto',maxWidth:300}}>
+                                  <div className="flex-between" style={{fontSize:12,marginBottom:4}}>
+                                    <span>훈련 진도</span><span style={{fontWeight:700,color:'var(--primary)'}}>{pct}%</span></div>
+                                  <div className="progress-bar" style={{height:10}}>
+                                    <div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg,#2563eb,#7c3aed)'}}/></div>
+                                </div>
+                                <div className="pilot-stats">
+                                  <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--primary)'}}>{sd}/{simCourses.length}</div>
+                                    <div className="pilot-stat-lbl">SIM Sorties</div></div>
+                                  <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--success)'}}>{fd}/{fltCourses.length}</div>
+                                    <div className="pilot-stat-lbl">Flight Sorties</div></div>
+                                  <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--warning)'}}>{done}/{totalCourses}</div>
+                                    <div className="pilot-stat-lbl">Total</div></div>
+                                </div>
+                              </div>
                             </div>
-                            <div className="pilot-name">{p.name}</div>
-                            <div className="pilot-rank">{p.rank} &middot; {p.callsign||p.service_number||'N/A'} &middot; <span className="badge badge-blue">{natLabel}</span></div>
-                            <div style={{margin:'0 auto',maxWidth:300}}>
-                              <div className="flex-between" style={{fontSize:12,marginBottom:4}}>
-                                <span>훈련 진도</span><span style={{fontWeight:700,color:'var(--primary)'}}>{pct}%</span></div>
-                              <div className="progress-bar" style={{height:10}}>
-                                <div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg,#2563eb,#7c3aed)'}}/></div>
-                            </div>
-                            <div className="pilot-stats">
-                              <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--primary)'}}>{sd}/{simCourses.length}</div>
-                                <div className="pilot-stat-lbl">SIM Sorties</div></div>
-                              <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--success)'}}>{fd}/{fltCourses.length}</div>
-                                <div className="pilot-stat-lbl">Flight Sorties</div></div>
-                              <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--warning)'}}>{done}/{totalCourses}</div>
-                                <div className="pilot-stat-lbl">Total</div></div>
+                          );
+                        })}
+                      </div>
+                      {groupPilots.length > 1 && (
+                        <div className="carousel-dots">
+                          {groupPilots.map(function(_,i){return <div key={i} className={'carousel-dot '+(i===gIdx?'active':'')} onClick={function(){goToGroup(nat.code, i, groupPilots.length);}}/> ;})}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* ── Single nationality filter → single carousel with bg ── */}
+          {natFilter!=='all' && filteredPilots.length > 0 && (
+            <div className="nat-section">
+              <NatSectionBg code={natFilter} />
+              <div className="card" style={{marginBottom:0}}>
+                <div className="card-header"><h3>{natLabelMap[natFilter]||natFilter} T-50 Transition Course Pilots</h3>
+                  <span className="badge badge-blue">{filteredPilots.length}명</span></div>
+                <div className="card-body">
+                  <div className="pilot-carousel">
+                    {filteredPilots.length > 1 && <button className="carousel-nav carousel-prev" onClick={function(){goTo(activeIdx-1);}}>&#8249;</button>}
+                    {filteredPilots.length > 1 && <button className="carousel-nav carousel-next" onClick={function(){goTo(activeIdx+1);}}>&#8250;</button>}
+                    <div className="pilot-carousel-track" style={{transform:'translateX(-'+activeIdx*100+'%)'}}>
+                      {filteredPilots.map(function(p){
+                        var done=getPilotDone(p.id); var pct=totalCourses?Math.round((done/totalCourses)*100):0;
+                        var sd=getPilotSimDone(p.id); var fd=getPilotFltDone(p.id);
+                        return (
+                          <div className="pilot-card" key={p.id}>
+                            <div className="pilot-profile">
+                              <div className="pilot-photo" onClick={function(){if(isAdmin){setPhotoTarget(p.id);if(photoRef.current)photoRef.current.click();}}}>
+                                {p.photo_url ? <img src={p.photo_url} alt={p.short_name}/> :
+                                  <>{(p.short_name||'?')[0]}{(p.short_name||'?').slice(-1)}</>}
+                              </div>
+                              <div className="pilot-name">{p.name}</div>
+                              <div className="pilot-rank">{p.rank} &middot; {p.callsign||p.service_number||'N/A'}</div>
+                              <div style={{margin:'0 auto',maxWidth:300}}>
+                                <div className="flex-between" style={{fontSize:12,marginBottom:4}}>
+                                  <span>훈련 진도</span><span style={{fontWeight:700,color:'var(--primary)'}}>{pct}%</span></div>
+                                <div className="progress-bar" style={{height:10}}>
+                                  <div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg,#2563eb,#7c3aed)'}}/></div>
+                              </div>
+                              <div className="pilot-stats">
+                                <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--primary)'}}>{sd}/{simCourses.length}</div>
+                                  <div className="pilot-stat-lbl">SIM Sorties</div></div>
+                                <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--success)'}}>{fd}/{fltCourses.length}</div>
+                                  <div className="pilot-stat-lbl">Flight Sorties</div></div>
+                                <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--warning)'}}>{done}/{totalCourses}</div>
+                                  <div className="pilot-stat-lbl">Total</div></div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="carousel-dots">
-                    {filteredPilots.map(function(_,i){return <div key={i} className={'carousel-dot '+(i===activeIdx?'active':'')} onClick={function(){goTo(i);}}/> ;})}
+                        );
+                      })}
+                    </div>
+                    {filteredPilots.length > 1 && (
+                      <div className="carousel-dots">
+                        {filteredPilots.map(function(_,i){return <div key={i} className={'carousel-dot '+(i===activeIdx?'active':'')} onClick={function(){goTo(i);}}/> ;})}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
-          ) : (
+          )}
+
+          {/* Empty state */}
+          {natFilter!=='all' && filteredPilots.length === 0 && (
             <div className="card"><div className="card-body">
               <div className="empty-state" style={{padding:'60px 20px'}}>
                 <div style={{fontSize:48,marginBottom:12}}>🌍</div>
