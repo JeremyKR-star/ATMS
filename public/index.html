@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ATMS - Advanced Training Management System v2</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>✈</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -42,7 +45,7 @@ html, body { overflow-x: hidden; max-width: 100vw; }
   --wr-sim: #7c3aed; --wr-sim-bg: #ede9fe; --wr-sim-text: #5b21b6;
   --wr-total: #b45309; --wr-total-bg: #fef3c7; --wr-total-text: #92400e;
 }
-body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f2f5; color: var(--gray-800); transition: background 0.4s ease, color 0.4s ease; position: relative; }
+body { font-family: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f2f5; color: var(--gray-800); transition: background 0.4s ease, color 0.4s ease; position: relative; }
 body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #2563eb 0%, #7c3aed 50%, #2563eb 100%); background-size: 200% auto; animation: gradientShift 3s ease infinite; z-index: 1000; }
 a { color: var(--primary); text-decoration: none; }
 
@@ -548,6 +551,34 @@ body.dark-mode .sidebar { background: linear-gradient(180deg, rgba(10,14,39,0.9)
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 10px; }
+
+/* ── Animated Background Particles ── */
+.animated-bg { position: fixed; top: 0; left: var(--sidebar-w); right: 0; bottom: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.animated-bg .dot { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: var(--primary); opacity: 0.04; }
+
+/* ── Floating Animation for Dots ── */
+@keyframes float1 { 0%, 100% { transform: translateY(0px) translateX(0px); } 50% { transform: translateY(-20px) translateX(10px); } }
+@keyframes float2 { 0%, 100% { transform: translateY(0px) translateX(0px); } 50% { transform: translateY(-15px) translateX(-8px); } }
+@keyframes float3 { 0%, 100% { transform: translateY(0px) translateX(0px); } 50% { transform: translateY(-25px) translateX(12px); } }
+
+/* ── Tooltip System ── */
+[data-tooltip] { position: relative; }
+[data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.9); color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 12px; white-space: nowrap; z-index: 500; animation: fadeInDown 0.2s ease; pointer-events: none; backdrop-filter: blur(8px); }
+[data-tooltip]:hover::before { content: ''; position: absolute; bottom: calc(100% + 2px); left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: rgba(15,23,42,0.9); z-index: 500; }
+
+/* ── Enhanced Activity Dots with Pulse ── */
+.activity-dot { position: relative; }
+.activity-dot::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid currentColor; opacity: 0; animation: activePulse 2s ease infinite; }
+
+/* ── Login Box Entrance Animation ── */
+.login-box { animation: scaleInBouncy 0.8s cubic-bezier(0.34,1.56,0.64,1) 0.3s backwards; }
+
+/* ── Page Transition ── */
+@keyframes fadeInPage { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Splash Screen Animations ── */
+@keyframes splashFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes atomPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
 ::-webkit-scrollbar-thumb:hover { background: var(--gray-400); }
 </style>
 </head>
@@ -610,32 +641,56 @@ function StatusBadge({ status }) {
 }
 
 function DonutChart({ data, centerLabel, centerValue }) {
-  const total = data.reduce((s, d) => s + d.value, 0) || 1;
-  let cum = 0;
-  const segs = data.map(d => { const start = cum; cum += (d.value / total) * 360; return { ...d, start, end: cum }; });
-  const toRad = deg => (deg - 90) * Math.PI / 180;
-  const arc = (start, end, r) => {
-    const s = toRad(start), e = toRad(end);
-    const large = (end - start) > 180 ? 1 : 0;
-    return `M ${70+r*Math.cos(s)} ${70+r*Math.sin(s)} A ${r} ${r} 0 ${large} 1 ${70+r*Math.cos(e)} ${70+r*Math.sin(e)}`;
+  var mounted = useState(false)[0];
+  var setMounted = useState(false)[1];
+  var total = data.reduce(function(s, d) { return s + d.value; }, 0) || 1;
+  var cum = 0;
+  var segs = data.map(function(d) { var start = cum; cum += (d.value / total) * 360; return Object.assign({}, d, { start: start, end: cum }); });
+  var toRad = function(deg) { return (deg - 90) * Math.PI / 180; };
+  var circumference = 2 * Math.PI * 56;
+  var arc = function(start, end, r) {
+    var s = toRad(start), e = toRad(end);
+    var large = (end - start) > 180 ? 1 : 0;
+    return 'M ' + (70+r*Math.cos(s)) + ' ' + (70+r*Math.sin(s)) + ' A ' + r + ' ' + r + ' 0 ' + large + ' 1 ' + (70+r*Math.cos(e)) + ' ' + (70+r*Math.sin(e));
   };
+  useEffect(function() {
+    setMounted(true);
+  }, []);
   return (
-    <div className="donut-container">
-      <div className="donut-chart">
-        <svg width="100%" height="100%" viewBox="0 0 140 140">
-          {segs.map((seg, i) => (
-            <path key={i} d={arc(seg.start, Math.min(seg.end, seg.start + 359.9), 56)}
-              fill="none" stroke={seg.color} strokeWidth="22" strokeLinecap="round" opacity="0.85" />
-          ))}
-        </svg>
-        <div className="donut-center"><span className="big">{centerValue}</span><span className="small">{centerLabel}</span></div>
-      </div>
-      <div className="donut-legend">
-        {data.map((d, i) => (
-          <div className="legend-item" key={i}><div className="legend-dot" style={{background: d.color}} />{d.label}: {d.value}</div>
-        ))}
-      </div>
-    </div>
+    React.createElement('div', { className: 'donut-container' },
+      React.createElement('div', { className: 'donut-chart' },
+        React.createElement('svg', { width: '100%', height: '100%', viewBox: '0 0 140 140' },
+          segs.map(function(seg, i) {
+            return React.createElement('path', {
+              key: i,
+              d: arc(seg.start, Math.min(seg.end, seg.start + 359.9), 56),
+              fill: 'none',
+              stroke: seg.color,
+              strokeWidth: '22',
+              strokeLinecap: 'round',
+              opacity: '0.85',
+              style: {
+                strokeDasharray: circumference,
+                strokeDashoffset: mounted ? 0 : circumference,
+                transition: 'stroke-dashoffset 1.5s ease ' + (i * 0.2) + 's'
+              }
+            });
+          })
+        ),
+        React.createElement('div', { className: 'donut-center' },
+          React.createElement('span', { className: 'big' }, centerValue),
+          React.createElement('span', { className: 'small' }, centerLabel)
+        )
+      ),
+      React.createElement('div', { className: 'donut-legend' },
+        data.map(function(d, i) {
+          return React.createElement('div', { className: 'legend-item', key: i },
+            React.createElement('div', { className: 'legend-dot', style: {background: d.color} }),
+            d.label + ': ' + d.value
+          );
+        })
+      )
+    )
   );
 }
 
@@ -993,6 +1048,132 @@ function LoginBackground() {
   return <canvas ref={canvasRef} className="login-canvas" />;
 }
 
+// ━━━━━━━━━━━━ ANIMATED NUMBER ━━━━━━━━━━━━
+function AnimatedNumber(props) {
+  var value = props.value;
+  var duration = props.duration;
+  var ref = useRef(null);
+  var numVal = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+  var suffix = String(value).replace(/[0-9.-]/g, '');
+
+  useEffect(function() {
+    if (isNaN(numVal)) { if(ref.current) ref.current.textContent = value; return; }
+    var start = 0;
+    var startTime = null;
+    var dur = duration || 1500;
+    function animate(ts) {
+      if (!startTime) startTime = ts;
+      var progress = Math.min((ts - startTime) / dur, 1);
+      var eased = 1 - Math.pow(1 - progress, 3);
+      var current = Math.round(start + (numVal - start) * eased);
+      if (ref.current) ref.current.textContent = current + suffix;
+      if (progress < 1) requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+  }, [value]);
+
+  return React.createElement('span', { ref: ref }, value);
+}
+
+// ━━━━━━━━━━━━ SCROLL FADE IN HOOK ━━━━━━━━━━━━
+function useScrollFadeIn() {
+  var ref = useRef(null);
+  useEffect(function() {
+    var el = ref.current;
+    if (!el) return;
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(30px)';
+    el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+    var obs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+          obs.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+    obs.observe(el);
+    return function() { obs.disconnect(); };
+  }, []);
+  return ref;
+}
+
+// ━━━━━━━━━━━━ ANIMATED BACKGROUND ━━━━━━━━━━━━
+function AnimatedBackground() {
+  var dots = [];
+  for (var i = 0; i < 20; i++) {
+    var randomDelay = Math.random() * 4;
+    var floatType = i % 3;
+    var animationName = floatType === 0 ? 'float1' : floatType === 1 ? 'float2' : 'float3';
+    dots.push(
+      React.createElement('div', {
+        key: i,
+        className: 'dot',
+        style: {
+          left: Math.random() * 100 + '%',
+          top: Math.random() * 100 + '%',
+          animation: animationName + ' ' + (4 + Math.random() * 3) + 's ease-in-out ' + randomDelay + 's infinite'
+        }
+      })
+    );
+  }
+  return React.createElement('div', { className: 'animated-bg' }, dots);
+}
+
+// ━━━━━━━━━━━━ TYPING EFFECT ━━━━━━━━━━━━
+function TypingEffect(props) {
+  var text = props.text;
+  var displayed = useState('')[0];
+  var setDisplayed = useState('')[1];
+  useEffect(function() {
+    var idx = 0;
+    var timer = setInterval(function() {
+      idx++;
+      setDisplayed(text.slice(0, idx));
+      if (idx >= text.length) clearInterval(timer);
+    }, 50);
+    return function() { clearInterval(timer); };
+  }, [text]);
+  return React.createElement('span', null, displayed);
+}
+
+// ━━━━━━━━━━━━ PAGE TRANSITION ━━━━━━━━━━━━
+function PageTransition(props) {
+  var children = props.children;
+  var pageKey = props.pageKey;
+  var show = useState(false)[0];
+  var setShow = useState(false)[1];
+  useEffect(function() {
+    setShow(false);
+    var t = requestAnimationFrame(function() { setShow(true); });
+    return function() { cancelAnimationFrame(t); };
+  }, [pageKey]);
+  return React.createElement('div', {
+    style: { opacity: show ? 1 : 0, transform: show ? 'translateY(0)' : 'translateY(15px)', transition: 'opacity 0.4s ease, transform 0.4s ease' }
+  }, children);
+}
+
+// ━━━━━━━━━━━━ SPLASH SCREEN ━━━━━━━━━━━━
+function SplashScreen(props) {
+  var onDone = props.onDone;
+  useEffect(function() {
+    var t = setTimeout(onDone, 1500);
+    return function() { clearTimeout(t); };
+  }, []);
+  return React.createElement('div', {
+    style: { position: 'fixed', inset: 0, background: '#050a18', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, animation: 'fadeIn 0.3s ease' }
+  },
+    React.createElement('div', { style: { textAlign: 'center' } },
+      React.createElement('div', { style: { fontSize: 48, fontWeight: 800, color: '#93c5fd', letterSpacing: 8, marginBottom: 12, animation: 'breathe 1.5s ease infinite' } }, 'ATMS'),
+      React.createElement('div', { style: { fontSize: 13, color: 'rgba(148,163,184,0.6)', letterSpacing: 3 } }, 'LOADING SYSTEM...'),
+      React.createElement('div', { style: { marginTop: 24, width: 200, height: 3, background: 'rgba(37,99,235,0.2)', borderRadius: 10, overflow: 'hidden' } },
+        React.createElement('div', { style: { height: '100%', background: 'linear-gradient(90deg, #2563eb, #7c3aed)', borderRadius: 10, animation: 'gradientShift 1s ease infinite', width: '60%' } })
+      )
+    )
+  );
+}
+
 // ━━━━━━━━━━━━ LOGIN ━━━━━━━━━━━━
 function LoginPage({ onLogin }) {
   const [empId, setEmpId] = useState('');
@@ -1024,7 +1205,7 @@ function LoginPage({ onLogin }) {
           </svg>
         </div>
         <h1>ATMS</h1>
-        <p className="subtitle">Advanced Training Management System</p>
+        <p className="subtitle"><TypingEffect text="Advanced Training Management System" /></p>
         <form onSubmit={handleLogin}>
           <div className="form-group"><label>Employee ID</label>
             <input value={empId} onChange={e => setEmpId(e.target.value)} placeholder="ADM001" required /></div>
@@ -1110,8 +1291,8 @@ function Dashboard() {
           return (
             <div className="stat-card pulse-on-hover" key={i}>
               <div className="stat-bg" style={{background: s.bg}} />
-              <div className="stat-icon" style={{background: s.color+'12', color: s.color}}>{s.icon}</div>
-              <div className="stat-value">{s.value}</div>
+              <div className="stat-icon" style={{background: s.color+'12', color: s.color}} data-tooltip={s.label}>{s.icon}</div>
+              <div className="stat-value"><AnimatedNumber value={s.value} /></div>
               <div className="stat-label">{s.label}</div>
               {s.trend && <div className="stat-trend" style={{background: s.trend.includes('+') ? '#d1fae5':'#fef3c7',
                 color: s.trend.includes('+') ? '#059669':'#d97706'}}>{s.trend}</div>}
@@ -1122,51 +1303,56 @@ function Dashboard() {
 
       {user.role === 'admin' || user.role === 'ojt_admin' ? (
         <React.Fragment>
-          <div className="grid-2">
-            <div className="card"><div className="card-header"><h3>과정 현황</h3></div>
-              <div className="card-body"><DonutChart data={courseStatusData} centerValue={stats.total_courses} centerLabel="전체 과정" /></div></div>
-            <div className="card"><div className="card-header"><h3>사용자 구성</h3></div>
-              <div className="card-body"><DonutChart data={roleData} centerValue={stats.total_users} centerLabel="전체 인원" /></div></div>
-          </div>
-          <div className="grid-2">
-            <div className="card"><div className="card-header"><h3>최근 등록</h3></div><div className="card-body">
-              {(stats.recent_enrollments || []).slice(0, 6).map(function(e) {
-                return (
-                  <div className="activity-item" key={e.id}>
-                    <div className="activity-dot" style={{background: {in_progress:'#d97706',enrolled:'#2563eb',completed:'#059669',failed:'#dc2626'}[e.status]||'#9ca3af'}} />
-                    <div className="activity-content">
-                      <div className="activity-text"><strong>{e.trainee_name}</strong> → {e.course_name}</div>
-                      <div className="activity-time"><StatusBadge status={e.status} /> · {e.enrolled_at ? e.enrolled_at.slice(0,10) : ''}</div>
-                    </div>
-                  </div>
-                );
-              })}{(stats.recent_enrollments || []).length === 0 && <div className="empty-state">등록 내역이 없습니다</div>}
-            </div></div>
-            <div className="card"><div className="card-header"><h3>예정 일정</h3></div><div className="card-body">
-              {(stats.upcoming_schedules || []).slice(0, 6).map(function(s) {
-                return (
-                  <div className="activity-item" key={s.id}>
-                    <div className="activity-dot" style={{background: {lecture:'#2563eb',practical:'#059669',assessment:'#d97706',meeting:'#6b7280'}[s.schedule_type]||'#9ca3af'}} />
-                    <div className="activity-content">
-                      <div className="activity-text"><strong>{s.title}</strong></div>
-                      <div className="activity-time">{s.schedule_date} {s.start_time}-{s.end_time} · {s.room || ''} · {s.instructor_name || ''}</div>
-                    </div>
-                  </div>
-                );
-              })}{(stats.upcoming_schedules || []).length === 0 && <div className="empty-state">예정 일정이 없습니다</div>}
-            </div></div>
-          </div>
-          <div className="grid-3" style={{marginTop:4}}>
-            <div className="card"><div className="card-body text-center">
-              <div style={{fontSize:36,fontWeight:800,color:'var(--primary)'}}>{stats.total_enrollments}</div>
-              <div style={{fontSize:13,color:'var(--gray-500)',marginTop:4}}>총 등록 건수</div></div></div>
-            <div className="card"><div className="card-body text-center">
-              <div style={{fontSize:36,fontWeight:800,color:'var(--success)'}}>{stats.ojt_programs}</div>
-              <div style={{fontSize:13,color:'var(--gray-500)',marginTop:4}}>OJT 프로그램</div></div></div>
-            <div className="card"><div className="card-body text-center">
-              <div style={{fontSize:36,fontWeight:800,color:'#7c3aed'}}>{stats.ojt_enrollments}</div>
-              <div style={{fontSize:13,color:'var(--gray-500)',marginTop:4}}>OJT 참여 인원</div></div></div>
-          </div>
+          {(function() {
+            var fadeRef1 = useScrollFadeIn();
+            return React.createElement('div', { className: 'grid-2', ref: fadeRef1 },
+              React.createElement('div', { className: 'card' }, React.createElement('div', { className: 'card-header' }, React.createElement('h3', null, '과정 현황')), React.createElement('div', { className: 'card-body' }, React.createElement(DonutChart, { data: courseStatusData, centerValue: stats.total_courses, centerLabel: '전체 과정' }))),
+              React.createElement('div', { className: 'card' }, React.createElement('div', { className: 'card-header' }, React.createElement('h3', null, '사용자 구성')), React.createElement('div', { className: 'card-body' }, React.createElement(DonutChart, { data: roleData, centerValue: stats.total_users, centerLabel: '전체 인원' })))
+            );
+          })()}
+          {(function() {
+            var fadeRef2 = useScrollFadeIn();
+            return React.createElement('div', { className: 'grid-2', ref: fadeRef2 },
+              React.createElement('div', { className: 'card' }, React.createElement('div', { className: 'card-header' }, React.createElement('h3', null, '최근 등록')), React.createElement('div', { className: 'card-body' },
+                (stats.recent_enrollments || []).slice(0, 6).map(function(e) {
+                  return React.createElement('div', { className: 'activity-item', key: e.id },
+                    React.createElement('div', { className: 'activity-dot', style: {background: {in_progress:'#d97706',enrolled:'#2563eb',completed:'#059669',failed:'#dc2626'}[e.status]||'#9ca3af'} }),
+                    React.createElement('div', { className: 'activity-content' },
+                      React.createElement('div', { className: 'activity-text' }, React.createElement('strong', null, e.trainee_name), ' → ', e.course_name),
+                      React.createElement('div', { className: 'activity-time' }, React.createElement(StatusBadge, { status: e.status }), ' · ', e.enrolled_at ? e.enrolled_at.slice(0,10) : '')
+                    )
+                  );
+                }),
+                (stats.recent_enrollments || []).length === 0 && React.createElement('div', { className: 'empty-state' }, '등록 내역이 없습니다')
+              )),
+              React.createElement('div', { className: 'card' }, React.createElement('div', { className: 'card-header' }, React.createElement('h3', null, '예정 일정')), React.createElement('div', { className: 'card-body' },
+                (stats.upcoming_schedules || []).slice(0, 6).map(function(s) {
+                  return React.createElement('div', { className: 'activity-item', key: s.id },
+                    React.createElement('div', { className: 'activity-dot', style: {background: {lecture:'#2563eb',practical:'#059669',assessment:'#d97706',meeting:'#6b7280'}[s.schedule_type]||'#9ca3af'} }),
+                    React.createElement('div', { className: 'activity-content' },
+                      React.createElement('div', { className: 'activity-text' }, React.createElement('strong', null, s.title)),
+                      React.createElement('div', { className: 'activity-time' }, s.schedule_date, ' ', s.start_time, '-', s.end_time, ' · ', s.room || '', ' · ', s.instructor_name || '')
+                    )
+                  );
+                }),
+                (stats.upcoming_schedules || []).length === 0 && React.createElement('div', { className: 'empty-state' }, '예정 일정이 없습니다')
+              ))
+            );
+          })()}
+          {(function() {
+            var fadeRef3 = useScrollFadeIn();
+            return React.createElement('div', { className: 'grid-3', style: {marginTop:4}, ref: fadeRef3 },
+              React.createElement('div', { className: 'card' }, React.createElement('div', { className: 'card-body text-center' },
+                React.createElement('div', { style: {fontSize:36,fontWeight:800,color:'var(--primary)'} }, stats.total_enrollments),
+                React.createElement('div', { style: {fontSize:13,color:'var(--gray-500)',marginTop:4} }, '총 등록 건수'))),
+              React.createElement('div', { className: 'card' }, React.createElement('div', { className: 'card-body text-center' },
+                React.createElement('div', { style: {fontSize:36,fontWeight:800,color:'var(--success)'} }, stats.ojt_programs),
+                React.createElement('div', { style: {fontSize:13,color:'var(--gray-500)',marginTop:4} }, 'OJT 프로그램'))),
+              React.createElement('div', { className: 'card' }, React.createElement('div', { className: 'card-body text-center' },
+                React.createElement('div', { style: {fontSize:36,fontWeight:800,color:'#7c3aed'} }, stats.ojt_enrollments),
+                React.createElement('div', { style: {fontSize:13,color:'var(--gray-500)',marginTop:4} }, 'OJT 참여 인원')))
+            );
+          })()}
         </React.Fragment>
       ) : (
         <div className="grid-2">
@@ -3244,6 +3430,7 @@ function MechanicPage() {
 
 // ━━━━━━━━━━━━ MAIN APP ━━━━━━━━━━━━
 function App() {
+  var [showSplash, setShowSplash] = useState(true);
   var [user, setUser] = useState(function(){try{return JSON.parse(localStorage.getItem('atms_user'));}catch{return null;}});
   var [page, setPage] = useState('dashboard');
   var [toast, setToast] = useState(null);
@@ -3340,11 +3527,13 @@ function App() {
   };
 
   return (
-    <AppContext.Provider value={{user,showToast,refreshUser}}>
-      <div className="app-layout">
-        <div className={`sidebar-overlay ${sidebarOpen?'open':''}`} onClick={()=>setSidebarOpen(false)} />
-        <div className={`sidebar ${sidebarOpen?'open':''} ${sidebarCollapsed?'collapsed':''}`}>
-          <div className="sidebar-header">
+    <React.Fragment>
+      {showSplash && <SplashScreen onDone={function() { setShowSplash(false); }} />}
+      <AppContext.Provider value={{user,showToast,refreshUser}}>
+        <div className="app-layout">
+          <div className={`sidebar-overlay ${sidebarOpen?'open':''}`} onClick={()=>setSidebarOpen(false)} />
+          <div className={`sidebar ${sidebarOpen?'open':''} ${sidebarCollapsed?'collapsed':''}`}>
+            <div className="sidebar-header">
             <h2>ATMS</h2>
             <button className="sidebar-toggle" onClick={()=>setSidebarCollapsed(!sidebarCollapsed)}
               title={sidebarCollapsed?'메뉴 펼치기':'메뉴 접기'}>
@@ -3376,6 +3565,7 @@ function App() {
           </div>
         </div>
         <div className={`main-content ${sidebarCollapsed?'sidebar-collapsed':''}`}>
+          <AnimatedBackground />
           <div className="top-bar">
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <button className="hamburger" onClick={function(){setSidebarOpen(!sidebarOpen);}}>☰</button>
@@ -3396,11 +3586,13 @@ function App() {
               <Avatar src={user.photo_url} name={user.name} size="sm" onClick={function(){navigate('profile');}}/>
             </div>
           </div>
-          {renderPage()}
+          <PageTransition pageKey={page}>{renderPage()}</PageTransition>
         </div>
       </div>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={()=>setToast(null)}/>}
-    </AppContext.Provider>
+          {toast && <Toast message={toast.message} type={toast.type} onClose={()=>setToast(null)}/>}
+        </div>
+      </AppContext.Provider>
+    </React.Fragment>
   );
 }
 
