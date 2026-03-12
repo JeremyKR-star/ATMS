@@ -289,17 +289,19 @@ tr:hover { background: #fafbfc; }
 .nat-add-btn { padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer;
   border: 1.5px dashed var(--gray-300); background: transparent; color: var(--gray-400); transition: all 0.2s; }
 .nat-add-btn:hover { border-color: var(--primary); color: var(--primary); }
-.nat-section { position: relative; overflow: hidden; border-radius: 12px; margin-bottom: 28px; min-height: 140px;
-  background-size: cover; background-position: center; background-repeat: no-repeat; border: 3px solid #ccc; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
-.nat-section::before { content:''; position: absolute; inset: 0; z-index: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(0,0,0,0.10) 100%); pointer-events: none; }
-.nat-section > .card { position: relative; z-index: 1; background: rgba(255,255,255,0.88);
-  border: 2px solid rgba(0,0,0,0.15); border-radius: 8px; margin: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.10); }
-.nat-section.nat-MY { border-color: #cc0001; }
-.nat-section.nat-PL { border-color: #dc143c; }
-.nat-section.nat-IQ { border-color: #007a3d; }
-.nat-section-title { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px;
-  padding: 10px 16px 4px; color: #fff; font-weight: 700; font-size: 15px; text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+.nat-section { position: relative; overflow: hidden; border-radius: 14px; margin-bottom: 28px; min-height: 160px;
+  border: 3px solid #333; box-shadow: 0 6px 28px rgba(0,0,0,0.25); }
+.nat-canvas-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.nat-section > .card { position: relative; z-index: 2; background: rgba(255,255,255,0.93);
+  border: 2px solid rgba(0,0,0,0.12); border-radius: 10px; margin: 12px 14px 14px;
+  box-shadow: 0 3px 15px rgba(0,0,0,0.15); backdrop-filter: blur(2px); }
+.nat-section.nat-MY { border-color: #cc0001; box-shadow: 0 6px 28px rgba(204,0,1,0.3); }
+.nat-section.nat-PL { border-color: #dc143c; box-shadow: 0 6px 28px rgba(220,20,60,0.3); }
+.nat-section.nat-IQ { border-color: #007a3d; box-shadow: 0 6px 28px rgba(0,122,61,0.3); }
+.nat-section-title { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px 4px; color: #fff; font-weight: 700; font-size: 15px;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.7), 0 0 20px rgba(0,0,0,0.3); }
+.nat-section-title h3 { margin: 0; font-size: 16px; }
 .nat-section-title .badge { text-shadow: none; }
 
 /* ── Responsive: Tablet ── */
@@ -1375,7 +1377,8 @@ function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap
         var natWeekly = weekly.filter(function(w){ return natPilotIds[w.id]; });
         if (natWeekly.length === 0) return null;
         return (
-          <div className={'nat-section ' + getNatCss(nat.code)} key={nat.code} style={getNatBgStyle(nat.code)}>
+          <div className={'nat-section ' + getNatCss(nat.code)} key={nat.code}>
+            <NatCanvasBg code={nat.code} />
             <div className="nat-section-title"><h3>{nat.label_ko} - Weekly Report</h3>
               <span className="badge badge-yellow">As of {new Date().toISOString().slice(0,10)}</span></div>
             <div className="card" style={{marginBottom:0}}>
@@ -1388,19 +1391,328 @@ function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap
   );
 }
 
-// ━━━━━━━━━━━━ NATIONALITY BACKGROUNDS (CDN Flags) ━━━━━━━━━━━━
-var NAT_FLAG_MAP = {
-  'Malaysia': { url: 'https://flagcdn.com/w1280/my.png', css: 'nat-MY' },
-  'Poland':   { url: 'https://flagcdn.com/w1280/pl.png', css: 'nat-PL' },
-  'Iraq':     { url: 'https://flagcdn.com/w1280/iq.png', css: 'nat-IQ' }
+// ━━━━━━━━━━━━ CANVAS PARTICLE BACKGROUND SYSTEM ━━━━━━━━━━━━
+var NAT_THEMES = {
+  'Malaysia': {
+    css: 'nat-MY',
+    bgGrad: ['#0C1445', '#1a237e'],
+    flagColors: ['#cc0001','#ffffff','#010066','#ffd700'],
+    accentColor: '#cc0001',
+    jetColor: 'rgba(255,215,0,0.7)',
+    particleColors: ['#cc0001','#ffd700','#ffffff','#010066'],
+    flagDraw: function(ctx, w, h) {
+      // Malaysian flag partial - top-left corner
+      var fw = w * 0.28, fh = h * 0.65;
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      // Stripes
+      var sh = fh / 7;
+      for (var i = 0; i < 7; i++) {
+        ctx.fillStyle = i % 2 === 0 ? '#cc0001' : '#ffffff';
+        ctx.fillRect(0, i * sh, fw, sh);
+      }
+      // Navy canton
+      var cw = fw * 0.55, ch = fh * 0.58;
+      ctx.fillStyle = '#010066';
+      ctx.fillRect(0, 0, cw, ch);
+      // Crescent
+      var mcx = cw * 0.4, mcy = ch * 0.5, mr = ch * 0.35;
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath(); ctx.arc(mcx, mcy, mr, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#010066';
+      ctx.beginPath(); ctx.arc(mcx + mr * 0.28, mcy - mr * 0.08, mr * 0.78, 0, Math.PI * 2); ctx.fill();
+      // Star
+      drawStar14(ctx, cw * 0.72, ch * 0.5, mr * 0.42, '#ffd700');
+      // Fade edge
+      ctx.globalAlpha = 1;
+      var grd = ctx.createLinearGradient(fw - 40, 0, fw, 0);
+      grd.addColorStop(0, 'rgba(12,20,69,0)'); grd.addColorStop(1, 'rgba(12,20,69,1)');
+      ctx.fillStyle = grd; ctx.fillRect(fw - 40, 0, 40, fh);
+      var grd2 = ctx.createLinearGradient(0, fh - 30, 0, fh);
+      grd2.addColorStop(0, 'rgba(12,20,69,0)'); grd2.addColorStop(1, 'rgba(12,20,69,1)');
+      ctx.fillStyle = grd2; ctx.fillRect(0, fh - 30, fw, 30);
+      ctx.restore();
+    }
+  },
+  'Poland': {
+    css: 'nat-PL',
+    bgGrad: ['#4a0e0e', '#2d0000'],
+    flagColors: ['#dc143c','#ffffff'],
+    accentColor: '#dc143c',
+    jetColor: 'rgba(255,255,255,0.7)',
+    particleColors: ['#dc143c','#ffffff','#ff6b6b','#ffd700'],
+    flagDraw: function(ctx, w, h) {
+      var fw = w * 0.25, fh = h * 0.6;
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      // White top
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, fw, fh / 2);
+      // Red bottom
+      ctx.fillStyle = '#dc143c';
+      ctx.fillRect(0, fh / 2, fw, fh / 2);
+      // Checkerboard emblem
+      var cs = fh * 0.09, ecx = fw * 0.5, ecy = fh * 0.35;
+      var colors = ['#dc143c','#ffffff'];
+      for (var r = 0; r < 3; r++) {
+        for (var c = 0; c < 3; c++) {
+          ctx.fillStyle = colors[(r + c) % 2];
+          ctx.fillRect(ecx - cs * 1.5 + c * cs, ecy - cs * 1.5 + r * cs, cs, cs);
+        }
+      }
+      ctx.strokeStyle = '#8b0000'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(ecx - cs * 1.5, ecy - cs * 1.5, cs * 3, cs * 3);
+      // Fade
+      ctx.globalAlpha = 1;
+      var grd = ctx.createLinearGradient(fw - 40, 0, fw, 0);
+      grd.addColorStop(0, 'rgba(74,14,14,0)'); grd.addColorStop(1, 'rgba(74,14,14,1)');
+      ctx.fillStyle = grd; ctx.fillRect(fw - 40, 0, 40, fh);
+      var grd2 = ctx.createLinearGradient(0, fh - 25, 0, fh);
+      grd2.addColorStop(0, 'rgba(74,14,14,0)'); grd2.addColorStop(1, 'rgba(74,14,14,1)');
+      ctx.fillStyle = grd2; ctx.fillRect(0, fh - 25, fw, 25);
+      ctx.restore();
+    }
+  },
+  'Iraq': {
+    css: 'nat-IQ',
+    bgGrad: ['#0a2e14', '#0d1f0d'],
+    flagColors: ['#ce1126','#ffffff','#007a3d','#000000'],
+    accentColor: '#007a3d',
+    jetColor: 'rgba(0,200,100,0.7)',
+    particleColors: ['#ce1126','#007a3d','#ffffff','#00ff88'],
+    flagDraw: function(ctx, w, h) {
+      var fw = w * 0.25, fh = h * 0.65;
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      var th = fh / 3;
+      ctx.fillStyle = '#ce1126'; ctx.fillRect(0, 0, fw, th);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, th, fw, th);
+      ctx.fillStyle = '#000000'; ctx.fillRect(0, th * 2, fw, th);
+      // Green stars in white band
+      var starY = th + th / 2;
+      drawStar5(ctx, fw * 0.25, starY, th * 0.28, '#007a3d');
+      drawStar5(ctx, fw * 0.5, starY, th * 0.32, '#007a3d');
+      drawStar5(ctx, fw * 0.75, starY, th * 0.28, '#007a3d');
+      // Fade
+      ctx.globalAlpha = 1;
+      var grd = ctx.createLinearGradient(fw - 40, 0, fw, 0);
+      grd.addColorStop(0, 'rgba(10,46,20,0)'); grd.addColorStop(1, 'rgba(10,46,20,1)');
+      ctx.fillStyle = grd; ctx.fillRect(fw - 40, 0, 40, fh);
+      var grd2 = ctx.createLinearGradient(0, fh - 25, 0, fh);
+      grd2.addColorStop(0, 'rgba(10,46,20,0)'); grd2.addColorStop(1, 'rgba(10,46,20,1)');
+      ctx.fillStyle = grd2; ctx.fillRect(0, fh - 25, fw, 25);
+      ctx.restore();
+    }
+  }
 };
-function getNatBgStyle(code) {
-  var info = NAT_FLAG_MAP[code];
-  if (!info) return {};
-  return { backgroundImage: 'url(' + info.url + ')' };
+
+function drawStar5(ctx, cx, cy, r, color) {
+  ctx.fillStyle = color; ctx.beginPath();
+  for (var i = 0; i < 10; i++) {
+    var a = Math.PI / 2 * -1 + i * Math.PI / 5;
+    var rr = i % 2 === 0 ? r : r * 0.4;
+    if (i === 0) ctx.moveTo(cx + rr * Math.cos(a), cy + rr * Math.sin(a));
+    else ctx.lineTo(cx + rr * Math.cos(a), cy + rr * Math.sin(a));
+  }
+  ctx.closePath(); ctx.fill();
 }
+
+function drawStar14(ctx, cx, cy, r, color) {
+  ctx.fillStyle = color; ctx.beginPath();
+  for (var i = 0; i < 28; i++) {
+    var a = Math.PI / 2 * -1 + i * Math.PI / 14;
+    var rr = i % 2 === 0 ? r : r * 0.55;
+    if (i === 0) ctx.moveTo(cx + rr * Math.cos(a), cy + rr * Math.sin(a));
+    else ctx.lineTo(cx + rr * Math.cos(a), cy + rr * Math.sin(a));
+  }
+  ctx.closePath(); ctx.fill();
+}
+
+function drawFA50(ctx, x, y, scale, color, angle) {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(angle || 0); ctx.scale(scale, scale);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  // Fuselage
+  ctx.moveTo(0, -42); ctx.lineTo(3, -35); ctx.lineTo(5, -20); ctx.lineTo(6, 0);
+  // Right wing
+  ctx.lineTo(8, 5); ctx.lineTo(32, 16); ctx.lineTo(33, 18); ctx.lineTo(30, 18); ctx.lineTo(9, 10);
+  // Back fuselage
+  ctx.lineTo(8, 20); ctx.lineTo(7, 30);
+  // Right stabilizer
+  ctx.lineTo(17, 35); ctx.lineTo(17, 37); ctx.lineTo(6, 33);
+  // Tail
+  ctx.lineTo(5, 40); ctx.lineTo(3, 42); ctx.lineTo(0, 43);
+  // Left mirror
+  ctx.lineTo(-3, 42); ctx.lineTo(-5, 40); ctx.lineTo(-6, 33);
+  ctx.lineTo(-17, 37); ctx.lineTo(-17, 35); ctx.lineTo(-7, 30);
+  ctx.lineTo(-8, 20); ctx.lineTo(-9, 10);
+  ctx.lineTo(-30, 18); ctx.lineTo(-33, 18); ctx.lineTo(-32, 16);
+  ctx.lineTo(-8, 5); ctx.lineTo(-6, 0); ctx.lineTo(-5, -20); ctx.lineTo(-3, -35);
+  ctx.closePath(); ctx.fill();
+  // Canopy
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(0, -22, 2.5, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Exhaust
+  ctx.fillStyle = 'rgba(255,150,50,0.5)';
+  ctx.beginPath();
+  ctx.ellipse(0, 45, 2, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function NatCanvasBg(props) {
+  var code = props.code;
+  var canvasRef = React.useRef(null);
+  var animRef = React.useRef(null);
+  var particlesRef = React.useRef(null);
+  var jetsRef = React.useRef(null);
+
+  React.useEffect(function() {
+    var theme = NAT_THEMES[code];
+    if (!theme) return;
+    var canvas = canvasRef.current;
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var W = canvas.offsetWidth * 2;
+    var H = canvas.offsetHeight * 2;
+    canvas.width = W; canvas.height = H;
+    ctx.scale(1, 1);
+
+    // Init particles
+    var particles = [];
+    for (var i = 0; i < 60; i++) {
+      particles.push({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: (Math.random() - 0.3) * 1.5,
+        vy: -(Math.random() * 1.5 + 0.3),
+        r: Math.random() * 2.5 + 0.8,
+        color: theme.particleColors[Math.floor(Math.random() * theme.particleColors.length)],
+        alpha: Math.random() * 0.6 + 0.2,
+        life: Math.random() * 200 + 100
+      });
+    }
+    particlesRef.current = particles;
+
+    // Init jets (3 jets in formation, moving upward)
+    var jets = [
+      { x: W * 0.62, y: H * 0.55, scale: 2.8, speed: 0.35 },
+      { x: W * 0.78, y: H * 0.35, scale: 1.8, speed: 0.3 },
+      { x: W * 0.85, y: H * 0.72, scale: 1.3, speed: 0.25 }
+    ];
+    jetsRef.current = jets;
+
+    var t = 0;
+    function render() {
+      t++;
+      ctx.clearRect(0, 0, W, H);
+
+      // Background gradient
+      var bg = ctx.createLinearGradient(0, 0, W, H);
+      bg.addColorStop(0, theme.bgGrad[0]);
+      bg.addColorStop(1, theme.bgGrad[1]);
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // Subtle grid lines
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth = 1;
+      for (var gx = 0; gx < W; gx += 60) {
+        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+      }
+      for (var gy = 0; gy < H; gy += 60) {
+        ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+      }
+
+      // Draw flag (partial, in corner)
+      theme.flagDraw(ctx, W, H);
+
+      // Draw jets with trails
+      for (var j = 0; j < jets.length; j++) {
+        var jet = jets[j];
+        // Contrail / exhaust trail
+        ctx.save();
+        var trailLen = 80 * jet.scale;
+        var grdT = ctx.createLinearGradient(jet.x, jet.y, jet.x, jet.y + trailLen);
+        grdT.addColorStop(0, theme.jetColor);
+        grdT.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.strokeStyle = grdT;
+        ctx.lineWidth = jet.scale * 1.2;
+        ctx.beginPath();
+        ctx.moveTo(jet.x - jet.scale * 3, jet.y + jet.scale * 20);
+        ctx.lineTo(jet.x - jet.scale * 3, jet.y + trailLen);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(jet.x + jet.scale * 3, jet.y + jet.scale * 20);
+        ctx.lineTo(jet.x + jet.scale * 3, jet.y + trailLen);
+        ctx.stroke();
+        ctx.restore();
+
+        // Jet body
+        drawFA50(ctx, jet.x, jet.y + Math.sin(t * 0.02 + j) * 3, jet.scale, theme.jetColor, 0);
+
+        // Move jet slowly upward (loop)
+        jet.y -= jet.speed;
+        if (jet.y < -100) jet.y = H + 100;
+      }
+
+      // Particles
+      for (var p = 0; p < particles.length; p++) {
+        var pt = particles[p];
+        ctx.globalAlpha = pt.alpha * (0.5 + 0.5 * Math.sin(t * 0.05 + p));
+        ctx.fillStyle = pt.color;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Glow
+        ctx.globalAlpha = pt.alpha * 0.15;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.r * 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.life--;
+        if (pt.life <= 0 || pt.x < 0 || pt.x > W || pt.y < 0 || pt.y > H) {
+          pt.x = Math.random() * W;
+          pt.y = H + Math.random() * 20;
+          pt.life = Math.random() * 200 + 100;
+          pt.vy = -(Math.random() * 1.5 + 0.3);
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // Speed lines (dynamic)
+      for (var sl = 0; sl < 5; sl++) {
+        var slY = (t * 0.7 + sl * H / 5) % H;
+        var slX = W * 0.35 + sl * 40;
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.05 + Math.sin(t * 0.03 + sl) * 0.03) + ')';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(slX, slY); ctx.lineTo(slX + 120 + sl * 20, slY); ctx.stroke();
+      }
+
+      animRef.current = requestAnimationFrame(render);
+    }
+
+    render();
+
+    return function() {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
+  }, [code]);
+
+  return React.createElement('canvas', {
+    ref: canvasRef,
+    className: 'nat-canvas-bg',
+    style: { position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0 }
+  });
+}
+
 function getNatCss(code) {
-  var info = NAT_FLAG_MAP[code];
+  var info = NAT_THEMES[code];
   return info ? info.css : '';
 }
 
@@ -1608,7 +1920,8 @@ function PilotPage() {
             if (groupPilots.length === 0) return null;
             var gIdx = getGroupIdx(nat.code);
             return (
-              <div className={'nat-section ' + getNatCss(nat.code)} key={nat.code} style={getNatBgStyle(nat.code)}>
+              <div className={'nat-section ' + getNatCss(nat.code)} key={nat.code}>
+                <NatCanvasBg code={nat.code} />
                 <div className="nat-section-title">
                   <h3>{nat.label_ko} Pilots</h3>
                   <span className="badge badge-blue">{groupPilots.length}명</span>
@@ -1664,7 +1977,8 @@ function PilotPage() {
 
           {/* ── Single nationality filter → single carousel with bg ── */}
           {natFilter!=='all' && filteredPilots.length > 0 && (
-            <div className={'nat-section ' + getNatCss(natFilter)} style={getNatBgStyle(natFilter)}>
+            <div className={'nat-section ' + getNatCss(natFilter)}>
+              <NatCanvasBg code={natFilter} />
               <div className="nat-section-title"><h3>{natLabelMap[natFilter]||natFilter} T-50 Transition Course Pilots</h3>
                 <span className="badge badge-blue">{filteredPilots.length}명</span></div>
               <div className="card" style={{marginBottom:0}}>
@@ -1748,7 +2062,8 @@ function PilotPage() {
             }
             if (natPilots.length === 0) return null;
             return (
-              <div className={'nat-section ' + getNatCss(nat.code)} key={nat.code} style={getNatBgStyle(nat.code)}>
+              <div className={'nat-section ' + getNatCss(nat.code)} key={nat.code}>
+                <NatCanvasBg code={nat.code} />
                 <div className="nat-section-title"><h3>{nat.label_ko} - Individual Training Status</h3>
                   <span className="badge badge-blue">{natPilots.length}명</span></div>
                 <div className="card" style={{marginBottom:0}}>
