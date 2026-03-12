@@ -37,7 +37,6 @@ class BackupCreateHandler(BaseHandler):
             
             self.success({
                 "filename": backup_filename,
-                "path": backup_path,
                 "size": file_size,
                 "created_at": datetime.now().isoformat()
             }, "Database backup created successfully")
@@ -63,14 +62,12 @@ class BackupListHandler(BaseHandler):
                         backups.append({
                             "filename": filename,
                             "size": stat.st_size,
-                            "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                            "path": filepath
+                            "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat()
                         })
             
             self.success({
                 "backups": backups,
-                "count": len(backups),
-                "backup_dir": BACKUP_DIR
+                "count": len(backups)
             })
         except Exception as e:
             self.error(f"Failed to list backups: {str(e)}", 500)

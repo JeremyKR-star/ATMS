@@ -437,8 +437,8 @@ class WeeklyUploadHandler(BaseHandler):
                 })
             wb.close()
 
-        except Exception as e:
-            return self.error(f"Failed to parse Excel file: {str(e)}")
+        except Exception:
+            return self.error("Failed to parse Excel file. Please check the file format.")
 
         if not parsed_rows:
             return self.error("No data rows found in Excel file")
@@ -458,45 +458,52 @@ class WeeklyUploadHandler(BaseHandler):
 
         # Save to DB
         conn = get_db()
-        cur = conn.execute(
-            """INSERT INTO weekly_uploads
-               (filename, original_filename, uploaded_by, report_date, file_size, row_count, notes)
-               VALUES (?,?,?,?,?,?,?)""",
-            (fname, orig_name, uploader, report_date, len(f["body"]), len(parsed_rows), notes)
-        )
-        upload_id = cur.lastrowid
-
-        # Match pilot names and save parsed data
-        pilots = dicts_from_rows(conn.execute(
-            "SELECT id, name, short_name FROM pilots WHERE status='active'"
-        ).fetchall())
-
-        for pr in parsed_rows:
-            # Try to match pilot by short_name or name
-            pilot_id = None
-            for p in pilots:
-                if (p['short_name'] and p['short_name'].lower() == pr['name'].lower()) or \
-                   (p['name'] and p['name'].lower() == pr['name'].lower()):
-                    pilot_id = p['id']
-                    break
-            conn.execute(
-                """INSERT INTO weekly_report_data
-                   (upload_id, pilot_id, pilot_name, flt_plan, flt_done, flt_remain,
-                    sim_plan, sim_done, sim_remain, remarks)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                (upload_id, pilot_id, pr['name'],
-                 pr['flt_plan'], pr['flt_done'], pr['flt_remain'],
-                 pr['sim_plan'], pr['sim_done'], pr['sim_remain'],
-                 pr['remarks'])
+        try:
+            cur = conn.execute(
+                """INSERT INTO weekly_uploads
+                   (filename, original_filename, uploaded_by, report_date, file_size, row_count, notes)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (fname, orig_name, uploader, report_date, len(f["body"]), len(parsed_rows), notes)
             )
+            upload_id = cur.lastrowid
 
-        conn.commit()
-        upload = dict_from_row(conn.execute("SELECT * FROM weekly_uploads WHERE id=?", (upload_id,)).fetchone())
-        conn.close()
-        self.success({'upload': upload, 'parsed_rows': parsed_rows, 'matched': sum(1 for r in parsed_rows if any(
-            (p['short_name'] and p['short_name'].lower() == r['name'].lower()) or
-            (p['name'] and p['name'].lower() == r['name'].lower()) for p in pilots
-        ))}, f"Uploaded successfully: {len(parsed_rows)} rows parsed")
+            # Match pilot names and save parsed data
+            pilots = dicts_from_rows(conn.execute(
+                "SELECT id, name, short_name FROM pilots WHERE status='active'"
+            ).fetchall())
+
+            for pr in parsed_rows:
+                # Try to match pilot by short_name or name
+                pilot_id = None
+                for p in pilots:
+                    if (p['short_name'] and p['short_name'].lower() == pr['name'].lower()) or \
+                       (p['name'] and p['name'].lower() == pr['name'].lower()):
+                        pilot_id = p['id']
+                        break
+                conn.execute(
+                    """INSERT INTO weekly_report_data
+                       (upload_id, pilot_id, pilot_name, flt_plan, flt_done, flt_remain,
+                        sim_plan, sim_done, sim_remain, remarks)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (upload_id, pilot_id, pr['name'],
+                     pr['flt_plan'], pr['flt_done'], pr['flt_remain'],
+                     pr['sim_plan'], pr['sim_done'], pr['sim_remain'],
+                     pr['remarks'])
+                )
+
+            conn.commit()
+            upload = dict_from_row(conn.execute("SELECT * FROM weekly_uploads WHERE id=?", (upload_id,)).fetchone())
+            matched = sum(1 for r in parsed_rows if any(
+                (p['short_name'] and p['short_name'].lower() == r['name'].lower()) or
+                (p['name'] and p['name'].lower() == r['name'].lower()) for p in pilots
+            ))
+            self.success({'upload': upload, 'parsed_rows': parsed_rows, 'matched': matched},
+                         f"Uploaded successfully: {len(parsed_rows)} rows parsed")
+        except Exception as e:
+            conn.rollback()
+            self.error("Failed to save upload data", 500)
+        finally:
+            conn.close()
 
 
 class WeeklyUploadDetailHandler(BaseHandler):

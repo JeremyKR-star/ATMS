@@ -226,7 +226,8 @@ def make_app():
             "path": STATIC_PATH,
             "default_filename": "index.html"
         }),
-    ], debug=True, log_function=log_request)
+    ], debug=os.environ.get("ATMS_DEBUG", "").lower() in ("1", "true", "yes"),
+       log_function=log_request)
 
 
 if __name__ == "__main__":

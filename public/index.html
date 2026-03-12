@@ -609,12 +609,39 @@ function Toast({ message, type, onClose }) {
 }
 
 function Modal({ title, children, onClose, footer }) {
+  useEffect(function() {
+    var handleEsc = function(e) { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleEsc);
+    return function() { document.removeEventListener('keydown', handleEsc); };
+  }, [onClose]);
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+      <div className="modal" onClick={function(e) { e.stopPropagation(); }}>
         <div className="modal-header"><h3>{title}</h3><button className="close-btn" onClick={onClose}>&times;</button></div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-footer">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDialog({ title, message, onConfirm, onCancel, confirmText, cancelText, type }) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" onClick={function(e) { e.stopPropagation(); }} style={{maxWidth:420,animation:'scaleInBouncy 0.3s ease'}}>
+        <div className="modal-header">
+          <h3 style={{display:'flex',alignItems:'center',gap:8}}>
+            <span>{type === 'danger' ? '⚠️' : 'ℹ️'}</span>
+            <span>{title || '확인'}</span>
+          </h3>
+        </div>
+        <div className="modal-body" style={{padding:'24px 20px',fontSize:15,lineHeight:1.6,color:'var(--gray-600)'}}>
+          {message}
+        </div>
+        <div className="modal-footer" style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+          <button className="btn" onClick={onCancel} style={{background:'var(--gray-100)',color:'var(--gray-700)'}}>{cancelText || '취소'}</button>
+          <button className={type === 'danger' ? 'btn btn-danger' : 'btn btn-primary'} onClick={onConfirm}>{confirmText || '확인'}</button>
+        </div>
       </div>
     </div>
   );
@@ -1176,19 +1203,21 @@ function SplashScreen(props) {
 
 // ━━━━━━━━━━━━ LOGIN ━━━━━━━━━━━━
 function LoginPage({ onLogin }) {
-  const [empId, setEmpId] = useState('');
-  const [pw, setPw] = useState('');
-  const [err, setErr] = useState('');
-  const [loading, setLoading] = useState(false);
-  const handleLogin = async (e) => {
+  var [empId, setEmpId] = useState('');
+  var [pw, setPw] = useState('');
+  var [err, setErr] = useState('');
+  var [loading, setLoading] = useState(false);
+  var [showPw, setShowPw] = useState(false);
+  var handleLogin = function(e) {
     e.preventDefault(); setErr(''); setLoading(true);
-    try {
-      const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ employee_id: empId, password: pw }) });
-      localStorage.setItem('atms_token', data.data.token);
-      localStorage.setItem('atms_user', JSON.stringify(data.data.user));
-      onLogin(data.data.user);
-    } catch (e) { setErr(e.message); }
-    setLoading(false);
+    api('/auth/login', { method: 'POST', body: JSON.stringify({ employee_id: empId, password: pw }) })
+      .then(function(data) {
+        localStorage.setItem('atms_token', data.data.token);
+        localStorage.setItem('atms_user', JSON.stringify(data.data.user));
+        onLogin(data.data.user);
+      })
+      .catch(function(e) { setErr(e.message); })
+      .finally(function() { setLoading(false); });
   };
   return (
     <div className="login-page">
@@ -1208,10 +1237,16 @@ function LoginPage({ onLogin }) {
         <p className="subtitle"><TypingEffect text="Advanced Training Management System" /></p>
         <form onSubmit={handleLogin}>
           <div className="form-group"><label>Employee ID</label>
-            <input value={empId} onChange={e => setEmpId(e.target.value)} placeholder="ADM001" required /></div>
+            <input value={empId} onChange={function(e){setEmpId(e.target.value);}} placeholder="ADM001" required autoComplete="username" /></div>
           <div className="form-group"><label>Password</label>
-            <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="비밀번호 입력" required /></div>
-          {err && <p style={{color:'#f87171',marginBottom:16,fontSize:14}}>{err}</p>}
+            <div style={{position:'relative'}}>
+              <input type={showPw ? 'text' : 'password'} value={pw} onChange={function(e){setPw(e.target.value);}} placeholder="비밀번호 입력" required autoComplete="current-password" style={{paddingRight:40}} />
+              <button type="button" onClick={function(){setShowPw(!showPw);}} style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:16,opacity:0.6,color:'inherit',padding:4}}>
+                {showPw ? '🙈' : '👁️'}
+              </button>
+            </div>
+          </div>
+          {err && <div style={{color:'#f87171',marginBottom:16,fontSize:14,padding:'10px 14px',background:'rgba(248,113,113,0.1)',borderRadius:8,border:'1px solid rgba(248,113,113,0.2)',animation:'fadeInUp 0.3s ease'}}>{err}</div>}
           <button className="btn btn-primary btn-block" type="submit" disabled={loading}>
             {loading ? '로그인 중...' : '로그인'}</button>
         </form>
@@ -1570,7 +1605,7 @@ function UsersPage() {
           </div>
         </div>
       </Modal>}
-      {showModal&&<Modal title="사용자 등록" onClose={function(){setShowModal(false);setFormErrors({};}}
+      {showModal&&<Modal title="사용자 등록" onClose={function(){setShowModal(false);setFormErrors({});}}
         footer={<><button className="btn btn-outline" onClick={function(){setShowModal(false);setFormErrors({});}}>취소</button><button className="btn btn-primary" onClick={handleCreate}>등록</button></>}>
         <div className={'form-group' + (formErrors.employee_id?' form-error':'')}><label className="form-required">사번</label><input value={form.employee_id} onChange={function(e){setForm({...form,employee_id:e.target.value});}} />{formErrors.employee_id&&<div className="form-error-msg">필수 입력 항목</div>}</div>
         <div className={'form-group' + (formErrors.name?' form-error':'')}><label className="form-required">이름</label><input value={form.name} onChange={function(e){setForm({...form,name:e.target.value});}} />{formErrors.name&&<div className="form-error-msg">필수 입력 항목</div>}</div>
@@ -3411,27 +3446,38 @@ function PilotPage() {
   );
 }
 
-// ━━━━━━━━━━━━ MECHANIC PAGE (placeholder) ━━━━━━━━━━━━
-function MechanicPage() {
-  return (
-    <div className="page-content">
-      <div className="card"><div className="card-header"><h3>정비사 관리</h3></div>
-        <div className="card-body">
-          <div className="empty-state" style={{padding:'80px 20px'}}>
-            <div style={{fontSize:60,marginBottom:16}}>🔧</div>
-            <div style={{fontSize:20,fontWeight:700,color:'var(--gray-700)',marginBottom:8}}>정비사 관리 모듈</div>
-            <div style={{color:'var(--gray-500)',fontSize:14}}>정비사 교육 현황, OJT 관리, 자격 인증 등의 기능이 준비 중입니다.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+// ━━━━━━━━━━━━ ERROR BOUNDARY ━━━━━━━━━━━━
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  componentDidCatch(error, errorInfo) {
+    this.setState({ hasError: true, error: error });
+    console.error('[ATMS Error]', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',background:'linear-gradient(135deg,#0f172a,#1e1b4b)',color:'#fff',fontFamily:'Inter,sans-serif'}},
+        React.createElement('div', {style:{textAlign:'center',padding:40,maxWidth:480}},
+          React.createElement('div', {style:{fontSize:64,marginBottom:16}}, '\u26A0\uFE0F'),
+          React.createElement('h2', {style:{fontSize:24,fontWeight:700,marginBottom:12}}, '\uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4'),
+          React.createElement('p', {style:{color:'rgba(148,163,184,0.8)',marginBottom:24,lineHeight:1.6}}, '\uC608\uAE30\uCE58 \uC54A\uC740 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4. \uD398\uC774\uC9C0\uB97C \uC0C8\uB85C\uACE0\uCE68\uD574 \uC8FC\uC138\uC694.'),
+          React.createElement('button', {
+            onClick: function() { window.location.reload(); },
+            style:{padding:'12px 32px',background:'linear-gradient(135deg,#2563eb,#4f46e5)',color:'#fff',border:'none',borderRadius:10,fontSize:16,fontWeight:600,cursor:'pointer'}
+          }, '\uD398\uC774\uC9C0 \uC0C8\uB85C\uACE0\uCE68')
+        )
+      );
+    }
+    return this.props.children;
+  }
 }
 
 // ━━━━━━━━━━━━ MAIN APP ━━━━━━━━━━━━
 function App() {
   var [showSplash, setShowSplash] = useState(true);
-  var [user, setUser] = useState(function(){try{return JSON.parse(localStorage.getItem('atms_user'));}catch{return null;}});
+  var [user, setUser] = useState(function(){try{return JSON.parse(localStorage.getItem('atms_user'));}catch(e){return null;}});
   var [page, setPage] = useState('dashboard');
   var [toast, setToast] = useState(null);
   var [sidebarOpen, setSidebarOpen] = useState(false);
@@ -3596,7 +3642,7 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App/></ErrorBoundary>);
 </script>
 </body>
 </html>

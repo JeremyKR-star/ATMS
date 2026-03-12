@@ -1,18 +1,43 @@
 """Authentication Routes: Login, Register, Profile"""
+import os
 import json
 import tornado.web
 from database import get_db, dict_from_row
-from auth import hash_password, check_password, generate_token, require_auth, get_current_user
+from auth import (hash_password, check_password, generate_token, require_auth, get_current_user,
+                  check_rate_limit, record_login_attempt, clear_login_attempts)
+
+
+def _log_audit(handler, action, target_type, target_id=None, details=''):
+    """Lazy import wrapper to avoid circular imports."""
+    try:
+        from routes.audit_routes import log_audit
+        log_audit(handler, action, target_type, target_id, details)
+    except Exception:
+        pass
+
+# CORS origin: restrict in production, allow all in dev
+ALLOWED_ORIGIN = os.environ.get("ATMS_CORS_ORIGIN", "*")
 
 
 class BaseHandler(tornado.web.RequestHandler):
-    """Base handler with JSON helpers."""
+    """Base handler with JSON helpers and security headers."""
 
     def set_default_headers(self):
         self.set_header("Content-Type", "application/json")
-        self.set_header("Access-Control-Allow-Origin", "*")
+        # CORS
+        origin = self.request.headers.get("Origin", "")
+        if ALLOWED_ORIGIN == "*":
+            self.set_header("Access-Control-Allow-Origin", "*")
+        elif origin and origin in ALLOWED_ORIGIN.split(","):
+            self.set_header("Access-Control-Allow-Origin", origin)
         self.set_header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
         self.set_header("Access-Control-Allow-Headers", "Content-Type,Authorization")
+        # Security headers
+        self.set_header("X-Content-Type-Options", "nosniff")
+        self.set_header("X-Frame-Options", "DENY")
+        self.set_header("X-XSS-Protection", "1; mode=block")
+        self.set_header("Referrer-Policy", "strict-origin-when-cross-origin")
+        self.set_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 
     def options(self, *args):
         self.set_status(204)
@@ -41,6 +66,13 @@ class LoginHandler(BaseHandler):
         if not employee_id or not password:
             return self.error("Employee ID and password are required")
 
+        # Rate limiting check (by IP and employee_id)
+        client_ip = self.request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or self.request.remote_ip
+        rate_key = f"login:{client_ip}:{employee_id}"
+        allowed, remaining = check_rate_limit(rate_key)
+        if not allowed:
+            return self.error(f"Too many login attempts. Please try again in {remaining} seconds.", 429)
+
         db = get_db()
         user = dict_from_row(db.execute(
             "SELECT * FROM users WHERE employee_id = ? AND status = 'active'",
@@ -49,7 +81,12 @@ class LoginHandler(BaseHandler):
         db.close()
 
         if not user or not check_password(password, user["password_hash"]):
+            record_login_attempt(rate_key)
             return self.error("Invalid employee ID or password", 401)
+
+        # Successful login - clear rate limit
+        clear_login_attempts(rate_key)
+        _log_audit(self, 'login', 'user', user["id"])
 
         token = generate_token(user["id"], user["role"], user["name"])
         self.success({
@@ -87,6 +124,10 @@ class RegisterHandler(BaseHandler):
 
         if len(password) < 8:
             return self.error("Password must be at least 8 characters")
+        if not any(c.isdigit() for c in password):
+            return self.error("Password must contain at least one number")
+        if not any(c.isalpha() for c in password):
+            return self.error("Password must contain at least one letter")
 
         valid_roles = ["admin", "instructor", "trainee", "ojt_admin", "manager", "staff", "customer"]
         if role not in valid_roles:
@@ -98,6 +139,11 @@ class RegisterHandler(BaseHandler):
             db.close()
             return self.error("Employee ID already exists")
 
+        # Input length validation
+        if len(employee_id) > 50 or len(name) > 100 or len(email) > 150:
+            db.close()
+            return self.error("Input exceeds maximum allowed length")
+
         try:
             cur = db.execute(
                 """INSERT INTO users (employee_id, password_hash, name, role, title, department, email, phone, birthday, specialty)
@@ -107,10 +153,11 @@ class RegisterHandler(BaseHandler):
             db.commit()
             user_id = cur.lastrowid
             db.close()
+            _log_audit(self, 'register', 'user', user_id, {"employee_id": employee_id, "name": name, "role": role})
             self.success({"id": user_id, "employee_id": employee_id, "name": name, "role": role}, "User registered successfully")
-        except Exception as e:
+        except Exception:
             db.close()
-            self.error(str(e), 500)
+            self.error("Registration failed. Please try again.", 500)
 
 
 class VerifyIdHandler(BaseHandler):
@@ -172,6 +219,10 @@ class ChangePasswordHandler(BaseHandler):
 
         if len(new_pw) < 8:
             return self.error("New password must be at least 8 characters")
+        if not any(c.isdigit() for c in new_pw):
+            return self.error("New password must contain at least one number")
+        if not any(c.isalpha() for c in new_pw):
+            return self.error("New password must contain at least one letter")
 
         db = get_db()
         user = dict_from_row(db.execute("SELECT password_hash FROM users WHERE id = ?", (self.current_user_data["user_id"],)).fetchone())
@@ -183,4 +234,5 @@ class ChangePasswordHandler(BaseHandler):
                    (hash_password(new_pw), self.current_user_data["user_id"]))
         db.commit()
         db.close()
+        _log_audit(self, 'change_password', 'user', self.current_user_data["user_id"])
         self.success(None, "Password changed successfully")

@@ -3,6 +3,7 @@ import json
 from routes.auth_routes import BaseHandler
 from database import get_db, dict_from_row, dicts_from_rows
 from auth import require_auth, hash_password
+from routes.audit_routes import log_audit
 
 
 class UsersHandler(BaseHandler):
@@ -88,6 +89,7 @@ class UserDetailHandler(BaseHandler):
         db.execute(f"UPDATE users SET {set_clause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?", values)
         db.commit()
         db.close()
+        log_audit(self, 'update', 'user', int(user_id), updates)
         self.success(updates, "User updated")
 
     @require_auth(roles=["admin"])
@@ -96,6 +98,7 @@ class UserDetailHandler(BaseHandler):
         db.execute("UPDATE users SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
         db.commit()
         db.close()
+        log_audit(self, 'delete', 'user', int(user_id))
         self.success(None, "User deactivated")
 
 
@@ -112,6 +115,7 @@ class ResetPasswordHandler(BaseHandler):
                    (hash_password(new_pw), user_id))
         db.commit()
         db.close()
+        log_audit(self, 'reset_password', 'user', int(user_id))
         self.success(None, "Password reset successfully")
 
 

@@ -10,9 +10,50 @@ import time
 import functools
 import json
 import os
+import threading
 
-SECRET_KEY = "atms-secret-key-2026-change-in-production"
+# ── Secret key: use environment variable or generate a random one per startup ──
+SECRET_KEY = os.environ.get("ATMS_SECRET_KEY", "")
+if not SECRET_KEY:
+    SECRET_KEY = base64.urlsafe_b64encode(os.urandom(32)).decode()
+    print("[AUTH] WARNING: No ATMS_SECRET_KEY env var set. Generated random key (tokens will invalidate on restart).")
+
 TOKEN_EXPIRY = 86400 * 7  # 7 days
+
+# ── Rate Limiting ──
+_login_attempts = {}  # {ip_or_employee_id: [timestamp, timestamp, ...]}
+_login_lock = threading.Lock()
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 300  # 5 minutes
+
+
+def check_rate_limit(key):
+    """Check if a login key (IP or employee_id) is rate-limited. Returns (allowed, seconds_remaining)."""
+    now = time.time()
+    with _login_lock:
+        if key not in _login_attempts:
+            return True, 0
+        # Clean old attempts outside window
+        _login_attempts[key] = [t for t in _login_attempts[key] if now - t < LOGIN_LOCKOUT_SECONDS]
+        if len(_login_attempts[key]) >= MAX_LOGIN_ATTEMPTS:
+            oldest = _login_attempts[key][0]
+            remaining = int(LOGIN_LOCKOUT_SECONDS - (now - oldest))
+            return False, max(remaining, 1)
+        return True, 0
+
+
+def record_login_attempt(key):
+    """Record a failed login attempt."""
+    with _login_lock:
+        if key not in _login_attempts:
+            _login_attempts[key] = []
+        _login_attempts[key].append(time.time())
+
+
+def clear_login_attempts(key):
+    """Clear login attempts on successful login."""
+    with _login_lock:
+        _login_attempts.pop(key, None)
 
 
 def hash_password(password: str) -> str:
