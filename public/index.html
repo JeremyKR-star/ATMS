@@ -1176,8 +1176,9 @@ function TypingEffect(props) {
 function PageTransition(props) {
   var children = props.children;
   var pageKey = props.pageKey;
-  var show = useState(false)[0];
-  var setShow = useState(false)[1];
+  var _showState = useState(false);
+  var show = _showState[0];
+  var setShow = _showState[1];
   useEffect(function() {
     setShow(false);
     var t = requestAnimationFrame(function() { setShow(true); });
