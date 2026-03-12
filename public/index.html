@@ -1567,44 +1567,66 @@ function NatCanvasBg(props) {
   var code = props.code;
   var canvasRef = React.useRef(null);
   var animRef = React.useRef(null);
-  var particlesRef = React.useRef(null);
-  var jetsRef = React.useRef(null);
+  var stateRef = React.useRef(null);
 
   React.useEffect(function() {
     var theme = NAT_THEMES[code];
     if (!theme) return;
     var canvas = canvasRef.current;
     if (!canvas) return;
+    var parent = canvas.parentElement;
+    if (!parent) return;
     var ctx = canvas.getContext('2d');
-    var W = canvas.offsetWidth * 2;
-    var H = canvas.offsetHeight * 2;
-    canvas.width = W; canvas.height = H;
-    ctx.scale(1, 1);
+    var dpr = window.devicePixelRatio || 1;
+    var W = 0, H = 0;
+    var particles = [], jets = [];
+    var t = 0, inited = false;
 
-    // Init particles
-    var particles = [];
-    for (var i = 0; i < 60; i++) {
-      particles.push({
-        x: Math.random() * W, y: Math.random() * H,
-        vx: (Math.random() - 0.3) * 1.5,
-        vy: -(Math.random() * 1.5 + 0.3),
-        r: Math.random() * 2.5 + 0.8,
-        color: theme.particleColors[Math.floor(Math.random() * theme.particleColors.length)],
-        alpha: Math.random() * 0.6 + 0.2,
-        life: Math.random() * 200 + 100
-      });
+    function resize() {
+      var rect = parent.getBoundingClientRect();
+      W = Math.max(rect.width, 200);
+      H = Math.max(rect.height, 120);
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      if (!inited) {
+        // Init particles
+        for (var i = 0; i < 45; i++) {
+          particles.push({
+            x: Math.random() * W, y: Math.random() * H,
+            vx: (Math.random() - 0.3) * 1.0,
+            vy: -(Math.random() * 1.0 + 0.2),
+            r: Math.random() * 2 + 0.5,
+            color: theme.particleColors[Math.floor(Math.random() * theme.particleColors.length)],
+            alpha: Math.random() * 0.5 + 0.2,
+            life: Math.random() * 300 + 150
+          });
+        }
+        inited = true;
+      }
+
+      // Scale jets to actual container size
+      var sc = Math.min(W / 600, H / 300, 1.8);
+      jets = [
+        { x: W * 0.58, y: H * 0.5, scale: 2.2 * sc, speed: 0.3, baseX: 0.58 },
+        { x: W * 0.76, y: H * 0.25, scale: 1.4 * sc, speed: 0.25, baseX: 0.76 },
+        { x: W * 0.88, y: H * 0.7, scale: 0.9 * sc, speed: 0.2, baseX: 0.88 }
+      ];
+      stateRef.current = { particles: particles, jets: jets };
     }
-    particlesRef.current = particles;
 
-    // Init jets (3 jets in formation, moving upward)
-    var jets = [
-      { x: W * 0.62, y: H * 0.55, scale: 2.8, speed: 0.35 },
-      { x: W * 0.78, y: H * 0.35, scale: 1.8, speed: 0.3 },
-      { x: W * 0.85, y: H * 0.72, scale: 1.3, speed: 0.25 }
-    ];
-    jetsRef.current = jets;
+    resize();
 
-    var t = 0;
+    // Watch for container resize
+    var ro = null;
+    if (window.ResizeObserver) {
+      ro = new ResizeObserver(function() { resize(); });
+      ro.observe(parent);
+    }
+
     function render() {
       t++;
       ctx.clearRect(0, 0, W, H);
@@ -1616,98 +1638,86 @@ function NatCanvasBg(props) {
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, W, H);
 
-      // Subtle grid lines
-      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-      ctx.lineWidth = 1;
-      for (var gx = 0; gx < W; gx += 60) {
+      // Subtle grid
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      ctx.lineWidth = 0.5;
+      var gridSp = Math.max(40, Math.min(W, H) / 8);
+      for (var gx = 0; gx < W; gx += gridSp) {
         ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
       }
-      for (var gy = 0; gy < H; gy += 60) {
+      for (var gy = 0; gy < H; gy += gridSp) {
         ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
       }
 
-      // Draw flag (partial, in corner)
+      // Draw flag (scaled to container)
       theme.flagDraw(ctx, W, H);
 
-      // Draw jets with trails
+      // Jets with contrails
       for (var j = 0; j < jets.length; j++) {
         var jet = jets[j];
-        // Contrail / exhaust trail
+        var jy = jet.y + Math.sin(t * 0.02 + j) * 2;
+
+        // Contrails
         ctx.save();
-        var trailLen = 80 * jet.scale;
-        var grdT = ctx.createLinearGradient(jet.x, jet.y, jet.x, jet.y + trailLen);
+        var tLen = 50 * jet.scale;
+        var grdT = ctx.createLinearGradient(jet.x, jy + jet.scale * 15, jet.x, jy + tLen);
         grdT.addColorStop(0, theme.jetColor);
         grdT.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.strokeStyle = grdT;
-        ctx.lineWidth = jet.scale * 1.2;
-        ctx.beginPath();
-        ctx.moveTo(jet.x - jet.scale * 3, jet.y + jet.scale * 20);
-        ctx.lineTo(jet.x - jet.scale * 3, jet.y + trailLen);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(jet.x + jet.scale * 3, jet.y + jet.scale * 20);
-        ctx.lineTo(jet.x + jet.scale * 3, jet.y + trailLen);
-        ctx.stroke();
+        ctx.lineWidth = jet.scale * 0.8;
+        ctx.beginPath(); ctx.moveTo(jet.x - jet.scale * 2.5, jy + jet.scale * 15); ctx.lineTo(jet.x - jet.scale * 2.5, jy + tLen); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(jet.x + jet.scale * 2.5, jy + jet.scale * 15); ctx.lineTo(jet.x + jet.scale * 2.5, jy + tLen); ctx.stroke();
         ctx.restore();
 
-        // Jet body
-        drawFA50(ctx, jet.x, jet.y + Math.sin(t * 0.02 + j) * 3, jet.scale, theme.jetColor, 0);
+        drawFA50(ctx, jet.x, jy, jet.scale, theme.jetColor, 0);
 
-        // Move jet slowly upward (loop)
         jet.y -= jet.speed;
-        if (jet.y < -100) jet.y = H + 100;
+        if (jet.y < -jet.scale * 50) { jet.y = H + jet.scale * 50; jet.x = W * jet.baseX + (Math.random() - 0.5) * 30; }
       }
 
       // Particles
       for (var p = 0; p < particles.length; p++) {
         var pt = particles[p];
-        ctx.globalAlpha = pt.alpha * (0.5 + 0.5 * Math.sin(t * 0.05 + p));
+        var pa = pt.alpha * (0.5 + 0.5 * Math.sin(t * 0.04 + p));
+        ctx.globalAlpha = pa;
         ctx.fillStyle = pt.color;
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
-        ctx.fill();
-
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2); ctx.fill();
         // Glow
-        ctx.globalAlpha = pt.alpha * 0.15;
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, pt.r * 3, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.globalAlpha = pa * 0.12;
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r * 3.5, 0, Math.PI * 2); ctx.fill();
 
-        pt.x += pt.vx;
-        pt.y += pt.vy;
-        pt.life--;
-        if (pt.life <= 0 || pt.x < 0 || pt.x > W || pt.y < 0 || pt.y > H) {
-          pt.x = Math.random() * W;
-          pt.y = H + Math.random() * 20;
-          pt.life = Math.random() * 200 + 100;
-          pt.vy = -(Math.random() * 1.5 + 0.3);
+        pt.x += pt.vx; pt.y += pt.vy; pt.life--;
+        if (pt.life <= 0 || pt.x < -10 || pt.x > W + 10 || pt.y < -10 || pt.y > H + 10) {
+          pt.x = Math.random() * W; pt.y = H + Math.random() * 10;
+          pt.life = Math.random() * 300 + 150; pt.vy = -(Math.random() * 1.0 + 0.2);
         }
       }
       ctx.globalAlpha = 1;
 
-      // Speed lines (dynamic)
-      for (var sl = 0; sl < 5; sl++) {
-        var slY = (t * 0.7 + sl * H / 5) % H;
-        var slX = W * 0.35 + sl * 40;
-        ctx.strokeStyle = 'rgba(255,255,255,' + (0.05 + Math.sin(t * 0.03 + sl) * 0.03) + ')';
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(slX, slY); ctx.lineTo(slX + 120 + sl * 20, slY); ctx.stroke();
+      // Speed lines
+      for (var sl = 0; sl < 4; sl++) {
+        var slY = (t * 0.5 + sl * H / 4) % H;
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.04 + Math.sin(t * 0.025 + sl) * 0.02) + ')';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(W * 0.3 + sl * 30, slY); ctx.lineTo(W * 0.3 + sl * 30 + 80 + sl * 15, slY); ctx.stroke();
       }
 
       animRef.current = requestAnimationFrame(render);
     }
 
-    render();
+    // Small delay to ensure parent has layout
+    var startTimer = setTimeout(function() { resize(); render(); }, 50);
 
     return function() {
+      clearTimeout(startTimer);
       if (animRef.current) cancelAnimationFrame(animRef.current);
+      if (ro) ro.disconnect();
     };
   }, [code]);
 
   return React.createElement('canvas', {
     ref: canvasRef,
-    className: 'nat-canvas-bg',
-    style: { position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0 }
+    className: 'nat-canvas-bg'
   });
 }
 
