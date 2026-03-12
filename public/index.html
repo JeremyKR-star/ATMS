@@ -597,7 +597,7 @@ async function api(path, options) {
   if (token) headers['Authorization'] = 'Bearer ' + token;
   var res = await fetch(API + path, Object.assign({}, options, { headers: Object.assign({}, headers, options.headers || {}) }));
   var data = await res.json();
-  if (res.status === 401) {
+  if (res.status === 401 && token) {
     localStorage.removeItem('atms_token');
     localStorage.removeItem('atms_user');
     window.location.reload();
@@ -3506,6 +3506,7 @@ function App() {
     else document.body.classList.remove('dark-mode');
   },[darkMode]);
   useEffect(function(){
+    if(!user) return;
     var fetchActive = function() {
       api('/active-users').then(function(d){setActiveUsers((d.data&&d.data.count)||0);}).catch(function(){});
       api('/notifications').then(function(d){
@@ -3515,7 +3516,7 @@ function App() {
     fetchActive();
     var iv = setInterval(fetchActive,60000);
     return function() { clearInterval(iv); };
-  },[]);
+  },[user]);
 
   if(!user) return <LoginPage onLogin={setUser}/>;
 
