@@ -290,8 +290,8 @@ tr:hover { background: #fafbfc; }
   border: 1.5px dashed var(--gray-300); background: transparent; color: var(--gray-400); transition: all 0.2s; }
 .nat-add-btn:hover { border-color: var(--primary); color: var(--primary); }
 .nat-section { position: relative; overflow: hidden; border-radius: var(--radius); margin-bottom: 20px; }
-.nat-section-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.06; }
-.nat-section > .card { position: relative; z-index: 1; background: rgba(255,255,255,0.92); backdrop-filter: blur(2px); }
+.nat-section-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; width: 100%; height: 100%; }
+.nat-section > .card { position: relative; z-index: 1; background: rgba(255,255,255,0.82); }
 
 /* ── Responsive: Tablet ── */
 @media (max-width: 1024px) {
@@ -1309,95 +1309,119 @@ function ProfilePage() {
 }
 
 // ━━━━━━━━━━━━ WEEKLY REPORT SUB-COMPONENT ━━━━━━━━━━━━
-function WeeklyReport({ weekly }) {
-  const totFltPlan = weekly.reduce(function(s,w){return s+w.fltPlan;},0);
-  const totFltDone = weekly.reduce(function(s,w){return s+w.fltDone;},0);
-  const totSimPlan = weekly.reduce(function(s,w){return s+w.simPlan;},0);
-  const totSimDone = weekly.reduce(function(s,w){return s+w.simDone;},0);
+function WeeklyReportTable({ rows, title }) {
+  var gFltPlan = rows.reduce(function(s,w){return s+w.fltPlan;},0);
+  var gFltDone = rows.reduce(function(s,w){return s+w.fltDone;},0);
+  var gSimPlan = rows.reduce(function(s,w){return s+w.simPlan;},0);
+  var gSimDone = rows.reduce(function(s,w){return s+w.simDone;},0);
   return (
-    <div>
-      <div className="card"><div className="card-header"><h3>Weekly Report of Pilot Training</h3>
-        <span className="badge badge-yellow">As of {new Date().toISOString().slice(0,10)}</span></div>
-        <div className="card-body">
-          <div style={{marginBottom:20}}>
-            <div className="stats-grid" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-              <div className="stat-card"><div className="stat-icon" style={{background:'var(--wr-flight-bg)',color:'var(--wr-flight)'}}>✈</div>
-                <div className="stat-value" style={{color:'var(--wr-flight)'}}>{totFltPlan}</div><div className="stat-label">Total Flight Plan (Sortie)</div></div>
-              <div className="stat-card"><div className="stat-icon" style={{background:'var(--wr-sim-bg)',color:'var(--wr-sim)'}}>🖥</div>
-                <div className="stat-value" style={{color:'var(--wr-sim)'}}>{totSimDone} / {totSimPlan}</div><div className="stat-label">SIM Done / Plan</div></div>
-              <div className="stat-card"><div className="stat-icon" style={{background:'var(--wr-total-bg)',color:'var(--wr-total)'}}>✓</div>
-                <div className="stat-value" style={{color:'var(--wr-total)'}}>{totFltDone + totSimDone}</div><div className="stat-label">Total Done</div></div>
-            </div>
-          </div>
-          <div className="table-wrapper"><table>
-            <thead><tr><th>Pilot</th><th colSpan="3" style={{textAlign:'center',background:'var(--wr-flight-bg)',color:'var(--wr-flight-text)'}}>Flight</th>
-              <th colSpan="3" style={{textAlign:'center',background:'var(--wr-sim-bg)',color:'var(--wr-sim-text)'}}>Simulator</th>
-              <th colSpan="3" style={{textAlign:'center',background:'var(--wr-total-bg)',color:'var(--wr-total-text)'}}>Total</th><th>Progress</th></tr>
-            <tr><th></th><th>Plan</th><th>Done</th><th>Remain</th><th>Plan</th><th>Done</th><th>Remain</th>
-              <th>Plan</th><th>Done</th><th>Remain</th><th></th></tr></thead>
-            <tbody>{weekly.map(function(w){
-              var total=w.fltPlan+w.simPlan; var done=w.fltDone+w.simDone;
-              var pct=total?Math.round((done/total)*100):0;
-              return (
-                <tr key={w.id}>
-                  <td><strong>{w.name}</strong></td>
-                  <td className="text-center">{w.fltPlan}</td><td className="text-center" style={{color:'var(--wr-flight)',fontWeight:700}}>{w.fltDone}</td>
-                  <td className="text-center" style={{color:'var(--danger)'}}>{w.fltRemain}</td>
-                  <td className="text-center">{w.simPlan}</td><td className="text-center" style={{color:'var(--wr-sim)',fontWeight:700}}>{w.simDone}</td>
-                  <td className="text-center" style={{color:'var(--danger)'}}>{w.simRemain}</td>
-                  <td className="text-center">{total}</td><td className="text-center" style={{fontWeight:700,color:'var(--wr-total)'}}>{done}</td>
-                  <td className="text-center" style={{color:'var(--danger)'}}>{total-done}</td>
-                  <td style={{width:120}}>
-                    <div className="flex-between" style={{fontSize:11}}><span>{pct}%</span></div>
-                    <div className="progress-bar"><div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg, var(--wr-flight), var(--wr-sim))'}}/></div>
-                  </td>
-                </tr>
-              );
-            })}</tbody>
-          </table></div>
+    <div className="card-body">
+      <div style={{marginBottom:16}}>
+        <div className="stats-grid" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+          <div className="stat-card"><div className="stat-icon" style={{background:'var(--wr-flight-bg)',color:'var(--wr-flight)'}}>✈</div>
+            <div className="stat-value" style={{color:'var(--wr-flight)'}}>{gFltPlan}</div><div className="stat-label">Flight Plan (Sortie)</div></div>
+          <div className="stat-card"><div className="stat-icon" style={{background:'var(--wr-sim-bg)',color:'var(--wr-sim)'}}>🖥</div>
+            <div className="stat-value" style={{color:'var(--wr-sim)'}}>{gSimDone} / {gSimPlan}</div><div className="stat-label">SIM Done / Plan</div></div>
+          <div className="stat-card"><div className="stat-icon" style={{background:'var(--wr-total-bg)',color:'var(--wr-total)'}}>✓</div>
+            <div className="stat-value" style={{color:'var(--wr-total)'}}>{gFltDone + gSimDone}</div><div className="stat-label">Total Done</div></div>
         </div>
       </div>
+      <div className="table-wrapper"><table>
+        <thead><tr><th>Pilot</th><th colSpan="3" style={{textAlign:'center',background:'var(--wr-flight-bg)',color:'var(--wr-flight-text)'}}>Flight</th>
+          <th colSpan="3" style={{textAlign:'center',background:'var(--wr-sim-bg)',color:'var(--wr-sim-text)'}}>Simulator</th>
+          <th colSpan="3" style={{textAlign:'center',background:'var(--wr-total-bg)',color:'var(--wr-total-text)'}}>Total</th><th>Progress</th></tr>
+        <tr><th></th><th>Plan</th><th>Done</th><th>Remain</th><th>Plan</th><th>Done</th><th>Remain</th>
+          <th>Plan</th><th>Done</th><th>Remain</th><th></th></tr></thead>
+        <tbody>{rows.map(function(w){
+          var total=w.fltPlan+w.simPlan; var done=w.fltDone+w.simDone;
+          var pct=total?Math.round((done/total)*100):0;
+          return (
+            <tr key={w.id}>
+              <td><strong>{w.name}</strong></td>
+              <td className="text-center">{w.fltPlan}</td><td className="text-center" style={{color:'var(--wr-flight)',fontWeight:700}}>{w.fltDone}</td>
+              <td className="text-center" style={{color:'var(--danger)'}}>{w.fltRemain}</td>
+              <td className="text-center">{w.simPlan}</td><td className="text-center" style={{color:'var(--wr-sim)',fontWeight:700}}>{w.simDone}</td>
+              <td className="text-center" style={{color:'var(--danger)'}}>{w.simRemain}</td>
+              <td className="text-center">{total}</td><td className="text-center" style={{fontWeight:700,color:'var(--wr-total)'}}>{done}</td>
+              <td className="text-center" style={{color:'var(--danger)'}}>{total-done}</td>
+              <td style={{width:120}}>
+                <div className="flex-between" style={{fontSize:11}}><span>{pct}%</span></div>
+                <div className="progress-bar"><div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg, var(--wr-flight), var(--wr-sim))'}}/></div>
+              </td>
+            </tr>
+          );
+        })}</tbody>
+      </table></div>
+    </div>
+  );
+}
+
+function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap }) {
+  return (
+    <div>
+      {nationalities.map(function(nat){
+        // Match weekly rows to pilots of this nationality
+        var natPilotIds = {};
+        pilots.forEach(function(p){ if(normalizeNat(p.nationality)===nat.code) natPilotIds[p.id]=true; });
+        var natWeekly = weekly.filter(function(w){ return natPilotIds[w.id]; });
+        if (natWeekly.length === 0) return null;
+        return (
+          <div className="nat-section" key={nat.code}>
+            <NatSectionBg code={nat.code} />
+            <div className="card" style={{marginBottom:0}}>
+              <div className="card-header"><h3>{nat.label_ko} - Weekly Report</h3>
+                <span className="badge badge-yellow">As of {new Date().toISOString().slice(0,10)}</span></div>
+              <WeeklyReportTable rows={natWeekly} />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 // ━━━━━━━━━━━━ FLAG + JET SVG BACKGROUNDS ━━━━━━━━━━━━
 function NatSectionBg({ code }) {
-  // Each nationality gets a unique flag+jet SVG background
   var flagColors = {
-    'Malaysia': { c1:'#cc0001', c2:'#fff', c3:'#010066', accent:'#fc0' },
-    'Poland':   { c1:'#fff', c2:'#dc143c', c3:'#dc143c', accent:'#fff' },
-    'Iraq':     { c1:'#ce1126', c2:'#fff', c3:'#007a3d', accent:'#000' }
+    'Malaysia': { c1:'#cc0001', c2:'#ffd700', c3:'#010066', accent:'#cc0001' },
+    'Poland':   { c1:'#dc143c', c2:'#f8f8f8', c3:'#dc143c', accent:'#dc143c' },
+    'Iraq':     { c1:'#ce1126', c2:'#fff', c3:'#007a3d', accent:'#ce1126' }
   };
-  var fc = flagColors[code] || { c1:'#2563eb', c2:'#fff', c3:'#1e40af', accent:'#60a5fa' };
+  var fc = flagColors[code] || { c1:'#2563eb', c2:'#dbeafe', c3:'#1e40af', accent:'#2563eb' };
 
   return (
     <svg className="nat-section-bg" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-      {/* Flag stripes */}
-      <rect x="0" y="0" width="1200" height="133" fill={fc.c1} opacity="0.5"/>
-      <rect x="0" y="133" width="1200" height="134" fill={fc.c2} opacity="0.3"/>
-      <rect x="0" y="267" width="1200" height="133" fill={fc.c3} opacity="0.5"/>
+      {/* Flag bands - diagonal for visual interest */}
+      <rect x="0" y="0" width="1200" height="133" fill={fc.c1} opacity="0.12"/>
+      <rect x="0" y="133" width="1200" height="134" fill={fc.c2} opacity="0.08"/>
+      <rect x="0" y="267" width="1200" height="133" fill={fc.c3} opacity="0.12"/>
 
-      {/* Fighter jet silhouette - right side */}
-      <g transform="translate(900,180) scale(1.8)" opacity="0.7" fill={fc.accent}>
+      {/* Main fighter jet silhouette - right */}
+      <g transform="translate(950,190) scale(2.2)" opacity="0.12" fill={fc.accent}>
         <path d="M80 0 L50 -6 L20 -22 L-5 -24 L-20 -14 L-55 -10 L-70 -28 L-60 -28 L-48 -10 L-60 -8 L-60 8 L-48 10 L-60 28 L-70 28 L-55 10 L-20 14 L-5 24 L20 22 L50 6 Z"/>
-        <ellipse cx="38" cy="-2" rx="14" ry="6" opacity="0.3"/>
+        <ellipse cx="38" cy="-2" rx="14" ry="6" opacity="0.5"/>
       </g>
 
-      {/* Second jet silhouette - upper left */}
-      <g transform="translate(180,90) scale(1.0) rotate(-5)" opacity="0.4" fill={fc.c3}>
+      {/* Second jet - smaller, upper left */}
+      <g transform="translate(150,80) scale(1.2) rotate(-8)" opacity="0.07" fill={fc.c3}>
         <path d="M80 0 L50 -6 L20 -22 L-5 -24 L-20 -14 L-55 -10 L-70 -28 L-60 -28 L-48 -10 L-60 -8 L-60 8 L-48 10 L-60 28 L-70 28 L-55 10 L-20 14 L-5 24 L20 22 L50 6 Z"/>
       </g>
 
-      {/* Decorative speed lines */}
-      <line x1="300" y1="100" x2="500" y2="100" stroke={fc.accent} strokeWidth="2" opacity="0.3"/>
-      <line x1="350" y1="120" x2="600" y2="120" stroke={fc.c1} strokeWidth="1.5" opacity="0.25"/>
-      <line x1="400" y1="290" x2="650" y2="290" stroke={fc.accent} strokeWidth="2" opacity="0.3"/>
-      <line x1="250" y1="310" x2="550" y2="310" stroke={fc.c3} strokeWidth="1.5" opacity="0.25"/>
+      {/* Third jet - bottom center */}
+      <g transform="translate(550,320) scale(1.0) rotate(5)" opacity="0.06" fill={fc.c1}>
+        <path d="M80 0 L50 -6 L20 -22 L-5 -24 L-20 -14 L-55 -10 L-70 -28 L-60 -28 L-48 -10 L-60 -8 L-60 8 L-48 10 L-60 28 L-70 28 L-55 10 L-20 14 L-5 24 L20 22 L50 6 Z"/>
+      </g>
 
-      {/* Circular emblem hint */}
-      <circle cx="600" cy="200" r="120" fill="none" stroke={fc.accent} strokeWidth="2" opacity="0.15"/>
-      <circle cx="600" cy="200" r="90" fill="none" stroke={fc.c1} strokeWidth="1" opacity="0.1" strokeDasharray="8 6"/>
+      {/* Speed lines */}
+      <line x1="200" y1="95" x2="520" y2="95" stroke={fc.accent} strokeWidth="3" opacity="0.08"/>
+      <line x1="280" y1="115" x2="650" y2="115" stroke={fc.c1} strokeWidth="2" opacity="0.06"/>
+      <line x1="350" y1="285" x2="700" y2="285" stroke={fc.accent} strokeWidth="3" opacity="0.08"/>
+      <line x1="180" y1="305" x2="580" y2="305" stroke={fc.c3} strokeWidth="2" opacity="0.06"/>
+
+      {/* Roundel / emblem circle */}
+      <circle cx="600" cy="200" r="140" fill="none" stroke={fc.accent} strokeWidth="3" opacity="0.06"/>
+      <circle cx="600" cy="200" r="100" fill="none" stroke={fc.c3} strokeWidth="2" opacity="0.05" strokeDasharray="10 8"/>
+      <circle cx="600" cy="200" r="60" fill={fc.accent} opacity="0.03"/>
     </svg>
   );
 }
@@ -1732,79 +1756,95 @@ function PilotPage() {
       {subTab==='individual' && (
         <div>
           <div className="filters">
-            <select value={selectedPilot||''} onChange={e=>setSelectedPilot(e.target.value?Number(e.target.value):null)}>
+            <select value={selectedPilot||''} onChange={function(e){setSelectedPilot(e.target.value?Number(e.target.value):null);}}>
               <option value="">전체 조종사</option>
-              {pilots.map(p=><option key={p.id} value={p.id}>{p.short_name} ({p.name})</option>)}
+              {pilots.map(function(p){return <option key={p.id} value={p.id}>{p.short_name} ({p.name})</option>;})}
             </select>
             {canEditTraining && <span style={{fontSize:12,color:'var(--gray-400)'}}>Click a cell to edit</span>}
           </div>
-          <div className="card"><div className="card-header"><h3>Individual Pilot Training Status</h3></div>
-            <div className="card-body"><div className="table-wrapper">
-              <table className="training-table">
-                <thead>
-                  <tr>
-                    <th rowSpan="2">No.</th><th colSpan="2">SIM/CPT</th><th colSpan="2">T-50</th>
-                    <th rowSpan="2">Contents</th>
-                    {(selectedPilot?pilots.filter(p=>p.id===selectedPilot):pilots).map(p=>(
-                      <th key={p.id} colSpan="2" style={{background:'#1e40af'}}>{p.short_name}</th>
-                    ))}
-                  </tr>
-                  <tr>
-                    <th>No.</th><th>Subject</th><th>No.</th><th>Subject</th>
-                    {(selectedPilot?pilots.filter(p=>p.id===selectedPilot):pilots).map(p=>(
-                      <React.Fragment key={p.id}><th>Date</th><th>Time</th></React.Fragment>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr><td colSpan={6+(selectedPilot?2:pilots.length*2)} className="section-header">Simulator Training</td></tr>
-                  {simCourses.map(function(c,ci){
-                    var vis = selectedPilot?pilots.filter(function(p){return p.id===selectedPilot;}):pilots;
-                    return (
-                      <tr key={c.id}>
-                        <td>{c.course_no||('C-'+(ci+1).toString().padStart(2,'0'))}</td>
-                        <td>{ci+1}</td><td><strong>{c.subject}</strong></td><td>-</td><td>-</td>
-                        <td style={{textAlign:'left',fontSize:11}}>{c.contents||''}</td>
-                        {vis.map(function(p){
-                          var rec=(tMap[p.id]||{})[c.id];
-                          return <React.Fragment key={p.id}>
-                            <td className={(rec?'done':'pending')+(canEditTraining?' editable':'')}
-                              onClick={function(e){handleCellClick(e,p.id,c.id,rec&&rec.date,rec&&rec.time);}}>
-                              {rec?rec.date.slice(5):'-'}</td>
-                            <td className={(rec?'done':'pending')+(canEditTraining?' editable':'')}
-                              onClick={function(e){handleCellClick(e,p.id,c.id,rec&&rec.date,rec&&rec.time);}}>
-                              {rec?rec.time:'-'}</td>
-                          </React.Fragment>;
+
+          {nationalities.map(function(nat){
+            var natPilots;
+            if (selectedPilot) {
+              natPilots = pilots.filter(function(p){ return p.id===selectedPilot && normalizeNat(p.nationality)===nat.code; });
+            } else {
+              natPilots = pilots.filter(function(p){ return normalizeNat(p.nationality)===nat.code; });
+            }
+            if (natPilots.length === 0) return null;
+            return (
+              <div className="nat-section" key={nat.code}>
+                <NatSectionBg code={nat.code} />
+                <div className="card" style={{marginBottom:0}}>
+                  <div className="card-header"><h3>{nat.label_ko} - Individual Training Status</h3>
+                    <span className="badge badge-blue">{natPilots.length}명</span></div>
+                  <div className="card-body"><div className="table-wrapper">
+                    <table className="training-table">
+                      <thead>
+                        <tr>
+                          <th rowSpan="2">No.</th><th colSpan="2">SIM/CPT</th><th colSpan="2">T-50</th>
+                          <th rowSpan="2">Contents</th>
+                          {natPilots.map(function(p){return (
+                            <th key={p.id} colSpan="2" style={{background:'#1e40af'}}>{p.short_name}</th>
+                          );})}
+                        </tr>
+                        <tr>
+                          <th>No.</th><th>Subject</th><th>No.</th><th>Subject</th>
+                          {natPilots.map(function(p){return (
+                            <React.Fragment key={p.id}><th>Date</th><th>Time</th></React.Fragment>
+                          );})}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td colSpan={6+natPilots.length*2} className="section-header">Simulator Training</td></tr>
+                        {simCourses.map(function(c,ci){
+                          return (
+                            <tr key={c.id}>
+                              <td>{c.course_no||('C-'+(ci+1).toString().padStart(2,'0'))}</td>
+                              <td>{ci+1}</td><td><strong>{c.subject}</strong></td><td>-</td><td>-</td>
+                              <td style={{textAlign:'left',fontSize:11}}>{c.contents||''}</td>
+                              {natPilots.map(function(p){
+                                var rec=(tMap[p.id]||{})[c.id];
+                                return <React.Fragment key={p.id}>
+                                  <td className={(rec?'done':'pending')+(canEditTraining?' editable':'')}
+                                    onClick={function(e){handleCellClick(e,p.id,c.id,rec&&rec.date,rec&&rec.time);}}>
+                                    {rec?rec.date.slice(5):'-'}</td>
+                                  <td className={(rec?'done':'pending')+(canEditTraining?' editable':'')}
+                                    onClick={function(e){handleCellClick(e,p.id,c.id,rec&&rec.date,rec&&rec.time);}}>
+                                    {rec?rec.time:'-'}</td>
+                                </React.Fragment>;
+                              })}
+                            </tr>
+                          );
                         })}
-                      </tr>
-                    );
-                  })}
-                  <tr><td colSpan={6+(selectedPilot?2:pilots.length*2)} className="section-header">Flight Training</td></tr>
-                  {fltCourses.map(function(c,ci){
-                    var vis = selectedPilot?pilots.filter(function(p){return p.id===selectedPilot;}):pilots;
-                    return (
-                      <tr key={c.id}>
-                        <td>{c.course_no||('C-'+(simCourses.length+ci+1).toString().padStart(2,'0'))}</td>
-                        <td>-</td><td>-</td><td>{ci+1}</td><td><strong>{c.subject}</strong></td>
-                        <td style={{textAlign:'left',fontSize:11}}>{c.contents||''}</td>
-                        {vis.map(function(p){
-                          var rec=(tMap[p.id]||{})[c.id];
-                          return <React.Fragment key={p.id}>
-                            <td className={(rec?'done':'pending')+(canEditTraining?' editable':'')}
-                              onClick={function(e){handleCellClick(e,p.id,c.id,rec&&rec.date,rec&&rec.time);}}>
-                              {rec?rec.date.slice(5):'-'}</td>
-                            <td className={(rec?'done':'pending')+(canEditTraining?' editable':'')}
-                              onClick={function(e){handleCellClick(e,p.id,c.id,rec&&rec.date,rec&&rec.time);}}>
-                              {rec?rec.time:'-'}</td>
-                          </React.Fragment>;
+                        <tr><td colSpan={6+natPilots.length*2} className="section-header">Flight Training</td></tr>
+                        {fltCourses.map(function(c,ci){
+                          return (
+                            <tr key={c.id}>
+                              <td>{c.course_no||('C-'+(simCourses.length+ci+1).toString().padStart(2,'0'))}</td>
+                              <td>-</td><td>-</td><td>{ci+1}</td><td><strong>{c.subject}</strong></td>
+                              <td style={{textAlign:'left',fontSize:11}}>{c.contents||''}</td>
+                              {natPilots.map(function(p){
+                                var rec=(tMap[p.id]||{})[c.id];
+                                return <React.Fragment key={p.id}>
+                                  <td className={(rec?'done':'pending')+(canEditTraining?' editable':'')}
+                                    onClick={function(e){handleCellClick(e,p.id,c.id,rec&&rec.date,rec&&rec.time);}}>
+                                    {rec?rec.date.slice(5):'-'}</td>
+                                  <td className={(rec?'done':'pending')+(canEditTraining?' editable':'')}
+                                    onClick={function(e){handleCellClick(e,p.id,c.id,rec&&rec.date,rec&&rec.time);}}>
+                                    {rec?rec.time:'-'}</td>
+                                </React.Fragment>;
+                              })}
+                            </tr>
+                          );
                         })}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div></div>
-          </div>
+                      </tbody>
+                    </table>
+                  </div></div>
+                </div>
+              </div>
+            );
+          })}
+
           {/* Cell edit popup */}
           {editingCell && <div className="cell-edit-popup" style={{left:cellPos.x,top:cellPos.y}}
             onClick={function(e){e.stopPropagation();}}>
@@ -1828,7 +1868,7 @@ function PilotPage() {
       )}
 
       {/* ── Weekly Report ── */}
-      {subTab==='weekly' && <WeeklyReport weekly={weekly} />}
+      {subTab==='weekly' && <WeeklyReport weekly={weekly} pilots={pilots} nationalities={nationalities} normalizeNat={normalizeNat} natLabelMap={natLabelMap} />}
 
       {/* ── Pilot Management (Admin) ── */}
       {subTab==='manage' && isAdmin && (
