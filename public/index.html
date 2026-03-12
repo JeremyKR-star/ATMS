@@ -1687,6 +1687,9 @@ function PilotPage() {
   const [cellTime, setCellTime] = useState('1:00');
   const [cellPos, setCellPos] = useState({x:0,y:0});
   const [nationalities, setNationalities] = useState([]);
+  const [weeklyUploads, setWeeklyUploads] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const weeklyFileRef = useRef(null);
   const [natFilter, setNatFilter] = useState('all');
   const [showNatAdd, setShowNatAdd] = useState(false);
   const [newNatCode, setNewNatCode] = useState('');
@@ -1708,15 +1711,16 @@ function PilotPage() {
 
   const loadAll = useCallback(async () => {
     try {
-      const [p,c,t,w,n] = await Promise.all([
+      const [p,c,t,w,n,wu] = await Promise.all([
         api('/pilots'), api('/pilots/courses'), api('/pilots/training'), api('/pilots/weekly'),
-        api('/pilots/nationalities')
+        api('/pilots/nationalities'), api('/pilots/weekly-uploads')
       ]);
       setPilots((p.data||[]).filter(x=>x.status==='active'));
       setCourses(c.data||[]);
       setTrainingRecs(t.data||[]);
       setWeekly(w.data||[]);
       setNationalities(n.data||[]);
+      setWeeklyUploads(wu.data||[]);
     } catch(e) { showToast(e.message,'error'); }
     setLoading(false);
   }, []);
@@ -1827,6 +1831,47 @@ function PilotPage() {
     } catch(e) { showToast(e.message,'error'); }
   };
 
+  // Weekly Excel upload handler
+  var handleWeeklyUpload = async function(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      var fd = new FormData();
+      fd.append('file', file);
+      var token = localStorage.getItem('atms_token');
+      var res = await fetch(API + '/pilots/weekly-uploads?report_date=' + new Date().toISOString().slice(0,10), {
+        method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      showToast(data.message || 'Upload successful', 'success');
+      loadAll();
+    } catch(err) { showToast(err.message, 'error'); }
+    setUploading(false);
+    if (weeklyFileRef.current) weeklyFileRef.current.value = '';
+  };
+
+  var handleWeeklyDelete = async function(uploadId) {
+    if (!confirm('이 업로드를 삭제하시겠습니까?')) return;
+    try {
+      await api('/pilots/weekly-uploads/' + uploadId, { method: 'DELETE' });
+      showToast('삭제 완료', 'success');
+      loadAll();
+    } catch(err) { showToast(err.message, 'error'); }
+  };
+
+  var handleWeeklyDownload = function(uploadId, filename) {
+    var token = localStorage.getItem('atms_token');
+    window.open(API + '/pilots/weekly-uploads/' + uploadId + '/download?token=' + token, '_blank');
+  };
+
+  var formatFileSize = function(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
   if(loading) return <div className="page-content"><p>Loading pilot data...</p></div>;
 
   // Pilot form modal fields
@@ -1841,6 +1886,7 @@ function PilotPage() {
         <div className={`tab ${subTab==='profiles'?'active':''}`} onClick={()=>setSubTab('profiles')}>조종사 프로필</div>
         <div className={`tab ${subTab==='individual'?'active':''}`} onClick={()=>setSubTab('individual')}>개인별 현황</div>
         <div className={`tab ${subTab==='weekly'?'active':''}`} onClick={()=>setSubTab('weekly')}>주간 보고</div>
+        <div className={`tab ${subTab==='uploads'?'active':''}`} onClick={function(){setSubTab('uploads');}}>업로드 관리</div>
         {isAdmin && <div className={`tab ${subTab==='manage'?'active':''}`} onClick={()=>setSubTab('manage')}>조종사 관리</div>}
       </div>
 
@@ -2109,6 +2155,80 @@ function PilotPage() {
 
       {/* ── Weekly Report ── */}
       {subTab==='weekly' && <WeeklyReport weekly={weekly} pilots={pilots} nationalities={nationalities} normalizeNat={normalizeNat} natLabelMap={natLabelMap} />}
+
+      {/* ── Upload Management ── */}
+      {subTab==='uploads' && (
+        <div>
+          {/* Upload Area */}
+          <div className="card" style={{marginBottom:16}}>
+            <div className="card-header">
+              <h3 style={{margin:0,fontSize:16}}>주간보고 엑셀 업로드</h3>
+            </div>
+            <div className="card-body">
+              <div style={{border:'2px dashed var(--gray-300)',borderRadius:12,padding:'32px 20px',textAlign:'center',
+                background:'var(--gray-50)',cursor:'pointer',transition:'all 0.2s'}}
+                onClick={function(){if(weeklyFileRef.current)weeklyFileRef.current.click();}}>
+                <div style={{fontSize:36,marginBottom:8}}>📊</div>
+                <div style={{fontSize:15,fontWeight:600,color:'var(--gray-700)',marginBottom:4}}>
+                  {uploading ? '업로드 중...' : '클릭하여 엑셀 파일 선택'}
+                </div>
+                <div style={{fontSize:12,color:'var(--gray-400)'}}>
+                  .xlsx 파일만 지원 (최대 10MB)
+                </div>
+                <div style={{fontSize:11,color:'var(--gray-400)',marginTop:8}}>
+                  컬럼: Pilot/Name, Flt Plan, Flt Done, Flt Remain, Sim Plan, Sim Done, Sim Remain
+                </div>
+              </div>
+              <input type="file" ref={weeklyFileRef} accept=".xlsx,.xls" style={{display:'none'}}
+                onChange={handleWeeklyUpload} />
+            </div>
+          </div>
+
+          {/* Upload History */}
+          <div className="card">
+            <div className="card-header">
+              <h3 style={{margin:0,fontSize:16}}>업로드 이력</h3>
+              <span className="badge badge-blue" style={{marginLeft:8}}>{weeklyUploads.length}건</span>
+            </div>
+            <div className="card-body">
+              {weeklyUploads.length === 0 ? (
+                <div className="empty-state" style={{padding:'40px 20px'}}>
+                  <div style={{fontSize:36,marginBottom:8}}>📁</div>
+                  <div style={{fontSize:14,color:'var(--gray-500)'}}>업로드된 파일이 없습니다</div>
+                </div>
+              ) : (
+                <div className="table-wrapper"><table>
+                  <thead><tr>
+                    <th>No.</th><th>파일명</th><th>보고일</th><th>업로드자</th>
+                    <th>데이터 수</th><th>파일 크기</th><th>업로드일시</th><th>관리</th>
+                  </tr></thead>
+                  <tbody>{weeklyUploads.map(function(u, idx){
+                    return (
+                      <tr key={u.id}>
+                        <td>{idx + 1}</td>
+                        <td><strong>{u.original_filename}</strong></td>
+                        <td>{u.report_date || '-'}</td>
+                        <td>{u.uploaded_by || '-'}</td>
+                        <td className="text-center"><span className="badge badge-blue">{u.row_count}명</span></td>
+                        <td className="text-center">{formatFileSize(u.file_size)}</td>
+                        <td style={{fontSize:12}}>{u.created_at ? u.created_at.replace('T',' ').slice(0,19) : '-'}</td>
+                        <td>
+                          <div style={{display:'flex',gap:4}}>
+                            <button className="btn btn-outline btn-sm" onClick={function(){handleWeeklyDownload(u.id, u.original_filename);}}>
+                              다운로드</button>
+                            {isAdmin && <button className="btn btn-danger btn-sm" onClick={function(){handleWeeklyDelete(u.id);}}>
+                              삭제</button>}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}</tbody>
+                </table></div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Pilot Management (Admin) ── */}
       {subTab==='manage' && isAdmin && (

@@ -1,12 +1,16 @@
 """Pilot Routes: Pilot Personal Records, Training Syllabus, Training Status, Weekly Report"""
 import os
+import io
+import json
 import time
 import uuid
+import datetime
 from database import get_db, dict_from_row, dicts_from_rows
 from auth import require_auth, get_current_user
 from routes.auth_routes import BaseHandler
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public", "uploads")
+WEEKLY_UPLOAD_DIR = os.path.join(UPLOAD_DIR, "weekly")
 
 PILOT_FIELDS = [
     'name', 'short_name', 'rank', 'service_number', 'callsign', 'nationality',
@@ -226,11 +230,35 @@ class PilotTrainingHandler(BaseHandler):
 
 
 class PilotWeeklyHandler(BaseHandler):
-    """GET weekly summary per pilot (computed from training records)"""
+    """GET weekly summary per pilot — uses latest upload if available, otherwise computed from training records"""
 
     @require_auth()
     def get(self):
         conn = get_db()
+
+        # Check if there's uploaded weekly data
+        latest_upload = conn.execute(
+            "SELECT id FROM weekly_uploads ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
+
+        if latest_upload:
+            # Use data from latest upload
+            upload_data = dicts_from_rows(conn.execute(
+                "SELECT * FROM weekly_report_data WHERE upload_id=? ORDER BY id",
+                (latest_upload['id'],)
+            ).fetchall())
+            result = []
+            for d in upload_data:
+                result.append({
+                    'id': d['pilot_id'] or 0,
+                    'name': d['pilot_name'],
+                    'simPlan': d['sim_plan'], 'simDone': d['sim_done'], 'simRemain': d['sim_remain'],
+                    'fltPlan': d['flt_plan'], 'fltDone': d['flt_done'], 'fltRemain': d['flt_remain'],
+                })
+            conn.close()
+            return self.success(result)
+
+        # Fallback: compute from training records
         pilots = dicts_from_rows(conn.execute(
             "SELECT * FROM pilots WHERE status='active' ORDER BY sort_order, id"
         ).fetchall())
@@ -292,3 +320,276 @@ class PilotNationalitiesHandler(BaseHandler):
         row = dict_from_row(conn.execute("SELECT * FROM pilot_nationalities WHERE id=?", (cur.lastrowid,)).fetchone())
         conn.close()
         self.success(row, "Nationality added")
+
+
+class WeeklyUploadHandler(BaseHandler):
+    """GET list uploads, POST upload new Excel file"""
+
+    @require_auth()
+    def get(self):
+        conn = get_db()
+        uploads = dicts_from_rows(conn.execute(
+            "SELECT * FROM weekly_uploads ORDER BY created_at DESC"
+        ).fetchall())
+        conn.close()
+        self.success(uploads)
+
+    @require_auth(roles=['admin', 'ojt_admin', 'instructor'])
+    def post(self):
+        files = self.request.files.get("file", [])
+        if not files:
+            return self.error("No file uploaded")
+
+        f = files[0]
+        orig_name = f["filename"]
+        ext = os.path.splitext(orig_name)[1].lower()
+        if ext not in ('.xlsx', '.xls'):
+            return self.error("Only .xlsx or .xls files are supported")
+        if len(f["body"]) > 10 * 1024 * 1024:
+            return self.error("File too large (max 10MB)")
+
+        # Parse Excel
+        try:
+            import openpyxl
+        except ImportError:
+            return self.error("openpyxl not installed on server")
+
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(f["body"]), data_only=True)
+            ws = wb.active
+
+            # Find header row - look for 'Pilot' or 'Name' or similar
+            header_row = None
+            headers = {}
+            for row_idx, row in enumerate(ws.iter_rows(min_row=1, max_row=10, values_only=False), 1):
+                for cell in row:
+                    val = str(cell.value or '').strip().lower()
+                    if val in ('pilot', 'name', 'pilot name', '조종사', '이름'):
+                        header_row = row_idx
+                        break
+                if header_row:
+                    break
+
+            if not header_row:
+                # Try first row as header
+                header_row = 1
+
+            # Map column indices
+            col_map = {}
+            for cell in ws[header_row]:
+                val = str(cell.value or '').strip().lower()
+                col = cell.column
+                if val in ('pilot', 'name', 'pilot name', '조종사', '이름'):
+                    col_map['name'] = col
+                elif val in ('flt plan', 'flight plan', 'flt_plan', 'flight_plan'):
+                    col_map['flt_plan'] = col
+                elif val in ('flt done', 'flight done', 'flt_done', 'flight_done'):
+                    col_map['flt_done'] = col
+                elif val in ('flt remain', 'flight remain', 'flt_remain', 'flight_remain'):
+                    col_map['flt_remain'] = col
+                elif val in ('sim plan', 'sim_plan', 'simulator plan'):
+                    col_map['sim_plan'] = col
+                elif val in ('sim done', 'sim_done', 'simulator done'):
+                    col_map['sim_done'] = col
+                elif val in ('sim remain', 'sim_remain', 'simulator remain'):
+                    col_map['sim_remain'] = col
+                elif val in ('plan',) and 'flt_plan' not in col_map:
+                    col_map['flt_plan'] = col
+                elif val in ('done',) and 'flt_done' not in col_map:
+                    col_map['flt_done'] = col
+                elif val in ('remain',) and 'flt_remain' not in col_map:
+                    col_map['flt_remain'] = col
+                elif val in ('remarks', 'note', 'notes', '비고'):
+                    col_map['remarks'] = col
+
+            if 'name' not in col_map:
+                return self.error("Cannot find 'Pilot' or 'Name' column in Excel file")
+
+            # Parse data rows
+            parsed_rows = []
+            for row in ws.iter_rows(min_row=header_row + 1, values_only=False):
+                name_val = row[col_map['name'] - 1].value
+                if not name_val or str(name_val).strip() == '':
+                    continue
+                name_str = str(name_val).strip()
+                # Skip total/summary rows
+                if name_str.lower() in ('total', 'sum', '합계', '소계'):
+                    continue
+
+                def safe_int(col_key):
+                    if col_key not in col_map:
+                        return 0
+                    v = row[col_map[col_key] - 1].value
+                    try:
+                        return int(float(v)) if v is not None else 0
+                    except (ValueError, TypeError):
+                        return 0
+
+                parsed_rows.append({
+                    'name': name_str,
+                    'flt_plan': safe_int('flt_plan'),
+                    'flt_done': safe_int('flt_done'),
+                    'flt_remain': safe_int('flt_remain'),
+                    'sim_plan': safe_int('sim_plan'),
+                    'sim_done': safe_int('sim_done'),
+                    'sim_remain': safe_int('sim_remain'),
+                    'remarks': str(row[col_map['remarks'] - 1].value or '') if 'remarks' in col_map else '',
+                })
+            wb.close()
+
+        except Exception as e:
+            return self.error(f"Failed to parse Excel file: {str(e)}")
+
+        if not parsed_rows:
+            return self.error("No data rows found in Excel file")
+
+        # Save file
+        os.makedirs(WEEKLY_UPLOAD_DIR, exist_ok=True)
+        fname = f"weekly_{uuid.uuid4().hex[:8]}{ext}"
+        fpath = os.path.join(WEEKLY_UPLOAD_DIR, fname)
+        with open(fpath, "wb") as fp:
+            fp.write(f["body"])
+
+        # Get uploader info
+        user = get_current_user(self)
+        uploader = user['name'] if user else 'Unknown'
+        report_date = self.get_argument('report_date', datetime.date.today().isoformat())
+        notes = self.get_argument('notes', '')
+
+        # Save to DB
+        conn = get_db()
+        cur = conn.execute(
+            """INSERT INTO weekly_uploads
+               (filename, original_filename, uploaded_by, report_date, file_size, row_count, notes)
+               VALUES (?,?,?,?,?,?,?)""",
+            (fname, orig_name, uploader, report_date, len(f["body"]), len(parsed_rows), notes)
+        )
+        upload_id = cur.lastrowid
+
+        # Match pilot names and save parsed data
+        pilots = dicts_from_rows(conn.execute(
+            "SELECT id, name, short_name FROM pilots WHERE status='active'"
+        ).fetchall())
+
+        for pr in parsed_rows:
+            # Try to match pilot by short_name or name
+            pilot_id = None
+            for p in pilots:
+                if (p['short_name'] and p['short_name'].lower() == pr['name'].lower()) or \
+                   (p['name'] and p['name'].lower() == pr['name'].lower()):
+                    pilot_id = p['id']
+                    break
+            conn.execute(
+                """INSERT INTO weekly_report_data
+                   (upload_id, pilot_id, pilot_name, flt_plan, flt_done, flt_remain,
+                    sim_plan, sim_done, sim_remain, remarks)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                (upload_id, pilot_id, pr['name'],
+                 pr['flt_plan'], pr['flt_done'], pr['flt_remain'],
+                 pr['sim_plan'], pr['sim_done'], pr['sim_remain'],
+                 pr['remarks'])
+            )
+
+        conn.commit()
+        upload = dict_from_row(conn.execute("SELECT * FROM weekly_uploads WHERE id=?", (upload_id,)).fetchone())
+        conn.close()
+        self.success({'upload': upload, 'parsed_rows': parsed_rows, 'matched': sum(1 for r in parsed_rows if any(
+            (p['short_name'] and p['short_name'].lower() == r['name'].lower()) or
+            (p['name'] and p['name'].lower() == r['name'].lower()) for p in pilots
+        ))}, f"Uploaded successfully: {len(parsed_rows)} rows parsed")
+
+
+class WeeklyUploadDetailHandler(BaseHandler):
+    """GET one upload detail, DELETE remove upload"""
+
+    @require_auth()
+    def get(self, upload_id):
+        conn = get_db()
+        upload = dict_from_row(conn.execute("SELECT * FROM weekly_uploads WHERE id=?", (upload_id,)).fetchone())
+        if not upload:
+            conn.close()
+            return self.error("Upload not found", 404)
+        data = dicts_from_rows(conn.execute(
+            "SELECT * FROM weekly_report_data WHERE upload_id=? ORDER BY id", (upload_id,)
+        ).fetchall())
+        conn.close()
+        self.success({'upload': upload, 'data': data})
+
+    @require_auth(roles=['admin', 'ojt_admin'])
+    def delete(self, upload_id):
+        conn = get_db()
+        upload = dict_from_row(conn.execute("SELECT * FROM weekly_uploads WHERE id=?", (upload_id,)).fetchone())
+        if not upload:
+            conn.close()
+            return self.error("Upload not found", 404)
+
+        # Delete file
+        fpath = os.path.join(WEEKLY_UPLOAD_DIR, upload['filename'])
+        if os.path.exists(fpath):
+            os.remove(fpath)
+
+        # Delete DB records
+        conn.execute("DELETE FROM weekly_report_data WHERE upload_id=?", (upload_id,))
+        conn.execute("DELETE FROM weekly_uploads WHERE id=?", (upload_id,))
+        conn.commit()
+        conn.close()
+        self.success(message="Upload deleted")
+
+
+class WeeklyUploadDownloadHandler(BaseHandler):
+    """GET download original Excel file (supports token in query param for window.open)"""
+
+    def get(self, upload_id):
+        # Support token in query param for file downloads via window.open
+        from auth import decode_token
+        token = self.get_argument('token', None)
+        auth = self.request.headers.get("Authorization", "")
+        user = None
+        if auth.startswith("Bearer "):
+            user = decode_token(auth[7:])
+        elif token:
+            user = decode_token(token)
+        if not user:
+            self.set_status(401)
+            self.write({"error": "Authentication required"})
+            return
+
+        conn = get_db()
+        upload = dict_from_row(conn.execute("SELECT * FROM weekly_uploads WHERE id=?", (upload_id,)).fetchone())
+        conn.close()
+        if not upload:
+            return self.error("Upload not found", 404)
+
+        fpath = os.path.join(WEEKLY_UPLOAD_DIR, upload['filename'])
+        if not os.path.exists(fpath):
+            return self.error("File not found on server", 404)
+
+        self.set_header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        self.set_header('Content-Disposition', f'attachment; filename="{upload["original_filename"]}"')
+        with open(fpath, 'rb') as fp:
+            self.write(fp.read())
+        self.finish()
+
+
+class WeeklyUploadLatestHandler(BaseHandler):
+    """GET latest weekly report data (from most recent upload)"""
+
+    @require_auth()
+    def get(self):
+        conn = get_db()
+        latest = conn.execute(
+            "SELECT id FROM weekly_uploads ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
+        if not latest:
+            conn.close()
+            return self.success([])
+
+        data = dicts_from_rows(conn.execute(
+            """SELECT wrd.*, wu.report_date, wu.original_filename
+               FROM weekly_report_data wrd
+               JOIN weekly_uploads wu ON wrd.upload_id = wu.id
+               WHERE wrd.upload_id=? ORDER BY wrd.id""",
+            (latest['id'],)
+        ).fetchall())
+        conn.close()
+        self.success(data)

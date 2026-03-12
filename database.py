@@ -328,6 +328,39 @@ def init_db():
         )
     """)
 
+    # ── Weekly Report Uploads ──
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS weekly_uploads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            filename TEXT NOT NULL,
+            original_filename TEXT NOT NULL,
+            uploaded_by TEXT,
+            report_date TEXT,
+            file_size INTEGER DEFAULT 0,
+            row_count INTEGER DEFAULT 0,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── Weekly Report Data (parsed from Excel) ──
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS weekly_report_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            upload_id INTEGER NOT NULL REFERENCES weekly_uploads(id) ON DELETE CASCADE,
+            pilot_id INTEGER REFERENCES pilots(id) ON DELETE SET NULL,
+            pilot_name TEXT,
+            flt_plan INTEGER DEFAULT 0,
+            flt_done INTEGER DEFAULT 0,
+            flt_remain INTEGER DEFAULT 0,
+            sim_plan INTEGER DEFAULT 0,
+            sim_done INTEGER DEFAULT 0,
+            sim_remain INTEGER DEFAULT 0,
+            remarks TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # ── Surveys ──
     c.execute("""
         CREATE TABLE IF NOT EXISTS surveys (

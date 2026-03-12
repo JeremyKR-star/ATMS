@@ -27,7 +27,9 @@ from routes.notification_routes import NotificationsHandler, NotificationReadHan
 from routes.photo_routes import PhotoUploadHandler
 from routes.pilot_routes import (PilotsHandler, PilotDetailHandler, PilotPhotoHandler,
                                   PilotCoursesHandler, PilotTrainingHandler, PilotWeeklyHandler,
-                                  PilotNationalitiesHandler)
+                                  PilotNationalitiesHandler, WeeklyUploadHandler,
+                                  WeeklyUploadDetailHandler, WeeklyUploadDownloadHandler,
+                                  WeeklyUploadLatestHandler)
 
 PORT = int(os.environ.get('PORT', 8080))
 STATIC_PATH = os.path.join(os.path.dirname(__file__), "public")
@@ -183,6 +185,10 @@ def make_app():
         (r"/api/pilots/training", PilotTrainingHandler),
         (r"/api/pilots/weekly", PilotWeeklyHandler),
         (r"/api/pilots/nationalities", PilotNationalitiesHandler),
+        (r"/api/pilots/weekly-uploads", WeeklyUploadHandler),
+        (r"/api/pilots/weekly-uploads/latest", WeeklyUploadLatestHandler),
+        (r"/api/pilots/weekly-uploads/(\d+)", WeeklyUploadDetailHandler),
+        (r"/api/pilots/weekly-uploads/(\d+)/download", WeeklyUploadDownloadHandler),
 
         # ── Active Users ──
         (r"/api/active-users", ActiveUsersHandler),
