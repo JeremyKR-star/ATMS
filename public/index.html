@@ -1262,6 +1262,9 @@ function LoginPage({ onLogin }) {
 function Dashboard() {
   var [stats, setStats] = useState(null);
   var { showToast, user } = useApp();
+  var fadeRef1 = useScrollFadeIn();
+  var fadeRef2 = useScrollFadeIn();
+  var fadeRef3 = useScrollFadeIn();
   useEffect(function() {
     api('/dashboard').then(function(d) { setStats(d.data); }).catch(function(e) { showToast(e.message,'error'); });
   }, []);
@@ -1338,16 +1341,11 @@ function Dashboard() {
 
       {user.role === 'admin' || user.role === 'ojt_admin' ? (
         <React.Fragment>
-          {(function() {
-            var fadeRef1 = useScrollFadeIn();
-            return React.createElement('div', { className: 'grid-2', ref: fadeRef1 },
+          {React.createElement('div', { className: 'grid-2', ref: fadeRef1 },
               React.createElement('div', { className: 'card' }, React.createElement('div', { className: 'card-header' }, React.createElement('h3', null, '과정 현황')), React.createElement('div', { className: 'card-body' }, React.createElement(DonutChart, { data: courseStatusData, centerValue: stats.total_courses, centerLabel: '전체 과정' }))),
               React.createElement('div', { className: 'card' }, React.createElement('div', { className: 'card-header' }, React.createElement('h3', null, '사용자 구성')), React.createElement('div', { className: 'card-body' }, React.createElement(DonutChart, { data: roleData, centerValue: stats.total_users, centerLabel: '전체 인원' })))
-            );
-          })()}
-          {(function() {
-            var fadeRef2 = useScrollFadeIn();
-            return React.createElement('div', { className: 'grid-2', ref: fadeRef2 },
+          )}
+          {React.createElement('div', { className: 'grid-2', ref: fadeRef2 },
               React.createElement('div', { className: 'card' }, React.createElement('div', { className: 'card-header' }, React.createElement('h3', null, '최근 등록')), React.createElement('div', { className: 'card-body' },
                 (stats.recent_enrollments || []).slice(0, 6).map(function(e) {
                   return React.createElement('div', { className: 'activity-item', key: e.id },
@@ -1372,11 +1370,8 @@ function Dashboard() {
                 }),
                 (stats.upcoming_schedules || []).length === 0 && React.createElement('div', { className: 'empty-state' }, '예정 일정이 없습니다')
               ))
-            );
-          })()}
-          {(function() {
-            var fadeRef3 = useScrollFadeIn();
-            return React.createElement('div', { className: 'grid-3', style: {marginTop:4}, ref: fadeRef3 },
+          )}
+          {React.createElement('div', { className: 'grid-3', style: {marginTop:4}, ref: fadeRef3 },
               React.createElement('div', { className: 'card' }, React.createElement('div', { className: 'card-body text-center' },
                 React.createElement('div', { style: {fontSize:36,fontWeight:800,color:'var(--primary)'} }, stats.total_enrollments),
                 React.createElement('div', { style: {fontSize:13,color:'var(--gray-500)',marginTop:4} }, '총 등록 건수'))),
@@ -1386,8 +1381,7 @@ function Dashboard() {
               React.createElement('div', { className: 'card' }, React.createElement('div', { className: 'card-body text-center' },
                 React.createElement('div', { style: {fontSize:36,fontWeight:800,color:'#7c3aed'} }, stats.ojt_enrollments),
                 React.createElement('div', { style: {fontSize:13,color:'var(--gray-500)',marginTop:4} }, 'OJT 참여 인원')))
-            );
-          })()}
+          )}
         </React.Fragment>
       ) : (
         <div className="grid-2">
