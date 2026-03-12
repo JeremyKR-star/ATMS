@@ -3632,9 +3632,8 @@ function App() {
           </div>
           <PageTransition pageKey={page}>{renderPage()}</PageTransition>
         </div>
+        {toast && <Toast message={toast.message} type={toast.type} onClose={()=>setToast(null)}/>}
       </div>
-          {toast && <Toast message={toast.message} type={toast.type} onClose={()=>setToast(null)}/>}
-        </div>
       </AppContext.Provider>
     </React.Fragment>
   );
