@@ -4,6 +4,51 @@ from database import get_db, dict_from_row, dicts_from_rows
 from auth import require_auth
 
 
+def check_schedule_conflicts(db, schedule_date, start_time, end_time, instructor_id=None, room=None, exclude_schedule_id=None):
+    """
+    Check if a schedule conflicts with existing schedules.
+    Returns list of conflicting schedules if any are found.
+    
+    Conflict criteria:
+    - Same date AND
+    - Overlapping time AND
+    - Same instructor OR same room
+    """
+    # Time overlap logic: two time ranges overlap if:
+    # start_time1 < end_time2 AND start_time2 < end_time1
+    
+    query = """
+        SELECT s.*, c.name as course_name, u.name as instructor_name
+        FROM schedules s
+        LEFT JOIN courses c ON s.course_id = c.id
+        LEFT JOIN users u ON s.instructor_id = u.id
+        WHERE s.schedule_date = ?
+        AND s.start_time < ?
+        AND s.end_time > ?
+    """
+    params = [schedule_date, end_time, start_time]
+    
+    # Filter by instructor or room
+    if instructor_id or room:
+        query += " AND ("
+        conditions = []
+        if instructor_id:
+            conditions.append("s.instructor_id = ?")
+            params.append(instructor_id)
+        if room:
+            conditions.append("s.room = ?")
+            params.append(room)
+        query += " OR ".join(conditions) + ")"
+    
+    # Exclude the current schedule if updating
+    if exclude_schedule_id:
+        query += " AND s.id != ?"
+        params.append(exclude_schedule_id)
+    
+    conflicts = dicts_from_rows(db.execute(query, params).fetchall())
+    return conflicts
+
+
 class SchedulesHandler(BaseHandler):
     @require_auth()
     def get(self):
@@ -47,7 +92,24 @@ class SchedulesHandler(BaseHandler):
             if not body.get(f):
                 return self.error(f"'{f}' is required")
 
+        # Check for conflicts
         db = get_db()
+        conflicts = check_schedule_conflicts(
+            db,
+            body["schedule_date"],
+            body["start_time"],
+            body["end_time"],
+            instructor_id=body.get("instructor_id"),
+            room=body.get("room")
+        )
+        
+        if conflicts:
+            db.close()
+            return self.error(
+                f"Schedule conflict detected. {len(conflicts)} existing schedule(s) overlap this time slot.",
+                409,  # Conflict status code
+            )
+
         cur = db.execute("""
             INSERT INTO schedules (course_id, instructor_id, module_id, title, schedule_date, start_time, end_time, room, schedule_type, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -69,9 +131,39 @@ class ScheduleDetailHandler(BaseHandler):
         if not updates:
             return self.error("No valid fields")
 
+        # Check for conflicts if date/time/instructor/room changed
+        db = get_db()
+        should_check_conflicts = any(k in updates for k in ["schedule_date", "start_time", "end_time", "instructor_id", "room"])
+        
+        if should_check_conflicts:
+            # Get current schedule to use existing values if not updating
+            current = dict_from_row(db.execute("SELECT * FROM schedules WHERE id = ?", (schedule_id,)).fetchone())
+            if not current:
+                db.close()
+                return self.error("Schedule not found", 404)
+            
+            check_date = updates.get("schedule_date", current["schedule_date"])
+            check_start = updates.get("start_time", current["start_time"])
+            check_end = updates.get("end_time", current["end_time"])
+            check_instructor = updates.get("instructor_id", current["instructor_id"])
+            check_room = updates.get("room", current["room"])
+            
+            conflicts = check_schedule_conflicts(
+                db, check_date, check_start, check_end,
+                instructor_id=check_instructor,
+                room=check_room,
+                exclude_schedule_id=schedule_id
+            )
+            
+            if conflicts:
+                db.close()
+                return self.error(
+                    f"Schedule conflict detected. {len(conflicts)} existing schedule(s) overlap this time slot.",
+                    409
+                )
+
         set_clause = ", ".join(f"{k} = ?" for k in updates)
         values = list(updates.values()) + [schedule_id]
-        db = get_db()
         db.execute(f"UPDATE schedules SET {set_clause} WHERE id = ?", values)
         db.commit()
         db.close()
@@ -84,6 +176,43 @@ class ScheduleDetailHandler(BaseHandler):
         db.commit()
         db.close()
         self.success(None, "Schedule deleted")
+
+
+class ScheduleConflictCheckHandler(BaseHandler):
+    """Check for schedule conflicts before creating/updating"""
+    
+    @require_auth()
+    def get(self):
+        """
+        Check for conflicts with query parameters:
+        - schedule_date: the date to check (required)
+        - start_time: start time (required)
+        - end_time: end time (required)
+        - instructor_id: instructor ID (optional)
+        - room: room name (optional)
+        """
+        schedule_date = self.get_argument("schedule_date", None)
+        start_time = self.get_argument("start_time", None)
+        end_time = self.get_argument("end_time", None)
+        instructor_id = self.get_argument("instructor_id", None)
+        room = self.get_argument("room", None)
+        
+        if not schedule_date or not start_time or not end_time:
+            return self.error("schedule_date, start_time, and end_time are required")
+        
+        db = get_db()
+        conflicts = check_schedule_conflicts(
+            db, schedule_date, start_time, end_time,
+            instructor_id=instructor_id,
+            room=room
+        )
+        db.close()
+        
+        self.success({
+            "has_conflict": len(conflicts) > 0,
+            "conflict_count": len(conflicts),
+            "conflicts": conflicts
+        })
 
 
 class AttendanceHandler(BaseHandler):

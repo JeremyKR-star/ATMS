@@ -268,6 +268,72 @@ def init_db():
         )
     """)
 
+    # ── Mechanics personal records ──
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS mechanics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            short_name TEXT NOT NULL,
+            rank TEXT DEFAULT 'Staff',
+            employee_id TEXT,
+            specialty TEXT DEFAULT 'Airframe',
+            team TEXT,
+            date_of_birth TEXT,
+            certification_date TEXT,
+            phone TEXT,
+            email TEXT,
+            photo_url TEXT,
+            notes TEXT,
+            sort_order INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'active' CHECK(status IN ('active','inactive','graduated','suspended')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── Mechanic OJT items (checklist) ──
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS mechanic_ojt_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL,
+            item_no TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            description TEXT,
+            sort_order INTEGER DEFAULT 0
+        )
+    """)
+
+    # ── Mechanic OJT completion records ──
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS mechanic_ojt_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mechanic_id INTEGER NOT NULL REFERENCES mechanics(id) ON DELETE CASCADE,
+            ojt_item_id INTEGER NOT NULL REFERENCES mechanic_ojt_items(id) ON DELETE CASCADE,
+            completed_date TEXT,
+            evaluator TEXT,
+            score TEXT DEFAULT 'P' CHECK(score IN ('P','F','N/A')),
+            notes TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(mechanic_id, ojt_item_id)
+        )
+    """)
+
+    # ── Mechanic certifications ──
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS mechanic_certifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mechanic_id INTEGER NOT NULL REFERENCES mechanics(id) ON DELETE CASCADE,
+            cert_name TEXT NOT NULL,
+            cert_type TEXT DEFAULT 'license',
+            issued_date TEXT,
+            expiry_date TEXT,
+            issuer TEXT,
+            status TEXT DEFAULT 'active' CHECK(status IN ('active','expired','revoked','pending')),
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # ── Migrate: Malaysian -> Malaysia ──
     try:
         c.execute("UPDATE pilots SET nationality='Malaysia' WHERE nationality='Malaysian'")
@@ -376,6 +442,20 @@ def init_db():
         )
     """)
 
+
+    # ── Audit Log ──
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_name TEXT,
+            action TEXT NOT NULL,
+            target_type TEXT NOT NULL,
+            target_id INTEGER,
+            details TEXT,
+            ip_address TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     conn.commit()
     conn.close()
     print("[DB] Database initialized successfully.")

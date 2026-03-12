@@ -18,7 +18,7 @@ from auth import get_current_user
 from routes.auth_routes import LoginHandler, RegisterHandler, VerifyIdHandler, ProfileHandler, ChangePasswordHandler, BaseHandler
 from routes.user_routes import UsersHandler, UserDetailHandler, ResetPasswordHandler, InstructorsHandler
 from routes.course_routes import CoursesHandler, CourseDetailHandler, ModulesHandler, EnrollmentHandler
-from routes.schedule_routes import SchedulesHandler, ScheduleDetailHandler, AttendanceHandler
+from routes.schedule_routes import SchedulesHandler, ScheduleDetailHandler, AttendanceHandler, ScheduleConflictCheckHandler
 from routes.evaluation_routes import EvaluationsHandler, EvaluationDetailHandler, SubmitEvaluationHandler, BulkCreateEvaluationsHandler
 from routes.ojt_routes import OJTProgramsHandler, OJTProgramDetailHandler, OJTTasksHandler, OJTEnrollHandler, OJTEvaluationsHandler
 from routes.content_routes import ContentHandler, ContentDetailHandler
@@ -30,6 +30,12 @@ from routes.pilot_routes import (PilotsHandler, PilotDetailHandler, PilotPhotoHa
                                   PilotNationalitiesHandler, WeeklyUploadHandler,
                                   WeeklyUploadDetailHandler, WeeklyUploadDownloadHandler,
                                   WeeklyUploadLatestHandler)
+from routes.mechanic_routes import (MechanicsHandler, MechanicDetailHandler, MechanicPhotoHandler,
+                                    MechanicOJTItemsHandler, MechanicOJTRecordsHandler,
+                                    MechanicCertificationsHandler, MechanicCertDetailHandler,
+                                    MechanicSummaryHandler)
+from routes.audit_routes import AuditLogHandler
+from routes.backup_routes import BackupHandler, BackupListHandler, BackupCreateHandler
 
 PORT = int(os.environ.get('PORT', 8080))
 STATIC_PATH = os.path.join(os.path.dirname(__file__), "public")
@@ -142,6 +148,7 @@ def make_app():
 
         # ── Schedule ──
         (r"/api/schedules", SchedulesHandler),
+        (r"/api/schedules/check-conflicts", ScheduleConflictCheckHandler),
         (r"/api/schedules/(\d+)", ScheduleDetailHandler),
         (r"/api/schedules/(\d+)/attendance", AttendanceHandler),  # FIXED: was /api/attendance
 
@@ -190,7 +197,25 @@ def make_app():
         (r"/api/pilots/weekly-uploads/(\d+)", WeeklyUploadDetailHandler),
         (r"/api/pilots/weekly-uploads/(\d+)/download", WeeklyUploadDownloadHandler),
 
+        # ── Mechanics ──
+        (r"/api/mechanics", MechanicsHandler),
+        (r"/api/mechanics/(\d+)", MechanicDetailHandler),
+        (r"/api/mechanics/(\d+)/photo", MechanicPhotoHandler),
+        (r"/api/mechanics/ojt-items", MechanicOJTItemsHandler),
+        (r"/api/mechanics/ojt-records", MechanicOJTRecordsHandler),
+        (r"/api/mechanics/certifications", MechanicCertificationsHandler),
+        (r"/api/mechanics/certifications/(\d+)", MechanicCertDetailHandler),
+        (r"/api/mechanics/summary", MechanicSummaryHandler),
+
         # ── Active Users ──
+        # ── Audit Log ──
+        (r"/api/audit-log", AuditLogHandler),
+
+        # ── Backup ──
+        (r"/api/admin/backup", BackupHandler),
+        (r"/api/admin/backup/list", BackupListHandler),
+        (r"/api/admin/backup/create", BackupCreateHandler),
+
         (r"/api/active-users", ActiveUsersHandler),
 
         # ── Uploaded files ──
