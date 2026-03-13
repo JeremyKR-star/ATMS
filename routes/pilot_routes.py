@@ -325,6 +325,159 @@ class PilotNationalitiesHandler(BaseHandler):
 class WeeklyUploadHandler(BaseHandler):
     """GET list uploads, POST upload new Excel file"""
 
+    def _safe_int(self, val):
+        try:
+            return int(float(val)) if val is not None else 0
+        except (ValueError, TypeError):
+            return 0
+
+    def _parse_weekly_report_sheet(self, ws):
+        """Parse RMAF-style horizontal weekly report.
+        Layout:
+          Row 5: pilot names at columns H,K,N,Q,T,W,... (3-col stride: Plan/Done/Remain)
+          Row 7: header row with Plan/Done/Remain repeated
+          Row 8: Flight Sortie data
+          Row 10: Simulator Sortie data
+        """
+        parsed = []
+        # Step 1: Find pilot name row — scan rows 3-8 for cells with long text names
+        name_row = None
+        pilot_cols = []
+        for r in range(3, 10):
+            row_cells = list(ws.iter_rows(min_row=r, max_row=r, values_only=False))[0]
+            candidates = []
+            for cell in row_cells:
+                v = cell.value
+                if v and isinstance(v, str) and len(v.strip()) > 3 and not any(
+                    kw in v.lower() for kw in ('week', 'result', 'item', 'plan', 'done', 'remain', 'report', 'total',
+                                                  'flight', 'sim', 'sum', 'sortie', 'time', 'course', 'as of',
+                                                  '주간', '소계', '합계', '비행', '학술')
+                ) and cell.column >= 5:
+                    candidates.append(cell)
+            if len(candidates) >= 2:
+                name_row = r
+                pilot_cols = candidates
+                break
+
+        if not name_row or len(pilot_cols) < 2:
+            return []
+
+        # Step 2: Find data rows — Flight Sortie and Simulator Sortie
+        flt_row = None
+        sim_row = None
+        for r in range(name_row + 1, min(name_row + 15, ws.max_row + 1)):
+            for cell in ws.iter_rows(min_row=r, max_row=r, values_only=False):
+                for c in cell:
+                    v = str(c.value or '').strip().lower()
+                    if v == 'flight' and flt_row is None:
+                        # Check next column for 'sortie'
+                        next_cell = ws.cell(row=r, column=c.column + 1)
+                        nv = str(next_cell.value or '').strip().lower()
+                        if nv == 'sortie':
+                            flt_row = r
+                    elif v == 'simulator' and sim_row is None:
+                        next_cell = ws.cell(row=r, column=c.column + 1)
+                        nv = str(next_cell.value or '').strip().lower()
+                        if nv == 'sortie':
+                            sim_row = r
+
+        if not flt_row and not sim_row:
+            return []
+
+        # Step 3: Extract per-pilot data
+        for pc in pilot_cols:
+            name = str(pc.value).strip()
+            col_start = pc.column  # Plan column for this pilot
+
+            def get_val(row_num, offset):
+                if row_num is None:
+                    return 0
+                cell = ws.cell(row=row_num, column=col_start + offset)
+                return self._safe_int(cell.value)
+
+            flt_plan = get_val(flt_row, 0)
+            flt_done = get_val(flt_row, 1)
+            flt_remain = get_val(flt_row, 2)
+            sim_plan = get_val(sim_row, 0)
+            sim_done = get_val(sim_row, 1)
+            sim_remain = get_val(sim_row, 2)
+
+            parsed.append({
+                'name': name,
+                'flt_plan': flt_plan, 'flt_done': flt_done, 'flt_remain': flt_remain,
+                'sim_plan': sim_plan, 'sim_done': sim_done, 'sim_remain': sim_remain,
+                'remarks': '',
+            })
+
+        return parsed
+
+    def _parse_vertical_format(self, ws):
+        """Fallback: parse vertical format with Pilot/Name column header."""
+        header_row = None
+        for row_idx, row in enumerate(ws.iter_rows(min_row=1, max_row=10, values_only=False), 1):
+            for cell in row:
+                val = str(cell.value or '').strip().lower()
+                if val in ('pilot', 'name', 'pilot name', '조종사', '이름'):
+                    header_row = row_idx
+                    break
+            if header_row:
+                break
+        if not header_row:
+            return []
+
+        col_map = {}
+        for cell in ws[header_row]:
+            val = str(cell.value or '').strip().lower()
+            col = cell.column
+            if val in ('pilot', 'name', 'pilot name', '조종사', '이름'):
+                col_map['name'] = col
+            elif val in ('flt plan', 'flight plan', 'flt_plan', 'flight_plan'):
+                col_map['flt_plan'] = col
+            elif val in ('flt done', 'flight done', 'flt_done', 'flight_done'):
+                col_map['flt_done'] = col
+            elif val in ('flt remain', 'flight remain', 'flt_remain', 'flight_remain'):
+                col_map['flt_remain'] = col
+            elif val in ('sim plan', 'sim_plan', 'simulator plan'):
+                col_map['sim_plan'] = col
+            elif val in ('sim done', 'sim_done', 'simulator done'):
+                col_map['sim_done'] = col
+            elif val in ('sim remain', 'sim_remain', 'simulator remain'):
+                col_map['sim_remain'] = col
+            elif val in ('plan',) and 'flt_plan' not in col_map:
+                col_map['flt_plan'] = col
+            elif val in ('done',) and 'flt_done' not in col_map:
+                col_map['flt_done'] = col
+            elif val in ('remain',) and 'flt_remain' not in col_map:
+                col_map['flt_remain'] = col
+            elif val in ('remarks', 'note', 'notes', '비고'):
+                col_map['remarks'] = col
+
+        if 'name' not in col_map:
+            return []
+
+        parsed = []
+        for row in ws.iter_rows(min_row=header_row + 1, values_only=False):
+            name_val = row[col_map['name'] - 1].value
+            if not name_val or str(name_val).strip() == '':
+                continue
+            name_str = str(name_val).strip()
+            if name_str.lower() in ('total', 'sum', '합계', '소계'):
+                continue
+
+            def safe_col(col_key):
+                if col_key not in col_map:
+                    return 0
+                return self._safe_int(row[col_map[col_key] - 1].value)
+
+            parsed.append({
+                'name': name_str,
+                'flt_plan': safe_col('flt_plan'), 'flt_done': safe_col('flt_done'),
+                'flt_remain': safe_col('flt_remain'), 'sim_plan': safe_col('sim_plan'),
+                'sim_done': safe_col('sim_done'), 'sim_remain': safe_col('sim_remain'),
+                'remarks': str(row[col_map['remarks'] - 1].value or '') if 'remarks' in col_map else '',
+            })
+        return parsed
+
     @require_auth()
     def get(self):
         conn = get_db()
@@ -356,89 +509,39 @@ class WeeklyUploadHandler(BaseHandler):
 
         try:
             wb = openpyxl.load_workbook(io.BytesIO(f["body"]), data_only=True)
-            ws = wb.active
+            parsed_rows = []
 
-            # Find header row - look for 'Pilot' or 'Name' or similar
-            header_row = None
-            headers = {}
-            for row_idx, row in enumerate(ws.iter_rows(min_row=1, max_row=10, values_only=False), 1):
-                for cell in row:
-                    val = str(cell.value or '').strip().lower()
-                    if val in ('pilot', 'name', 'pilot name', '조종사', '이름'):
-                        header_row = row_idx
-                        break
-                if header_row:
+            # --- Try "Weekly Report" sheet first (RMAF horizontal format) ---
+            ws = None
+            for sn in wb.sheetnames:
+                if 'weekly' in sn.lower() and 'report' in sn.lower():
+                    ws = wb[sn]
                     break
 
-            if not header_row:
-                # Try first row as header
-                header_row = 1
+            if ws:
+                parsed_rows = self._parse_weekly_report_sheet(ws)
 
-            # Map column indices
-            col_map = {}
-            for cell in ws[header_row]:
-                val = str(cell.value or '').strip().lower()
-                col = cell.column
-                if val in ('pilot', 'name', 'pilot name', '조종사', '이름'):
-                    col_map['name'] = col
-                elif val in ('flt plan', 'flight plan', 'flt_plan', 'flight_plan'):
-                    col_map['flt_plan'] = col
-                elif val in ('flt done', 'flight done', 'flt_done', 'flight_done'):
-                    col_map['flt_done'] = col
-                elif val in ('flt remain', 'flight remain', 'flt_remain', 'flight_remain'):
-                    col_map['flt_remain'] = col
-                elif val in ('sim plan', 'sim_plan', 'simulator plan'):
-                    col_map['sim_plan'] = col
-                elif val in ('sim done', 'sim_done', 'simulator done'):
-                    col_map['sim_done'] = col
-                elif val in ('sim remain', 'sim_remain', 'simulator remain'):
-                    col_map['sim_remain'] = col
-                elif val in ('plan',) and 'flt_plan' not in col_map:
-                    col_map['flt_plan'] = col
-                elif val in ('done',) and 'flt_done' not in col_map:
-                    col_map['flt_done'] = col
-                elif val in ('remain',) and 'flt_remain' not in col_map:
-                    col_map['flt_remain'] = col
-                elif val in ('remarks', 'note', 'notes', '비고'):
-                    col_map['remarks'] = col
+            # --- Fallback: try active sheet with vertical format ---
+            if not parsed_rows:
+                ws = wb.active
+                parsed_rows = self._parse_vertical_format(ws)
 
-            if 'name' not in col_map:
-                return self.error("Cannot find 'Pilot' or 'Name' column in Excel file")
+            # --- Fallback: try all sheets ---
+            if not parsed_rows:
+                for sn in wb.sheetnames:
+                    parsed_rows = self._parse_weekly_report_sheet(wb[sn])
+                    if parsed_rows:
+                        break
+                    parsed_rows = self._parse_vertical_format(wb[sn])
+                    if parsed_rows:
+                        break
 
-            # Parse data rows
-            parsed_rows = []
-            for row in ws.iter_rows(min_row=header_row + 1, values_only=False):
-                name_val = row[col_map['name'] - 1].value
-                if not name_val or str(name_val).strip() == '':
-                    continue
-                name_str = str(name_val).strip()
-                # Skip total/summary rows
-                if name_str.lower() in ('total', 'sum', '합계', '소계'):
-                    continue
-
-                def safe_int(col_key):
-                    if col_key not in col_map:
-                        return 0
-                    v = row[col_map[col_key] - 1].value
-                    try:
-                        return int(float(v)) if v is not None else 0
-                    except (ValueError, TypeError):
-                        return 0
-
-                parsed_rows.append({
-                    'name': name_str,
-                    'flt_plan': safe_int('flt_plan'),
-                    'flt_done': safe_int('flt_done'),
-                    'flt_remain': safe_int('flt_remain'),
-                    'sim_plan': safe_int('sim_plan'),
-                    'sim_done': safe_int('sim_done'),
-                    'sim_remain': safe_int('sim_remain'),
-                    'remarks': str(row[col_map['remarks'] - 1].value or '') if 'remarks' in col_map else '',
-                })
             wb.close()
 
-        except Exception:
-            return self.error("Failed to parse Excel file. Please check the file format.")
+        except Exception as ex:
+            import traceback
+            traceback.print_exc()
+            return self.error(f"Failed to parse Excel file: {str(ex)}")
 
         if not parsed_rows:
             return self.error("No data rows found in Excel file")
@@ -473,13 +576,25 @@ class WeeklyUploadHandler(BaseHandler):
             ).fetchall())
 
             for pr in parsed_rows:
-                # Try to match pilot by short_name or name
+                # Try to match pilot by short_name, name (exact then contains)
                 pilot_id = None
+                pr_lower = pr['name'].lower()
+                # Pass 1: exact match
                 for p in pilots:
-                    if (p['short_name'] and p['short_name'].lower() == pr['name'].lower()) or \
-                       (p['name'] and p['name'].lower() == pr['name'].lower()):
+                    sn = (p.get('short_name') or '').lower()
+                    fn = (p.get('name') or '').lower()
+                    if (sn and sn == pr_lower) or (fn and fn == pr_lower):
                         pilot_id = p['id']
                         break
+                # Pass 2: contains match (excel name in DB name or DB name in excel name)
+                if pilot_id is None:
+                    for p in pilots:
+                        sn = (p.get('short_name') or '').lower()
+                        fn = (p.get('name') or '').lower()
+                        if (sn and (sn in pr_lower or pr_lower in sn)) or \
+                           (fn and (fn in pr_lower or pr_lower in fn)):
+                            pilot_id = p['id']
+                            break
                 conn.execute(
                     """INSERT INTO weekly_report_data
                        (upload_id, pilot_id, pilot_name, flt_plan, flt_done, flt_remain,
@@ -501,7 +616,9 @@ class WeeklyUploadHandler(BaseHandler):
                          f"Uploaded successfully: {len(parsed_rows)} rows parsed")
         except Exception as e:
             conn.rollback()
-            self.error("Failed to save upload data", 500)
+            import traceback
+            traceback.print_exc()
+            self.error(f"Failed to save upload data: {str(e)}", 500)
         finally:
             conn.close()
 

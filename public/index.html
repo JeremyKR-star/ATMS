@@ -3058,9 +3058,12 @@ function PilotPage() {
       });
       var data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
-      showToast(data.message || 'Upload successful', 'success');
-      loadAll();
-    } catch(err) { showToast(err.message, 'error'); }
+      var d = data.data || {};
+      var rows = d.parsed_rows || [];
+      var matched = d.matched || 0;
+      showToast('업로드 성공! ' + rows.length + '명 파싱, ' + matched + '명 조종사 매칭됨', 'success');
+      await loadAll();
+    } catch(err) { showToast('업로드 실패: ' + err.message, 'error'); }
     setUploading(false);
     if (weeklyFileRef.current) weeklyFileRef.current.value = '';
   };
