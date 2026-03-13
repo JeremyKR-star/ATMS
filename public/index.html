@@ -2539,16 +2539,18 @@ function AccessLogsPage() {
             ) : logs.length === 0 ? (
               <tr><td colSpan={7} style={{textAlign:'center',padding:40,color:'var(--gray-400)'}}>접속 로그가 없습니다</td></tr>
             ) : logs.map(function(log) {
-              var statusColor = log.status_code < 300 ? '#10b981' : log.status_code < 400 ? '#3b82f6' : log.status_code < 500 ? '#f59e0b' : '#ef4444';
+              var isDisconnect = log.method === 'DISCONNECT';
+              var statusColor = isDisconnect ? '#8b5cf6' : log.status_code < 300 ? '#10b981' : log.status_code < 400 ? '#3b82f6' : log.status_code < 500 ? '#f59e0b' : '#ef4444';
+              var rowStyle = isDisconnect ? {background:'rgba(139,92,246,0.06)'} : {};
               return (
-                <tr key={log.id}>
+                <tr key={log.id} style={rowStyle}>
                   <td style={{fontSize:12,whiteSpace:'nowrap'}}>{log.created_at ? new Date(log.created_at + 'Z').toLocaleString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}) : '-'}</td>
                   <td style={{fontFamily:'monospace',fontSize:13}}>{log.ip_address}</td>
-                  <td><span className={'badge badge-' + (log.method==='GET'?'blue':log.method==='POST'?'green':'orange')} style={{fontSize:11}}>{log.method}</span></td>
-                  <td style={{fontSize:12,maxWidth:300,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{log.path}</td>
-                  <td><span style={{color:statusColor,fontWeight:600,fontSize:13}}>{log.status_code}</span></td>
+                  <td>{isDisconnect ? React.createElement('span', {style:{fontSize:11,padding:'2px 8px',borderRadius:12,background:'rgba(139,92,246,0.15)',color:'#8b5cf6',fontWeight:600}}, 'DISCONNECT') : React.createElement('span', {className:'badge badge-' + (log.method==='GET'?'blue':log.method==='POST'?'green':'orange'), style:{fontSize:11}}, log.method)}</td>
+                  <td style={{fontSize:12,maxWidth:300,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{isDisconnect ? React.createElement('span', {style:{color:'#8b5cf6',fontStyle:'italic'}}, '\uC138\uC158 \uC885\uB8CC (\uD0C0\uC784\uC544\uC6C3)') : log.path}</td>
+                  <td><span style={{color:statusColor,fontWeight:600,fontSize:13}}>{isDisconnect ? '-' : log.status_code}</span></td>
                   <td style={{fontSize:12}}>{log.user_name || '-'}</td>
-                  <td style={{fontSize:12,color:'var(--gray-400)'}}>{log.response_time_ms ? log.response_time_ms + 'ms' : '-'}</td>
+                  <td style={{fontSize:12,color:'var(--gray-400)'}}>{isDisconnect ? '-' : (log.response_time_ms ? log.response_time_ms + 'ms' : '-')}</td>
                 </tr>
               );
             })}

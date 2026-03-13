@@ -79,9 +79,28 @@ def _track_active(request):
     _active_users[key] = time.time()
 
 
-def _count_active():
+def _flush_expired():
+    """Remove expired users and log DISCONNECT for each."""
     now = time.time()
-    return sum(1 for t in _active_users.values() if now - t < ACTIVE_WINDOW)
+    expired = [ip for ip, t in _active_users.items() if now - t >= ACTIVE_WINDOW]
+    for ip in expired:
+        del _active_users[ip]
+        # Log disconnect to DB
+        try:
+            db = get_db()
+            db.execute(
+                "INSERT INTO access_logs (ip_address, method, path, status_code, user_agent, response_time_ms) VALUES (?, ?, ?, ?, ?, ?)",
+                (ip, "DISCONNECT", "-", 0, "system:auto-timeout", 0)
+            )
+            db.commit()
+            db.close()
+        except Exception:
+            pass
+
+
+def _count_active():
+    _flush_expired()
+    return len(_active_users)
 
 
 # ─── Access Logger ───
