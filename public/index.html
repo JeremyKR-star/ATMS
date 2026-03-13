@@ -2525,7 +2525,7 @@ function AccessLogsPage() {
               var statusColor = log.status_code < 300 ? '#10b981' : log.status_code < 400 ? '#3b82f6' : log.status_code < 500 ? '#f59e0b' : '#ef4444';
               return (
                 <tr key={log.id}>
-                  <td style={{fontSize:12,whiteSpace:'nowrap'}}>{log.created_at ? log.created_at.replace('T',' ').slice(0,19) : '-'}</td>
+                  <td style={{fontSize:12,whiteSpace:'nowrap'}}>{log.created_at ? new Date(log.created_at + 'Z').toLocaleString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}) : '-'}</td>
                   <td style={{fontFamily:'monospace',fontSize:13}}>{log.ip_address}</td>
                   <td><span className={'badge badge-' + (log.method==='GET'?'blue':log.method==='POST'?'green':'orange')} style={{fontSize:11}}>{log.method}</span></td>
                   <td style={{fontSize:12,maxWidth:300,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{log.path}</td>
