@@ -52,10 +52,30 @@ def _get_client_ip(request):
     return forwarded.split(",")[0].strip() if forwarded else request.remote_ip
 
 
+SKIP_IPS = {'127.0.0.1', '::1', '10.0.0.0'}  # Render internal / loopback
+
+def _is_bot(request):
+    """Check if request is from a bot or health check."""
+    ua = request.headers.get("User-Agent", "").lower()
+    ip = _get_client_ip(request)
+    # Skip loopback, Render health checks, and known bots
+    if ip in SKIP_IPS or ip.startswith("10."):
+        return True
+    if any(b in ua for b in ("bot", "spider", "crawl", "monitor", "health", "uptimerobot", "render")):
+        return True
+    # HEAD requests are typically health checks
+    if request.method == "HEAD":
+        return True
+    return False
+
+
 def _track_active(request):
+    if _is_bot(request):
+        return
     ip = _get_client_ip(request)
     user = get_current_user(type('H', (), {'request': request})())
-    key = f"{user['name']}({ip})" if user else ip
+    # Track by IP only (deduplicate same person before/after login)
+    key = ip
     _active_users[key] = time.time()
 
 
@@ -120,11 +140,12 @@ def log_request(handler):
     # Write to log file
     access_logger.info(log_line)
 
-    # Save to DB (only API requests and page visits, skip static files)
+    # Save to DB (only real user requests, skip static files and bots)
     try:
         path = uri.split("?")[0]
         skip_exts = ('.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.map')
-        if not path.endswith(skip_exts) and method in ('GET', 'POST', 'PUT', 'DELETE', 'PATCH'):
+        is_bot = ip in SKIP_IPS or ip.startswith("10.") or method == "HEAD"
+        if not is_bot and not path.endswith(skip_exts) and method in ('GET', 'POST', 'PUT', 'DELETE', 'PATCH'):
             db = get_db()
             db.execute(
                 "INSERT INTO access_logs (ip_address, method, path, status_code, user_agent, user_id, user_name, response_time_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
