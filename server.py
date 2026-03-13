@@ -11,7 +11,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import tornado.ioloop
 import tornado.web
-from database import init_db, DB_PATH
+from database import init_db, DB_PATH, IS_POSTGRES
 from auth import get_current_user
 
 # Route imports
@@ -232,7 +232,8 @@ def make_app():
 
 if __name__ == "__main__":
     # Ensure directories exist
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    if not IS_POSTGRES:
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     os.makedirs(STATIC_PATH, exist_ok=True)
     os.makedirs(UPLOAD_PATH, exist_ok=True)
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -257,7 +258,7 @@ if __name__ == "__main__":
     print(f"  ATMS Server Running")
     print(f"  Local:   http://localhost:{PORT}")
     print(f"  Network: http://{local_ip}:{PORT}")
-    print(f"  Database: {DB_PATH}")
+    print(f"  Database: {'PostgreSQL (Neon)' if IS_POSTGRES else DB_PATH}")
     print(f"  Log file: {os.path.join(LOG_DIR, 'access.log')}")
     print(f"=" * 50)
     print(f"")

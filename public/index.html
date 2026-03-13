@@ -676,8 +676,9 @@ function StatusBadge({ status }) {
 }
 
 function DonutChart({ data, centerLabel, centerValue }) {
-  var mounted = useState(false)[0];
-  var setMounted = useState(false)[1];
+  var _mountedState = useState(false);
+  var mounted = _mountedState[0];
+  var setMounted = _mountedState[1];
   var total = data.reduce(function(s, d) { return s + d.value; }, 0) || 1;
   var cum = 0;
   var segs = data.map(function(d) { var start = cum; cum += (d.value / total) * 360; return Object.assign({}, d, { start: start, end: cum }); });

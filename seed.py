@@ -4,17 +4,19 @@ Run: python seed.py
 """
 import os
 import sys
-from database import get_db, init_db, DB_PATH
+from database import get_db, init_db, DB_PATH, IS_POSTGRES
 from auth import hash_password
 
 def seed():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    if not IS_POSTGRES:
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     init_db()
     db = get_db()
     c = db.cursor()
 
     # Check if already seeded
-    if db.execute("SELECT COUNT(*) FROM users").fetchone()[0] > 0:
+    row = db.execute("SELECT COUNT(*) as cnt FROM users").fetchone()
+    if (row.get('cnt') if isinstance(row, dict) else row[0]) > 0:
         print("[Seed] Data already exists. Skipping.")
         db.close()
         return
