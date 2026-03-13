@@ -747,9 +747,27 @@ def init_db():
             file_size INTEGER DEFAULT 0,
             row_count INTEGER DEFAULT 0,
             notes TEXT,
+            file_data BYTEA,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # Migration: add file_data column if missing
+    try:
+        c.execute("SELECT file_data FROM weekly_uploads LIMIT 0")
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        try:
+            c.execute("ALTER TABLE weekly_uploads ADD COLUMN file_data BYTEA")
+            conn.commit()
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
 
     # ── Weekly Report Data (parsed from Excel) ──
     c.execute(f"""

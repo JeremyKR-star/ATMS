@@ -482,7 +482,7 @@ class WeeklyUploadHandler(BaseHandler):
     def get(self):
         conn = get_db()
         uploads = dicts_from_rows(conn.execute(
-            "SELECT * FROM weekly_uploads ORDER BY created_at DESC"
+            "SELECT id, filename, original_filename, uploaded_by, report_date, file_size, row_count, notes, created_at FROM weekly_uploads ORDER BY created_at DESC"
         ).fetchall())
         conn.close()
         self.success(uploads)
@@ -546,12 +546,13 @@ class WeeklyUploadHandler(BaseHandler):
         if not parsed_rows:
             return self.error("No data rows found in Excel file")
 
-        # Save file
+        # Save file to disk (for local access) and keep binary for DB
         os.makedirs(WEEKLY_UPLOAD_DIR, exist_ok=True)
         fname = f"weekly_{uuid.uuid4().hex[:8]}{ext}"
         fpath = os.path.join(WEEKLY_UPLOAD_DIR, fname)
+        file_binary = f["body"]
         with open(fpath, "wb") as fp:
-            fp.write(f["body"])
+            fp.write(file_binary)
 
         # Get uploader info
         user = get_current_user(self)
@@ -559,15 +560,27 @@ class WeeklyUploadHandler(BaseHandler):
         report_date = self.get_argument('report_date', datetime.date.today().isoformat())
         notes = self.get_argument('notes', '')
 
-        # Save to DB
+        # Save to DB (including file binary for persistence across redeploys)
         conn = get_db()
         try:
-            cur = conn.execute(
-                """INSERT INTO weekly_uploads
-                   (filename, original_filename, uploaded_by, report_date, file_size, row_count, notes)
-                   VALUES (?,?,?,?,?,?,?)""",
-                (fname, orig_name, uploader, report_date, len(f["body"]), len(parsed_rows), notes)
-            )
+            from database import IS_POSTGRES
+            if IS_POSTGRES:
+                import psycopg2
+                cur = conn.execute(
+                    """INSERT INTO weekly_uploads
+                       (filename, original_filename, uploaded_by, report_date, file_size, row_count, notes, file_data)
+                       VALUES (?,?,?,?,?,?,?,?)""",
+                    (fname, orig_name, uploader, report_date, len(file_binary), len(parsed_rows), notes,
+                     psycopg2.Binary(file_binary))
+                )
+            else:
+                cur = conn.execute(
+                    """INSERT INTO weekly_uploads
+                       (filename, original_filename, uploaded_by, report_date, file_size, row_count, notes, file_data)
+                       VALUES (?,?,?,?,?,?,?,?)""",
+                    (fname, orig_name, uploader, report_date, len(file_binary), len(parsed_rows), notes,
+                     file_binary)
+                )
             upload_id = cur.lastrowid
 
             # Match pilot names and save parsed data
@@ -607,7 +620,10 @@ class WeeklyUploadHandler(BaseHandler):
                 )
 
             conn.commit()
-            upload = dict_from_row(conn.execute("SELECT * FROM weekly_uploads WHERE id=?", (upload_id,)).fetchone())
+            upload = dict_from_row(conn.execute(
+                "SELECT id, filename, original_filename, uploaded_by, report_date, file_size, row_count, notes, created_at FROM weekly_uploads WHERE id=?",
+                (upload_id,)
+            ).fetchone())
             matched = sum(1 for r in parsed_rows if any(
                 (p['short_name'] and p['short_name'].lower() == r['name'].lower()) or
                 (p['name'] and p['name'].lower() == r['name'].lower()) for p in pilots
@@ -629,7 +645,10 @@ class WeeklyUploadDetailHandler(BaseHandler):
     @require_auth()
     def get(self, upload_id):
         conn = get_db()
-        upload = dict_from_row(conn.execute("SELECT * FROM weekly_uploads WHERE id=?", (upload_id,)).fetchone())
+        upload = dict_from_row(conn.execute(
+            "SELECT id, filename, original_filename, uploaded_by, report_date, file_size, row_count, notes, created_at FROM weekly_uploads WHERE id=?",
+            (upload_id,)
+        ).fetchone())
         if not upload:
             conn.close()
             return self.error("Upload not found", 404)
@@ -642,7 +661,7 @@ class WeeklyUploadDetailHandler(BaseHandler):
     @require_auth(roles=['admin', 'ojt_admin'])
     def delete(self, upload_id):
         conn = get_db()
-        upload = dict_from_row(conn.execute("SELECT * FROM weekly_uploads WHERE id=?", (upload_id,)).fetchone())
+        upload = dict_from_row(conn.execute("SELECT id, filename FROM weekly_uploads WHERE id=?", (upload_id,)).fetchone())
         if not upload:
             conn.close()
             return self.error("Upload not found", 404)
@@ -679,19 +698,38 @@ class WeeklyUploadDownloadHandler(BaseHandler):
             return
 
         conn = get_db()
-        upload = dict_from_row(conn.execute("SELECT * FROM weekly_uploads WHERE id=?", (upload_id,)).fetchone())
+        upload = dict_from_row(conn.execute(
+            "SELECT id, filename, original_filename FROM weekly_uploads WHERE id=?", (upload_id,)
+        ).fetchone())
         conn.close()
         if not upload:
             return self.error("Upload not found", 404)
 
         fpath = os.path.join(WEEKLY_UPLOAD_DIR, upload['filename'])
-        if not os.path.exists(fpath):
+        file_data = None
+
+        # Try filesystem first
+        if os.path.exists(fpath):
+            with open(fpath, 'rb') as fp:
+                file_data = fp.read()
+        else:
+            # Fallback: load from DB (survives redeploys)
+            conn2 = get_db()
+            row = conn2.execute("SELECT file_data FROM weekly_uploads WHERE id=?", (upload_id,)).fetchone()
+            conn2.close()
+            if row and row['file_data']:
+                raw = row['file_data']
+                file_data = bytes(raw) if isinstance(raw, (memoryview, bytearray)) else raw
+
+        if not file_data:
             return self.error("File not found on server", 404)
 
-        self.set_header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        self.set_header('Content-Disposition', f'attachment; filename="{upload["original_filename"]}"')
-        with open(fpath, 'rb') as fp:
-            self.write(fp.read())
+        orig = upload['original_filename']
+        ext = orig.rsplit('.', 1)[-1].lower() if '.' in orig else 'xlsx'
+        ct = 'application/vnd.ms-excel.sheet.macroEnabled.12' if ext == 'xlsm' else 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        self.set_header('Content-Type', ct)
+        self.set_header('Content-Disposition', f'attachment; filename="{orig}"')
+        self.write(file_data)
         self.finish()
 
 
