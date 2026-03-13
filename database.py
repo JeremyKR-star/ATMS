@@ -798,6 +798,24 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # ── Access Logs (visitor tracking) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS access_logs (
+            id {get_pk_syntax()},
+            ip_address TEXT NOT NULL,
+            method TEXT NOT NULL,
+            path TEXT NOT NULL,
+            status_code INTEGER,
+            user_agent TEXT,
+            user_id INTEGER,
+            user_name TEXT,
+            response_time_ms REAL,
+            country TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
     backend_name = "PostgreSQL" if IS_POSTGRES else "SQLite"

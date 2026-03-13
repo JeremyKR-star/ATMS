@@ -11,8 +11,8 @@ import logging
 from logging.handlers import RotatingFileHandler
 import tornado.ioloop
 import tornado.web
-from database import init_db, DB_PATH, IS_POSTGRES
-from auth import get_current_user
+from database import init_db, get_db, DB_PATH, IS_POSTGRES, dicts_from_rows
+from auth import get_current_user, require_auth
 
 # Route imports
 from routes.auth_routes import LoginHandler, RegisterHandler, VerifyIdHandler, ProfileHandler, ChangePasswordHandler, BaseHandler
@@ -102,10 +102,12 @@ def log_request(handler):
 
     # Get authenticated user name if available
     user_info = "-"
+    user_id = None
     try:
         u = get_current_user(handler)
         if u:
             user_info = u.get('name', '-')
+            user_id = u.get('id')
     except Exception:
         pass
 
@@ -118,11 +120,73 @@ def log_request(handler):
     # Write to log file
     access_logger.info(log_line)
 
+    # Save to DB (only API requests and page visits, skip static files)
+    try:
+        path = uri.split("?")[0]
+        skip_exts = ('.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.map')
+        if not path.endswith(skip_exts) and method in ('GET', 'POST', 'PUT', 'DELETE', 'PATCH'):
+            db = get_db()
+            db.execute(
+                "INSERT INTO access_logs (ip_address, method, path, status_code, user_agent, user_id, user_name, response_time_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (ip, method, path, status, ua[:200], user_id, user_info if user_info != "-" else None, round(latency, 1))
+            )
+            db.commit()
+            db.close()
+    except Exception:
+        pass  # Don't let logging errors break the app
+
 
 # ─── Active Users API ───
 class ActiveUsersHandler(BaseHandler):
     def get(self):
         self.success({"count": _count_active()})
+
+
+# ─── Access Logs API ───
+class AccessLogsHandler(BaseHandler):
+    @require_auth(roles=["admin"])
+    def get(self):
+        db = get_db()
+        page = int(self.get_argument("page", "1"))
+        limit = int(self.get_argument("limit", "50"))
+        ip_filter = self.get_argument("ip", "")
+        offset = (page - 1) * limit
+
+        query = "SELECT * FROM access_logs WHERE 1=1"
+        count_query = "SELECT COUNT(*) as cnt FROM access_logs WHERE 1=1"
+        params = []
+
+        if ip_filter:
+            query += " AND ip_address LIKE ?"
+            count_query += " AND ip_address LIKE ?"
+            params.append(f"%{ip_filter}%")
+
+        total = db.execute(count_query, params).fetchone()["cnt"]
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        logs = dicts_from_rows(db.execute(query, params).fetchall())
+
+        # Unique visitor stats
+        stats = {}
+        stats["total_requests"] = total
+        stats["unique_ips"] = db.execute("SELECT COUNT(DISTINCT ip_address) as cnt FROM access_logs").fetchone()["cnt"]
+        stats["today_requests"] = db.execute(
+            "SELECT COUNT(*) as cnt FROM access_logs WHERE CAST(created_at AS TEXT) LIKE ?",
+            (time.strftime("%Y-%m-%d") + "%",)
+        ).fetchone()["cnt"]
+        stats["today_unique_ips"] = db.execute(
+            "SELECT COUNT(DISTINCT ip_address) as cnt FROM access_logs WHERE CAST(created_at AS TEXT) LIKE ?",
+            (time.strftime("%Y-%m-%d") + "%",)
+        ).fetchone()["cnt"]
+
+        db.close()
+        self.success({
+            "logs": logs,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "stats": stats
+        })
 
 
 def make_app():
@@ -217,6 +281,7 @@ def make_app():
         (r"/api/admin/backup/create", BackupCreateHandler),
 
         (r"/api/active-users", ActiveUsersHandler),
+        (r"/api/access-logs", AccessLogsHandler),
 
         # ── Uploaded files ──
         (r"/uploads/(.*)", tornado.web.StaticFileHandler, {"path": UPLOAD_PATH}),

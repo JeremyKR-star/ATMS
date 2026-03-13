@@ -2426,6 +2426,135 @@ function PasswordStrength({ password }) {
   );
 }
 
+// ━━━━━━━━━━━━ ACCESS LOGS PAGE ━━━━━━━━━━━━
+function AccessLogsPage() {
+  var _logsState = useState([]);
+  var logs = _logsState[0];
+  var setLogs = _logsState[1];
+  var _statsState = useState({});
+  var stats = _statsState[0];
+  var setStats = _statsState[1];
+  var _pageState = useState(1);
+  var pg = _pageState[0];
+  var setPg = _pageState[1];
+  var _totalState = useState(0);
+  var total = _totalState[0];
+  var setTotal = _totalState[1];
+  var _ipFilterState = useState('');
+  var ipFilter = _ipFilterState[0];
+  var setIpFilter = _ipFilterState[1];
+  var _loadingState = useState(false);
+  var loading = _loadingState[0];
+  var setLoading = _loadingState[1];
+  var { showToast } = useApp();
+  var LIMIT = 50;
+
+  var fetchLogs = function(p, ip) {
+    setLoading(true);
+    var url = '/access-logs?page=' + p + '&limit=' + LIMIT;
+    if (ip) url += '&ip=' + encodeURIComponent(ip);
+    api(url).then(function(d) {
+      setLogs(d.data.logs || []);
+      setTotal(d.data.total || 0);
+      setStats(d.data.stats || {});
+      setLoading(false);
+    }).catch(function(e) { showToast(e.message, 'danger'); setLoading(false); });
+  };
+
+  useEffect(function() { fetchLogs(pg, ipFilter); }, [pg]);
+
+  var handleSearch = function() { setPg(1); fetchLogs(1, ipFilter); };
+  var totalPages = Math.ceil(total / LIMIT) || 1;
+
+  return (
+    <div style={{padding:'20px',maxWidth:1200,margin:'0 auto'}}>
+      <h4 style={{marginBottom:20}}>🌐 접속 로그</h4>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:16,marginBottom:24}}>
+        <div className="card" style={{padding:20,textAlign:'center'}}>
+          <div style={{fontSize:28,fontWeight:700,color:'var(--primary)'}}>{stats.total_requests || 0}</div>
+          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>전체 요청</div>
+        </div>
+        <div className="card" style={{padding:20,textAlign:'center'}}>
+          <div style={{fontSize:28,fontWeight:700,color:'#10b981'}}>{stats.unique_ips || 0}</div>
+          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>고유 IP</div>
+        </div>
+        <div className="card" style={{padding:20,textAlign:'center'}}>
+          <div style={{fontSize:28,fontWeight:700,color:'#f59e0b'}}>{stats.today_requests || 0}</div>
+          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>오늘 요청</div>
+        </div>
+        <div className="card" style={{padding:20,textAlign:'center'}}>
+          <div style={{fontSize:28,fontWeight:700,color:'#8b5cf6'}}>{stats.today_unique_ips || 0}</div>
+          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>오늘 고유 IP</div>
+        </div>
+      </div>
+
+      <div className="card" style={{padding:16,marginBottom:16}}>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <input type="text" className="form-input" placeholder="IP 주소 검색..."
+            value={ipFilter} onChange={function(e){setIpFilter(e.target.value);}}
+            onKeyDown={function(e){if(e.key==='Enter')handleSearch();}}
+            style={{flex:1,maxWidth:300}} />
+          <button className="btn btn-primary btn-sm" onClick={handleSearch}>검색</button>
+          <button className="btn btn-sm" onClick={function(){setIpFilter('');setPg(1);fetchLogs(1,'');}}>초기화</button>
+          <div style={{marginLeft:'auto',fontSize:13,color:'var(--gray-400)'}}>
+            총 {total}건 (페이지 {pg}/{totalPages})
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{overflow:'auto'}}>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>시간</th>
+              <th>IP 주소</th>
+              <th>메서드</th>
+              <th>경로</th>
+              <th>상태</th>
+              <th>사용자</th>
+              <th>응답시간</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={7} style={{textAlign:'center',padding:40}}>로딩 중...</td></tr>
+            ) : logs.length === 0 ? (
+              <tr><td colSpan={7} style={{textAlign:'center',padding:40,color:'var(--gray-400)'}}>접속 로그가 없습니다</td></tr>
+            ) : logs.map(function(log) {
+              var statusColor = log.status_code < 300 ? '#10b981' : log.status_code < 400 ? '#3b82f6' : log.status_code < 500 ? '#f59e0b' : '#ef4444';
+              return (
+                <tr key={log.id}>
+                  <td style={{fontSize:12,whiteSpace:'nowrap'}}>{log.created_at ? log.created_at.replace('T',' ').slice(0,19) : '-'}</td>
+                  <td style={{fontFamily:'monospace',fontSize:13}}>{log.ip_address}</td>
+                  <td><span className={'badge badge-' + (log.method==='GET'?'blue':log.method==='POST'?'green':'orange')} style={{fontSize:11}}>{log.method}</span></td>
+                  <td style={{fontSize:12,maxWidth:300,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{log.path}</td>
+                  <td><span style={{color:statusColor,fontWeight:600,fontSize:13}}>{log.status_code}</span></td>
+                  <td style={{fontSize:12}}>{log.user_name || '-'}</td>
+                  <td style={{fontSize:12,color:'var(--gray-400)'}}>{log.response_time_ms ? log.response_time_ms + 'ms' : '-'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div style={{display:'flex',justifyContent:'center',gap:8,marginTop:16}}>
+          <button className="btn btn-sm" disabled={pg<=1} onClick={function(){setPg(pg-1);}}>이전</button>
+          {Array.from({length: Math.min(totalPages, 10)}, function(_, i) {
+            var start = Math.max(1, pg - 4);
+            var p = start + i;
+            if (p > totalPages) return null;
+            return <button key={p} className={'btn btn-sm ' + (p===pg?'btn-primary':'')} onClick={function(){setPg(p);}}>{p}</button>;
+          })}
+          <button className="btn btn-sm" disabled={pg>=totalPages} onClick={function(){setPg(pg+1);}}>다음</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ━━━━━━━━━━━━ MECHANIC PAGE ━━━━━━━━━━━━
 function MechanicPage() {
   var [mechanics, setMechanics] = useState([]);
@@ -3539,10 +3668,11 @@ function App() {
     {id:'users',label:'사용자 관리',icon:'👤',roles:['admin','ojt_admin','manager']},
     {id:'reports',label:'리포트',icon:'📈',roles:['admin','instructor','ojt_admin','manager']},
     {id:'notifications',label:'알림',icon:'🔔'},
+    {id:'access-logs',label:'접속 로그',icon:'🌐',roles:['admin']},
   ];
   const pn = {dashboard:'대시보드',courses:'과정 관리',schedule:'일정 관리',evaluations:'평가 관리',
     ojt:'OJT 관리',content:'학습 자료',users:'사용자 관리',reports:'리포트',notifications:'알림',
-    profile:'내 프로필',pilots:'조종사 현황',mechanic:'정비사 현황'};
+    profile:'내 프로필',pilots:'조종사 현황',mechanic:'정비사 현황','access-logs':'접속 로그'};
 
   const renderPage = () => {
     switch(page){
@@ -3558,6 +3688,7 @@ function App() {
       case 'profile': return <ProfilePage/>;
       case 'pilots': return <PilotPage/>;
       case 'mechanic': return <MechanicPage/>;
+      case 'access-logs': return <AccessLogsPage/>;
       default: return <Dashboard/>;
     }
   };
