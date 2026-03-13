@@ -593,22 +593,25 @@ body.dark-mode .sidebar { background: linear-gradient(180deg, rgba(10,14,39,0.9)
 @keyframes loader3dPulse { 0%,100% { transform: scale(0.8); opacity: 0.4; } 50% { transform: scale(1.2); opacity: 1; } }
 @keyframes loader3dText { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
 @keyframes loader3dDots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
-@keyframes loader3dPlane { 0% { transform: rotate(0deg) translateX(55px) rotate(0deg) scale(1); opacity:1; } 50% { transform: rotate(180deg) translateX(55px) rotate(-180deg) scale(0.7); opacity:0.5; } 100% { transform: rotate(360deg) translateX(55px) rotate(-360deg) scale(1); opacity:1; } }
+@keyframes loader3dPlane { 0% { transform: rotate(0deg) translateX(calc(var(--loader-size) * 0.42)) rotate(0deg) scale(1); opacity:1; } 50% { transform: rotate(180deg) translateX(calc(var(--loader-size) * 0.42)) rotate(-180deg) scale(0.7); opacity:0.5; } 100% { transform: rotate(360deg) translateX(calc(var(--loader-size) * 0.42)) rotate(-360deg) scale(1); opacity:1; } }
+@keyframes loader3dOrbitFlex { 0% { transform: rotate(0deg) translateX(calc(var(--loader-size) * 0.31)) rotate(0deg); } 100% { transform: rotate(360deg) translateX(calc(var(--loader-size) * 0.31)) rotate(-360deg); } }
+@keyframes loader3dOrbitFlex2 { 0% { transform: rotate(120deg) translateX(calc(var(--loader-size) * 0.31)) rotate(-120deg); } 100% { transform: rotate(480deg) translateX(calc(var(--loader-size) * 0.31)) rotate(-480deg); } }
+@keyframes loader3dOrbitFlex3 { 0% { transform: rotate(240deg) translateX(calc(var(--loader-size) * 0.31)) rotate(-240deg); } 100% { transform: rotate(600deg) translateX(calc(var(--loader-size) * 0.31)) rotate(-600deg); } }
 @keyframes loader3dGlow { 0%,100% { box-shadow: 0 0 15px rgba(99,102,241,0.3), 0 0 30px rgba(99,102,241,0.1); } 50% { box-shadow: 0 0 25px rgba(99,102,241,0.6), 0 0 50px rgba(99,102,241,0.2); } }
-.atms-3d-loader { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:400px; perspective:800px; }
-.atms-3d-loader .scene { position:relative; width:130px; height:130px; transform-style:preserve-3d; animation: loader3dSpin 4s linear infinite; }
-.atms-3d-loader .ring { position:absolute; top:0; left:0; width:100%; height:100%; border-radius:50%; border:2px solid transparent; }
+.atms-3d-loader { --loader-size: min(28vw, 28vh, 220px); display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; perspective:1200px; }
+.atms-3d-loader .scene { position:relative; width:var(--loader-size); height:var(--loader-size); transform-style:preserve-3d; animation: loader3dSpin 4s linear infinite; }
+.atms-3d-loader .ring { position:absolute; top:0; left:0; width:100%; height:100%; border-radius:50%; border:calc(var(--loader-size) * 0.02) solid transparent; }
 .atms-3d-loader .ring:nth-child(1) { border-top-color:#6366f1; border-bottom-color:#6366f1; animation: loader3dRing 2s linear infinite; }
 .atms-3d-loader .ring:nth-child(2) { border-left-color:#818cf8; border-right-color:#818cf8; animation: loader3dRing2 2.5s linear infinite; }
 .atms-3d-loader .ring:nth-child(3) { border-top-color:#a5b4fc; border-bottom-color:#a5b4fc; animation: loader3dRing3 3s linear infinite; }
-.atms-3d-loader .core { position:absolute; top:50%; left:50%; width:20px; height:20px; margin:-10px 0 0 -10px; border-radius:50%; background: radial-gradient(circle, #6366f1 0%, #4f46e5 100%); animation: loader3dPulse 2s ease-in-out infinite, loader3dGlow 2s ease-in-out infinite; }
-.atms-3d-loader .orbit-dot { position:absolute; top:50%; left:50%; width:8px; height:8px; margin:-4px 0 0 -4px; border-radius:50%; background:#818cf8; }
-.atms-3d-loader .orbit-dot:nth-child(5) { animation: loader3dOrbit 2s linear infinite; }
-.atms-3d-loader .orbit-dot:nth-child(6) { animation: loader3dOrbit2 2s linear infinite; background:#a5b4fc; width:6px; height:6px; margin:-3px 0 0 -3px; }
-.atms-3d-loader .orbit-dot:nth-child(7) { animation: loader3dOrbit3 2s linear infinite; background:#c7d2fe; width:5px; height:5px; margin:-2.5px 0 0 -2.5px; }
-.atms-3d-loader .plane-icon { position:absolute; top:50%; left:50%; margin:-10px 0 0 -10px; font-size:18px; animation: loader3dPlane 3s linear infinite; filter: drop-shadow(0 0 6px rgba(99,102,241,0.5)); }
-.atms-3d-loader .loader-label { margin-top:32px; font-size:15px; font-weight:600; color: var(--gray-500); letter-spacing:1px; animation: loader3dText 2s ease-in-out infinite; }
-.atms-3d-loader .loader-sublabel { margin-top:8px; font-size:12px; color: var(--gray-400); letter-spacing:0.5px; }
+.atms-3d-loader .core { position:absolute; top:50%; left:50%; width:calc(var(--loader-size) * 0.15); height:calc(var(--loader-size) * 0.15); margin:calc(var(--loader-size) * -0.075) 0 0 calc(var(--loader-size) * -0.075); border-radius:50%; background: radial-gradient(circle, #6366f1 0%, #4f46e5 100%); animation: loader3dPulse 2s ease-in-out infinite, loader3dGlow 2s ease-in-out infinite; }
+.atms-3d-loader .orbit-dot { position:absolute; top:50%; left:50%; width:calc(var(--loader-size) * 0.06); height:calc(var(--loader-size) * 0.06); margin:calc(var(--loader-size) * -0.03) 0 0 calc(var(--loader-size) * -0.03); border-radius:50%; background:#818cf8; }
+.atms-3d-loader .orbit-dot:nth-child(5) { animation: loader3dOrbitFlex 2s linear infinite; }
+.atms-3d-loader .orbit-dot:nth-child(6) { animation: loader3dOrbitFlex2 2s linear infinite; background:#a5b4fc; width:calc(var(--loader-size) * 0.045); height:calc(var(--loader-size) * 0.045); margin:calc(var(--loader-size) * -0.0225) 0 0 calc(var(--loader-size) * -0.0225); }
+.atms-3d-loader .orbit-dot:nth-child(7) { animation: loader3dOrbitFlex3 2s linear infinite; background:#c7d2fe; width:calc(var(--loader-size) * 0.035); height:calc(var(--loader-size) * 0.035); margin:calc(var(--loader-size) * -0.0175) 0 0 calc(var(--loader-size) * -0.0175); }
+.atms-3d-loader .plane-icon { position:absolute; top:50%; left:50%; margin:calc(var(--loader-size) * -0.08) 0 0 calc(var(--loader-size) * -0.08); font-size:calc(var(--loader-size) * 0.14); animation: loader3dPlane 3s linear infinite; filter: drop-shadow(0 0 6px rgba(99,102,241,0.5)); }
+.atms-3d-loader .loader-label { margin-top:calc(var(--loader-size) * 0.2); font-size:clamp(14px, calc(var(--loader-size) * 0.1), 20px); font-weight:600; color: var(--gray-500); letter-spacing:1.5px; animation: loader3dText 2s ease-in-out infinite; }
+.atms-3d-loader .loader-sublabel { margin-top:calc(var(--loader-size) * 0.06); font-size:clamp(11px, calc(var(--loader-size) * 0.07), 15px); color: var(--gray-400); letter-spacing:0.5px; }
 </style>
 </head>
 <body>
@@ -2584,7 +2587,7 @@ function AccessLogsPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{textAlign:'center',padding:40}}><div className="atms-3d-loader" style={{minHeight:200}}><div className="scene" style={{width:80,height:80}}><div className="ring"></div><div className="ring"></div><div className="ring"></div><div className="core" style={{width:14,height:14,margin:'-7px 0 0 -7px'}}></div></div><div className="loader-label" style={{fontSize:13,marginTop:20}}>{'\uB85C\uADF8 \uB85C\uB529 \uC911...'}</div></div></td></tr>
+              <tr><td colSpan={7} style={{textAlign:'center',padding:40}}><div className="atms-3d-loader" style={{'--loader-size':'80px',minHeight:200}}><div className="scene"><div className="ring"></div><div className="ring"></div><div className="ring"></div><div className="core"></div><div className="orbit-dot"></div><div className="orbit-dot"></div><div className="orbit-dot"></div></div><div className="loader-label">{'\uB85C\uADF8 \uB85C\uB529 \uC911...'}</div></div></td></tr>
             ) : logs.length === 0 ? (
               <tr><td colSpan={7} style={{textAlign:'center',padding:40,color:'var(--gray-400)'}}>접속 로그가 없습니다</td></tr>
             ) : logs.map(function(log) {
