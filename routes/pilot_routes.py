@@ -2,6 +2,7 @@
 import os
 import io
 import json
+import re
 import time
 import uuid
 import datetime
@@ -478,6 +479,222 @@ class WeeklyUploadHandler(BaseHandler):
             })
         return parsed
 
+    def _parse_individual_status_sheet(self, ws):
+        """Parse 'Individual Status' sheet to extract per-pilot, per-course completion dates/times.
+        Returns list of dicts: {course_no, subject, category, pilot_name, completed_date, completed_time, contents}
+        """
+        results = []
+
+        # Step 1: Find pilot names in row 5 (cols 8, 11, 14, 17, 20, 23 — 3-col stride)
+        pilot_cols = []  # list of (col_index, pilot_name)
+        for c in range(5, min(ws.max_column + 1, 40)):
+            v = ws.cell(row=5, column=c).value
+            if v and isinstance(v, str) and len(v.strip()) > 3 and not any(
+                kw in v.lower() for kw in ('course', 'transition', 'status', 'rmaf', 'pilot', 'training',
+                                             'contents', 'date', 'time', 'sim', 'flight', 'no.')
+            ):
+                # Clean newlines from multi-line cell names
+                clean_name = ' '.join(v.strip().split())
+                pilot_cols.append((c, clean_name))
+
+        if len(pilot_cols) < 2:
+            return []
+
+        # Step 2: Scan data rows — identify course rows by Course No pattern (C-XX) in col 2
+        for r in range(8, ws.max_row + 1):
+            course_no_val = ws.cell(row=r, column=2).value
+            if not course_no_val:
+                continue
+            course_no_str = str(course_no_val).strip()
+            # Must be C-XX pattern
+            if not course_no_str.upper().startswith('C-'):
+                continue
+
+            sim_no = ws.cell(row=r, column=3).value
+            sim_subject = ws.cell(row=r, column=4).value
+            flt_no = ws.cell(row=r, column=5).value
+            flt_subject = ws.cell(row=r, column=6).value
+            contents = str(ws.cell(row=r, column=7).value or '').strip()
+            # Skip ditto marks
+            if contents in ('\u3003', '"', '〃'):
+                contents = ''
+
+            # Determine if this is a SIM or Flight row
+            is_sim = sim_subject is not None and str(sim_subject).strip() != ''
+            is_flt = flt_subject is not None and str(flt_subject).strip() != ''
+
+            if is_sim:
+                subject = str(sim_subject).strip()
+                category = 'sim'
+            elif is_flt:
+                subject = str(flt_subject).strip()
+                category = 'flight'
+            else:
+                # Skip Option rows or empty
+                continue
+
+            # Also skip "CPT" only subject entries
+            if subject.upper() in ('CPT', ''):
+                continue
+
+            # Step 3: Extract per-pilot date/time
+            for (pcol, pname) in pilot_cols:
+                date_val = ws.cell(row=r, column=pcol).value
+                if date_val is None:
+                    continue
+
+                # Parse date
+                date_str = ''
+                if hasattr(date_val, 'strftime'):
+                    date_str = date_val.strftime('%Y-%m-%d')
+                elif isinstance(date_val, str) and date_val.strip():
+                    date_str = date_val.strip()[:10]
+
+                if not date_str:
+                    continue
+
+                # Parse time — SIM: pcol+1, Flight: pcol+2
+                if is_sim:
+                    time_val = ws.cell(row=r, column=pcol + 1).value
+                else:
+                    time_val = ws.cell(row=r, column=pcol + 2).value
+
+                time_str = '1:00'
+                if time_val:
+                    if hasattr(time_val, 'strftime'):
+                        time_str = time_val.strftime('%H:%M')
+                        # Remove leading zero hour
+                        if time_str.startswith('0'):
+                            time_str = time_str.lstrip('0') or '0:00'
+                    elif isinstance(time_val, str) and ':' in time_val:
+                        parts = time_val.strip().split(':')
+                        time_str = parts[0].lstrip('0') + ':' + parts[1]
+                        if time_str.startswith(':'):
+                            time_str = '0' + time_str
+
+                results.append({
+                    'course_no': course_no_str,
+                    'subject': subject,
+                    'category': category,
+                    'contents': contents,
+                    'pilot_name': pname,
+                    'completed_date': date_str,
+                    'completed_time': time_str,
+                })
+
+        return results
+
+    def _sync_individual_status(self, conn, individual_data, pilots):
+        """Sync parsed Individual Status data to pilot_courses + pilot_training tables.
+        - Auto-creates missing pilot_courses
+        - Upserts pilot_training records
+        Returns (synced_count, created_courses_count)
+        """
+        if not individual_data:
+            return 0, 0
+
+        # Build pilot lookup (name -> id) same fuzzy logic as weekly report
+        pilot_lookup = {}
+        for row in individual_data:
+            pname = row['pilot_name']
+            if pname in pilot_lookup:
+                continue
+            pname_lower = pname.lower()
+            pilot_id = None
+            # Pass 1: exact match
+            for p in pilots:
+                sn = (p.get('short_name') or '').lower()
+                fn = (p.get('name') or '').lower()
+                if (sn and sn == pname_lower) or (fn and fn == pname_lower):
+                    pilot_id = p['id']
+                    break
+            # Pass 2: contains match
+            if pilot_id is None:
+                for p in pilots:
+                    sn = (p.get('short_name') or '').lower()
+                    fn = (p.get('name') or '').lower()
+                    if (sn and (sn in pname_lower or pname_lower in sn)) or \
+                       (fn and (fn in pname_lower or pname_lower in fn)):
+                        pilot_id = p['id']
+                        break
+            pilot_lookup[pname] = pilot_id
+
+        # Load existing courses
+        existing_courses = dicts_from_rows(conn.execute(
+            "SELECT * FROM pilot_courses ORDER BY sort_order, id"
+        ).fetchall())
+
+        # Build course lookup: subject (lowercase) -> course_id
+        course_map = {}
+        for c in existing_courses:
+            course_map[c['subject'].lower()] = c['id']
+
+        # Collect unique courses from data that may need to be created
+        unique_courses = {}  # subject -> {course_no, category, contents}
+        for row in individual_data:
+            subj = row['subject']
+            if subj.lower() not in course_map and subj not in unique_courses:
+                unique_courses[subj] = {
+                    'course_no': row['course_no'],
+                    'category': row['category'],
+                    'contents': row['contents'],
+                }
+
+        # Auto-create missing courses
+        created_count = 0
+        max_sort = 0
+        if existing_courses:
+            max_sort = max(c.get('sort_order', 0) or 0 for c in existing_courses)
+
+        for subj, info in unique_courses.items():
+            max_sort += 1
+            # Extract seq_no from subject (e.g., TR-1S -> 1, INST-2 -> 2)
+            seq_no = 0
+            m = re.search(r'(\d+)', subj)
+            if m:
+                seq_no = int(m.group(1))
+
+            cur = conn.execute(
+                """INSERT INTO pilot_courses (course_no, category, seq_no, subject, contents, duration, sort_order)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (info['course_no'], info['category'], seq_no, subj,
+                 info['contents'], '1:00', max_sort)
+            )
+            course_map[subj.lower()] = cur.lastrowid
+            created_count += 1
+
+        # Upsert pilot_training records
+        synced_count = 0
+        for row in individual_data:
+            pilot_id = pilot_lookup.get(row['pilot_name'])
+            if not pilot_id:
+                continue
+            course_id = course_map.get(row['subject'].lower())
+            if not course_id:
+                continue
+
+            # Check existing
+            existing = conn.execute(
+                "SELECT id FROM pilot_training WHERE pilot_id=? AND course_id=?",
+                (pilot_id, course_id)
+            ).fetchone()
+
+            if existing:
+                conn.execute(
+                    """UPDATE pilot_training SET completed_date=?, completed_time=?,
+                       updated_at=CURRENT_TIMESTAMP WHERE pilot_id=? AND course_id=?""",
+                    (row['completed_date'], row['completed_time'], pilot_id, course_id)
+                )
+            else:
+                conn.execute(
+                    """INSERT INTO pilot_training (pilot_id, course_id, completed_date, completed_time, notes)
+                       VALUES (?,?,?,?,?)""",
+                    (pilot_id, course_id, row['completed_date'], row['completed_time'], '')
+                )
+            synced_count += 1
+
+        return synced_count, created_count
+
     @require_auth()
     def get(self):
         conn = get_db()
@@ -628,8 +845,36 @@ class WeeklyUploadHandler(BaseHandler):
                 (p['short_name'] and p['short_name'].lower() == r['name'].lower()) or
                 (p['name'] and p['name'].lower() == r['name'].lower()) for p in pilots
             ))
-            self.success({'upload': upload, 'parsed_rows': parsed_rows, 'matched': matched},
-                         f"Uploaded successfully: {len(parsed_rows)} rows parsed")
+
+            # --- Parse Individual Status sheet and sync to pilot_training ---
+            individual_synced = 0
+            courses_created = 0
+            try:
+                wb2 = openpyxl.load_workbook(io.BytesIO(file_binary), data_only=True)
+                ind_ws = None
+                for sn in wb2.sheetnames:
+                    if 'individual' in sn.lower() and 'status' in sn.lower():
+                        ind_ws = wb2[sn]
+                        break
+                if ind_ws:
+                    individual_data = self._parse_individual_status_sheet(ind_ws)
+                    if individual_data:
+                        individual_synced, courses_created = self._sync_individual_status(conn, individual_data, pilots)
+                        conn.commit()
+                wb2.close()
+            except Exception as ex2:
+                import traceback
+                traceback.print_exc()
+                print(f"[WARN] Individual Status parsing failed: {ex2}")
+
+            msg = f"Uploaded successfully: {len(parsed_rows)} rows parsed"
+            if individual_synced > 0:
+                msg += f", {individual_synced} training records synced"
+            if courses_created > 0:
+                msg += f", {courses_created} new courses created"
+            self.success({'upload': upload, 'parsed_rows': parsed_rows, 'matched': matched,
+                          'individual_synced': individual_synced, 'courses_created': courses_created},
+                         msg)
         except Exception as e:
             conn.rollback()
             import traceback
