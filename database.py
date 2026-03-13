@@ -19,6 +19,50 @@ else:
     print("[DB] Using SQLite backend (local dev fallback)")
 
 
+class DictRow:
+    """A row that supports both dict-style (row['col']) and index-style (row[0]) access."""
+
+    def __init__(self, data):
+        if isinstance(data, dict):
+            self._dict = data
+            self._keys = list(data.keys())
+            self._values = list(data.values())
+        else:
+            # sqlite3.Row or similar
+            self._dict = dict(data)
+            self._keys = list(self._dict.keys())
+            self._values = list(self._dict.values())
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._values[key]
+        return self._dict[key]
+
+    def get(self, key, default=None):
+        return self._dict.get(key, default)
+
+    def keys(self):
+        return self._keys
+
+    def values(self):
+        return self._values
+
+    def items(self):
+        return self._dict.items()
+
+    def __contains__(self, key):
+        return key in self._dict
+
+    def __repr__(self):
+        return repr(self._dict)
+
+    def __iter__(self):
+        return iter(self._keys)
+
+    def __len__(self):
+        return len(self._keys)
+
+
 class DictCursor:
     """Wrapper for SQLite cursor to provide dict-like access and lastrowid conversion."""
 
@@ -141,20 +185,16 @@ class DictCursor:
         return self
 
     def fetchone(self):
-        """Fetch one row as dict."""
+        """Fetch one row as DictRow (supports both row['col'] and row[0])."""
         row = self._cursor.fetchone()
         if row is None:
             return None
-        if self._backend == "postgres":
-            return dict(row)
-        return dict(row) if row else None
+        return DictRow(row)
 
     def fetchall(self):
-        """Fetch all rows as list of dicts."""
+        """Fetch all rows as list of DictRow."""
         rows = self._cursor.fetchall()
-        if self._backend == "postgres":
-            return [dict(r) for r in rows]
-        return [dict(r) for r in rows]
+        return [DictRow(r) for r in rows]
 
     def fetchone_raw(self):
         """Fetch one row without conversion (for internal use)."""
@@ -253,11 +293,13 @@ def get_db():
 
 
 def dict_from_row(row):
-    """Convert row to dict (works with both sqlite3.Row and psycopg2 dicts)."""
+    """Convert row to dict (works with DictRow, sqlite3.Row and psycopg2 dicts)."""
     if row is None:
         return None
     if isinstance(row, dict):
         return row
+    if isinstance(row, DictRow):
+        return row._dict
     return dict(row)
 
 

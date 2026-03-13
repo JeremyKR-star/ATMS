@@ -16,7 +16,7 @@ def seed():
 
     # Check if already seeded
     row = db.execute("SELECT COUNT(*) as cnt FROM users").fetchone()
-    if (row.get('cnt') if isinstance(row, dict) else row[0]) > 0:
+    if row.get('cnt', row[0]) > 0:
         print("[Seed] Data already exists. Skipping.")
         db.close()
         return
