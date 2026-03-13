@@ -2449,8 +2449,8 @@ function AccessLogsPage() {
   var { showToast } = useApp();
   var LIMIT = 50;
 
-  var fetchLogs = function(p, ip) {
-    setLoading(true);
+  var fetchLogs = function(p, ip, silent) {
+    if (!silent) setLoading(true);
     var url = '/access-logs?page=' + p + '&limit=' + LIMIT;
     if (ip) url += '&ip=' + encodeURIComponent(ip);
     api(url).then(function(d) {
@@ -2458,10 +2458,21 @@ function AccessLogsPage() {
       setTotal(d.data.total || 0);
       setStats(d.data.stats || {});
       setLoading(false);
-    }).catch(function(e) { showToast(e.message, 'danger'); setLoading(false); });
+    }).catch(function(e) { if (!silent) showToast(e.message, 'danger'); setLoading(false); });
   };
 
+  var _autoState = useState(true);
+  var autoRefresh = _autoState[0];
+  var setAutoRefresh = _autoState[1];
+
   useEffect(function() { fetchLogs(pg, ipFilter); }, [pg]);
+
+  // Auto-refresh every 5 seconds
+  useEffect(function() {
+    if (!autoRefresh) return;
+    var iv = setInterval(function() { fetchLogs(pg, ipFilter, true); }, 5000);
+    return function() { clearInterval(iv); };
+  }, [autoRefresh, pg, ipFilter]);
 
   var handleSearch = function() { setPg(1); fetchLogs(1, ipFilter); };
   var totalPages = Math.ceil(total / LIMIT) || 1;
@@ -2497,8 +2508,14 @@ function AccessLogsPage() {
             style={{flex:1,maxWidth:300}} />
           <button className="btn btn-primary btn-sm" onClick={handleSearch}>검색</button>
           <button className="btn btn-sm" onClick={function(){setIpFilter('');setPg(1);fetchLogs(1,'');}}>초기화</button>
-          <div style={{marginLeft:'auto',fontSize:13,color:'var(--gray-400)'}}>
-            총 {total}건 (페이지 {pg}/{totalPages})
+          <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:12}}>
+            <label style={{display:'flex',alignItems:'center',gap:6,fontSize:13,cursor:'pointer',color: autoRefresh ? '#10b981' : 'var(--gray-400)'}}>
+              <span style={{width:8,height:8,borderRadius:'50%',background: autoRefresh ? '#10b981' : '#ccc',display:'inline-block',animation: autoRefresh ? 'pulse 1.5s infinite' : 'none'}}></span>
+              <span onClick={function(){setAutoRefresh(!autoRefresh);}}>실시간 {autoRefresh ? 'ON' : 'OFF'}</span>
+            </label>
+            <div style={{fontSize:13,color:'var(--gray-400)'}}>
+              총 {total}건 (페이지 {pg}/{totalPages})
+            </div>
           </div>
         </div>
       </div>
