@@ -57,7 +57,7 @@ class DashboardHandler(BaseHandler):
             FROM schedules s
             LEFT JOIN courses c ON s.course_id = c.id
             LEFT JOIN users u ON s.instructor_id = u.id
-            WHERE s.schedule_date >= DATE('now') AND s.schedule_date <= DATE('now', '+7 days')
+            WHERE s.schedule_date >= CAST(DATE('now') AS TEXT) AND s.schedule_date <= CAST(DATE('now', '+7 days') AS TEXT)
             ORDER BY s.schedule_date, s.start_time LIMIT 10
         """).fetchall())
 
