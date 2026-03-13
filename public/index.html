@@ -2898,6 +2898,9 @@ function PilotPage() {
   const [nationalities, setNationalities] = useState([]);
   const [weeklyUploads, setWeeklyUploads] = useState([]);
   const [uploading, setUploading] = useState(false);
+  var _uploadProgressState = useState(null);
+  var uploadProgress = _uploadProgressState[0];
+  var setUploadProgress = _uploadProgressState[1];
   const weeklyFileRef = useRef(null);
   const [natFilter, setNatFilter] = useState('all');
   const [showNatAdd, setShowNatAdd] = useState(false);
@@ -2949,9 +2952,40 @@ function PilotPage() {
     if(!tMap[r.pilot_id]) tMap[r.pilot_id]={};
     tMap[r.pilot_id][r.course_id] = { date: r.completed_date, time: r.completed_time||'1:00' };
   });
-  const getPilotDone = (pid) => Object.keys(tMap[pid]||{}).length;
-  const getPilotSimDone = (pid) => trainingRecs.filter(r=>r.pilot_id===pid && simCourses.some(c=>c.id===r.course_id)).length;
-  const getPilotFltDone = (pid) => trainingRecs.filter(r=>r.pilot_id===pid && fltCourses.some(c=>c.id===r.course_id)).length;
+  // Build weekly data lookup by pilot id
+  var weeklyMap = {};
+  weekly.forEach(function(w){ if(w.id) weeklyMap[w.id] = w; });
+
+  const getPilotDone = function(pid) {
+    var w = weeklyMap[pid];
+    if (w) return (w.fltDone||0) + (w.simDone||0);
+    return Object.keys(tMap[pid]||{}).length;
+  };
+  const getPilotSimDone = function(pid) {
+    var w = weeklyMap[pid];
+    if (w) return w.simDone||0;
+    return trainingRecs.filter(function(r){return r.pilot_id===pid && simCourses.some(function(c){return c.id===r.course_id;});}).length;
+  };
+  const getPilotFltDone = function(pid) {
+    var w = weeklyMap[pid];
+    if (w) return w.fltDone||0;
+    return trainingRecs.filter(function(r){return r.pilot_id===pid && fltCourses.some(function(c){return c.id===r.course_id;});}).length;
+  };
+  const getPilotSimPlan = function(pid) {
+    var w = weeklyMap[pid];
+    if (w) return w.simPlan||0;
+    return simCourses.length;
+  };
+  const getPilotFltPlan = function(pid) {
+    var w = weeklyMap[pid];
+    if (w) return w.fltPlan||0;
+    return fltCourses.length;
+  };
+  const getPilotTotalPlan = function(pid) {
+    var w = weeklyMap[pid];
+    if (w) return (w.fltPlan||0) + (w.simPlan||0);
+    return totalCourses;
+  };
 
   // Pilot CRUD
   const emptyForm = {name:'',short_name:'',rank:'Major',service_number:'',callsign:'',nationality:'Malaysia',
@@ -3049,10 +3083,12 @@ function PilotPage() {
     var file = e.target.files[0];
     if (!file) return;
     setUploading(true);
+    setUploadProgress({step: 'uploading', filename: file.name, filesize: file.size});
     try {
       var fd = new FormData();
       fd.append('file', file);
       var token = localStorage.getItem('atms_token');
+      setUploadProgress({step: 'parsing', filename: file.name, filesize: file.size});
       var res = await fetch(API + '/pilots/weekly-uploads?report_date=' + new Date().toISOString().slice(0,10), {
         method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd
       });
@@ -3061,9 +3097,11 @@ function PilotPage() {
       var d = data.data || {};
       var rows = d.parsed_rows || [];
       var matched = d.matched || 0;
-      showToast('업로드 성공! ' + rows.length + '명 파싱, ' + matched + '명 조종사 매칭됨', 'success');
+      setUploadProgress({step: 'done', filename: file.name, filesize: file.size, rows: rows, matched: matched, total: rows.length});
       await loadAll();
-    } catch(err) { showToast('업로드 실패: ' + err.message, 'error'); }
+    } catch(err) {
+      setUploadProgress({step: 'error', filename: file.name, error: err.message});
+    }
     setUploading(false);
     if (weeklyFileRef.current) weeklyFileRef.current.value = '';
   };
@@ -3234,8 +3272,9 @@ function PilotPage() {
                       {groupPilots.length > 1 && <button className="carousel-nav carousel-next" onClick={function(){goToGroup(nat.code, gIdx+1, groupPilots.length);}}>&#8250;</button>}
                       <div className="pilot-carousel-track" style={{transform:'translateX(-'+gIdx*100+'%)'}}>
                         {groupPilots.map(function(p){
-                          var done=getPilotDone(p.id); var pct=totalCourses?Math.round((done/totalCourses)*100):0;
+                          var tp=getPilotTotalPlan(p.id); var done=getPilotDone(p.id); var pct=tp?Math.round((done/tp)*100):0;
                           var sd=getPilotSimDone(p.id); var fd=getPilotFltDone(p.id);
+                          var sp=getPilotSimPlan(p.id); var fp=getPilotFltPlan(p.id);
                           return (
                             <div className="pilot-card" key={p.id}>
                               <div className="pilot-profile">
@@ -3252,11 +3291,11 @@ function PilotPage() {
                                     <div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg,#2563eb,#7c3aed)'}}/></div>
                                 </div>
                                 <div className="pilot-stats">
-                                  <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--primary)'}}>{sd}/{simCourses.length}</div>
+                                  <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--primary)'}}>{sd}/{sp}</div>
                                     <div className="pilot-stat-lbl">SIM Sorties</div></div>
-                                  <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--success)'}}>{fd}/{fltCourses.length}</div>
+                                  <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--success)'}}>{fd}/{fp}</div>
                                     <div className="pilot-stat-lbl">Flight Sorties</div></div>
-                                  <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--warning)'}}>{done}/{totalCourses}</div>
+                                  <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--warning)'}}>{done}/{tp}</div>
                                     <div className="pilot-stat-lbl">Total</div></div>
                                 </div>
                               </div>
@@ -3289,8 +3328,9 @@ function PilotPage() {
                     {filteredPilots.length > 1 && <button className="carousel-nav carousel-next" onClick={function(){goTo(activeIdx+1);}}>&#8250;</button>}
                     <div className="pilot-carousel-track" style={{transform:'translateX(-'+activeIdx*100+'%)'}}>
                       {filteredPilots.map(function(p){
-                        var done=getPilotDone(p.id); var pct=totalCourses?Math.round((done/totalCourses)*100):0;
+                        var tp=getPilotTotalPlan(p.id); var done=getPilotDone(p.id); var pct=tp?Math.round((done/tp)*100):0;
                         var sd=getPilotSimDone(p.id); var fd=getPilotFltDone(p.id);
+                        var sp=getPilotSimPlan(p.id); var fp=getPilotFltPlan(p.id);
                         return (
                           <div className="pilot-card" key={p.id}>
                             <div className="pilot-profile">
@@ -3307,11 +3347,11 @@ function PilotPage() {
                                   <div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg,#2563eb,#7c3aed)'}}/></div>
                               </div>
                               <div className="pilot-stats">
-                                <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--primary)'}}>{sd}/{simCourses.length}</div>
+                                <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--primary)'}}>{sd}/{sp}</div>
                                   <div className="pilot-stat-lbl">SIM Sorties</div></div>
-                                <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--success)'}}>{fd}/{fltCourses.length}</div>
+                                <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--success)'}}>{fd}/{fp}</div>
                                   <div className="pilot-stat-lbl">Flight Sorties</div></div>
-                                <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--warning)'}}>{done}/{totalCourses}</div>
+                                <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--warning)'}}>{done}/{tp}</div>
                                   <div className="pilot-stat-lbl">Total</div></div>
                               </div>
                             </div>
@@ -3464,6 +3504,72 @@ function PilotPage() {
         </div>
       )}
 
+      {/* ── Upload Progress Modal ── */}
+      {uploadProgress && (
+        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center'}}
+          onClick={function(){if(uploadProgress.step==='done'||uploadProgress.step==='error')setUploadProgress(null);}}>
+          <div style={{background:'white',borderRadius:16,padding:32,maxWidth:500,width:'90%',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}} onClick={function(e){e.stopPropagation();}}>
+            <div style={{textAlign:'center',marginBottom:20}}>
+              <div style={{fontSize:40,marginBottom:8}}>
+                {uploadProgress.step==='uploading' ? '\uD83D\uDCE4' : uploadProgress.step==='parsing' ? '\uD83D\uDD0D' : uploadProgress.step==='done' ? '\u2705' : '\u274C'}
+              </div>
+              <div style={{fontSize:18,fontWeight:700,marginBottom:4}}>
+                {uploadProgress.step==='uploading' ? '\uD30C\uC77C \uC5C5\uB85C\uB4DC \uC911...' : uploadProgress.step==='parsing' ? '\uC5D1\uC140 \uB370\uC774\uD130 \uBD84\uC11D \uC911...' : uploadProgress.step==='done' ? '\uC5C5\uB85C\uB4DC \uC644\uB8CC!' : '\uC5C5\uB85C\uB4DC \uC2E4\uD328'}
+              </div>
+              <div style={{fontSize:13,color:'var(--gray-500)'}}>{uploadProgress.filename}</div>
+            </div>
+
+            {(uploadProgress.step==='uploading' || uploadProgress.step==='parsing') && (
+              <div style={{marginBottom:16}}>
+                <div className="progress-bar" style={{height:8,marginBottom:8}}>
+                  <div className="progress-fill" style={{width:uploadProgress.step==='uploading'?'40%':'80%',background:'linear-gradient(90deg,#6366f1,#818cf8)',transition:'width 0.5s ease'}}/>
+                </div>
+                <div style={{display:'flex',justifyContent:'center',gap:24,fontSize:12,color:'var(--gray-400)'}}>
+                  <span style={{color:uploadProgress.step==='uploading'?'var(--primary)':'var(--gray-400)',fontWeight:uploadProgress.step==='uploading'?700:400}}>1. \uC5C5\uB85C\uB4DC</span>
+                  <span style={{color:uploadProgress.step==='parsing'?'var(--primary)':'var(--gray-400)',fontWeight:uploadProgress.step==='parsing'?700:400}}>2. \uD30C\uC2F1</span>
+                  <span style={{color:'var(--gray-400)'}}>3. \uC644\uB8CC</span>
+                </div>
+              </div>
+            )}
+
+            {uploadProgress.step==='done' && (
+              <div>
+                <div style={{background:'var(--gray-50)',borderRadius:12,padding:16,marginBottom:16}}>
+                  <div style={{display:'flex',justifyContent:'space-around',textAlign:'center'}}>
+                    <div><div style={{fontSize:24,fontWeight:800,color:'var(--primary)'}}>{uploadProgress.total}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>\uD30C\uC2F1\uB41C \uC870\uC885\uC0AC</div></div>
+                    <div><div style={{fontSize:24,fontWeight:800,color:'var(--success)'}}>{uploadProgress.matched}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>\uB9E4\uCE6D \uC131\uACF5</div></div>
+                    <div><div style={{fontSize:24,fontWeight:800,color:uploadProgress.total - uploadProgress.matched > 0 ? 'var(--danger)' : 'var(--gray-400)'}}>{uploadProgress.total - uploadProgress.matched}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>\uBBF8\uB9E4\uCE6D</div></div>
+                  </div>
+                </div>
+                {uploadProgress.rows && uploadProgress.rows.length > 0 && (
+                  <div style={{maxHeight:200,overflow:'auto',marginBottom:16}}>
+                    <table style={{fontSize:12,width:'100%'}}>
+                      <thead><tr style={{background:'var(--gray-50)'}}><th>\uC870\uC885\uC0AC</th><th className="text-center">Flt</th><th className="text-center">Sim</th><th className="text-center">Total</th></tr></thead>
+                      <tbody>{uploadProgress.rows.map(function(r,i){
+                        return React.createElement('tr', {key:i},
+                          React.createElement('td', null, r.name),
+                          React.createElement('td', {className:'text-center'}, r.flt_done + '/' + r.flt_plan),
+                          React.createElement('td', {className:'text-center'}, r.sim_done + '/' + r.sim_plan),
+                          React.createElement('td', {className:'text-center',style:{fontWeight:700}}, (r.flt_done+r.sim_done) + '/' + (r.flt_plan+r.sim_plan))
+                        );
+                      })}</tbody>
+                    </table>
+                  </div>
+                )}
+                <button className="btn btn-primary btn-block" onClick={function(){setUploadProgress(null);}}>확인</button>
+              </div>
+            )}
+
+            {uploadProgress.step==='error' && (
+              <div>
+                <div style={{background:'#fef2f2',borderRadius:12,padding:16,marginBottom:16,color:'#dc2626',fontSize:13}}>{uploadProgress.error}</div>
+                <button className="btn btn-primary btn-block" onClick={function(){setUploadProgress(null);}}>닫기</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Upload Management ── */}
       {subTab==='uploads' && (
         <div>
@@ -3519,7 +3625,7 @@ function PilotPage() {
                         <td>{u.uploaded_by || '-'}</td>
                         <td className="text-center"><span className="badge badge-blue">{u.row_count}명</span></td>
                         <td className="text-center">{formatFileSize(u.file_size)}</td>
-                        <td style={{fontSize:12}}>{u.created_at ? u.created_at.replace('T',' ').slice(0,19) : '-'}</td>
+                        <td style={{fontSize:12}}>{u.created_at ? new Date(u.created_at + 'Z').toLocaleString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}) : '-'}</td>
                         <td>
                           <div style={{display:'flex',gap:4}}>
                             <button className="btn btn-outline btn-sm" onClick={function(){handleWeeklyDownload(u.id, u.original_filename);}}>
