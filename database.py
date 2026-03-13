@@ -578,15 +578,6 @@ def init_db():
         )
     """)
 
-    # ── Migrate: Malaysian -> Malaysia ──
-    try:
-        if backend == "postgres":
-            c.execute("UPDATE pilots SET nationality=%s WHERE nationality=%s", ("Malaysia", "Malaysian"))
-        else:
-            c.execute("UPDATE pilots SET nationality=? WHERE nationality=?", ("Malaysia", "Malaysian"))
-    except Exception:
-        pass  # table may not exist yet on fresh DB
-
     # ── Pilots ──
     c.execute(f"""
         CREATE TABLE IF NOT EXISTS pilots (
@@ -612,6 +603,17 @@ def init_db():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # ── Migrate: Malaysian -> Malaysia ──
+    try:
+        if backend == "postgres":
+            c._cursor.execute("SAVEPOINT migrate_nat")
+            c.execute("UPDATE pilots SET nationality=%s WHERE nationality=%s", ("Malaysia", "Malaysian"))
+        else:
+            c.execute("UPDATE pilots SET nationality=? WHERE nationality=?", ("Malaysia", "Malaysian"))
+    except Exception:
+        if backend == "postgres":
+            c._cursor.execute("ROLLBACK TO SAVEPOINT migrate_nat")
 
     # ── Pilot Training Courses (SIM + Flight syllabus) ──
     c.execute(f"""
