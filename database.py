@@ -96,6 +96,36 @@ class DictCursor:
                 flags=re.IGNORECASE
             )
 
+            # DATE('now') -> CURRENT_DATE
+            query = re.sub(r"DATE\('now'\)", "CURRENT_DATE", query, flags=re.IGNORECASE)
+
+            # DATE('now', '+N days/months/years') -> CURRENT_DATE + INTERVAL 'N days/months/years'
+            query = re.sub(
+                r"DATE\('now',\s*'([+-])(\d+)\s+(days?|months?|years?)'\)",
+                lambda m: f"CURRENT_DATE {m.group(1)} INTERVAL '{m.group(2)} {m.group(3)}'",
+                query,
+                flags=re.IGNORECASE
+            )
+
+            # DATE('now', '-N months') -> CURRENT_DATE - INTERVAL 'N months'
+            # (already handled above)
+
+            # strftime('%Y-%m', col) -> TO_CHAR(col, 'YYYY-MM')
+            query = re.sub(
+                r"strftime\('%Y-%m',\s*(\w+)\)",
+                r"TO_CHAR(\1, 'YYYY-MM')",
+                query,
+                flags=re.IGNORECASE
+            )
+
+            # DATE(col) -> col::date (for audit_routes DATE(created_at))
+            query = re.sub(
+                r"DATE\((\w+)\)",
+                r"\1::date",
+                query,
+                flags=re.IGNORECASE
+            )
+
             # INSERT OR IGNORE -> INSERT ... ON CONFLICT DO NOTHING
             if re.search(r"INSERT\s+OR\s+IGNORE\s+INTO", query, re.IGNORECASE):
                 query = re.sub(
