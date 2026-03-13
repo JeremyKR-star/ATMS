@@ -2154,11 +2154,11 @@ function WeeklyReportTable({ rows, title }) {
       <div style={{marginBottom:16}}>
         <div className="stats-grid" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
           <div className="stat-card"><div className="stat-icon" style={{background:'var(--wr-flight-bg)',color:'var(--wr-flight)'}}>✈</div>
-            <div className="stat-value" style={{color:'var(--wr-flight)'}}>{gFltPlan}</div><div className="stat-label">Flight Plan (Sortie)</div></div>
+            <div className="stat-value" style={{color:'var(--wr-flight)'}}>{gFltDone} / {gFltPlan}</div><div className="stat-label">Flight Done / Plan (Sortie)</div></div>
           <div className="stat-card"><div className="stat-icon" style={{background:'var(--wr-sim-bg)',color:'var(--wr-sim)'}}>🖥</div>
             <div className="stat-value" style={{color:'var(--wr-sim)'}}>{gSimDone} / {gSimPlan}</div><div className="stat-label">SIM Done / Plan</div></div>
           <div className="stat-card"><div className="stat-icon" style={{background:'var(--wr-total-bg)',color:'var(--wr-total)'}}>✓</div>
-            <div className="stat-value" style={{color:'var(--wr-total)'}}>{gFltDone + gSimDone}</div><div className="stat-label">Total Done</div></div>
+            <div className="stat-value" style={{color:'var(--wr-total)'}}>{gFltDone + gSimDone} / {gFltPlan + gSimPlan}</div><div className="stat-label">Total Done / Plan</div></div>
         </div>
       </div>
       <div className="table-wrapper"><table>
