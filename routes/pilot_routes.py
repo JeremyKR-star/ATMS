@@ -561,16 +561,20 @@ class WeeklyUploadHandler(BaseHandler):
 
                 time_str = '1:00'
                 if time_val:
-                    if hasattr(time_val, 'strftime'):
+                    if isinstance(time_val, datetime.timedelta):
+                        total_sec = int(time_val.total_seconds())
+                        h = total_sec // 3600
+                        m = (total_sec % 3600) // 60
+                        time_str = f'{h}:{m:02d}'
+                    elif hasattr(time_val, 'strftime'):
                         time_str = time_val.strftime('%H:%M')
                         # Remove leading zero hour
-                        if time_str.startswith('0'):
-                            time_str = time_str.lstrip('0') or '0:00'
+                        if time_str.startswith('0') and len(time_str) > 4:
+                            time_str = time_str[1:]
                     elif isinstance(time_val, str) and ':' in time_val:
                         parts = time_val.strip().split(':')
-                        time_str = parts[0].lstrip('0') + ':' + parts[1]
-                        if time_str.startswith(':'):
-                            time_str = '0' + time_str
+                        h = parts[0].lstrip('0') or '0'
+                        time_str = h + ':' + parts[1]
 
                 results.append({
                     'course_no': course_no_str,
