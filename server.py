@@ -44,7 +44,7 @@ LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
 
 # ─── Active users tracking (simple time-window model) ───
 _active_users = {}  # {ip_or_user: last_seen_timestamp}
-ACTIVE_WINDOW = 300  # 5 minutes
+ACTIVE_WINDOW = 60  # 1 minute
 
 
 def _get_client_ip(request):
