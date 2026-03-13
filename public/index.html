@@ -1632,8 +1632,8 @@ function UsersPage() {
             <div className="import-area">
               <div style={{fontSize: 40, marginBottom: 8}}>📊</div>
               <div style={{fontWeight: 600, marginBottom: 4}}>엑셀 파일을 선택하세요</div>
-              <div style={{fontSize: 12, color: 'var(--gray-400)'}}>(.xlsx 형식)</div>
-              <input type="file" ref={importFileRef} onChange={handleBulkImportFile} accept=".xlsx,.xls" style={{display: 'none'}} />
+              <div style={{fontSize: 12, color: 'var(--gray-400)'}}>(.xlsx / .xlsm 형식)</div>
+              <input type="file" ref={importFileRef} onChange={handleBulkImportFile} accept=".xlsx,.xls,.xlsm" style={{display: 'none'}} />
               <button className="btn btn-primary btn-sm" onClick={function(){importFileRef.current && importFileRef.current.click();}} style={{marginTop: 12}}>파일 선택</button>
             </div>
           </div>
@@ -3278,13 +3278,13 @@ function PilotPage() {
                   {uploading ? '업로드 중...' : '클릭하여 엑셀 파일 선택'}
                 </div>
                 <div style={{fontSize:12,color:'var(--gray-400)'}}>
-                  .xlsx 파일만 지원 (최대 10MB)
+                  .xlsx / .xlsm 파일 지원 (최대 10MB)
                 </div>
                 <div style={{fontSize:11,color:'var(--gray-400)',marginTop:8}}>
                   컬럼: Pilot/Name, Flt Plan, Flt Done, Flt Remain, Sim Plan, Sim Done, Sim Remain
                 </div>
               </div>
-              <input type="file" ref={weeklyFileRef} accept=".xlsx,.xls" style={{display:'none'}}
+              <input type="file" ref={weeklyFileRef} accept=".xlsx,.xls,.xlsm" style={{display:'none'}}
                 onChange={handleWeeklyUpload} />
             </div>
           </div>
@@ -3419,8 +3419,8 @@ function PilotPage() {
             <div className="import-area">
               <div style={{fontSize: 40, marginBottom: 8}}>📊</div>
               <div style={{fontWeight: 600, marginBottom: 4}}>엑셀 파일을 선택하세요</div>
-              <div style={{fontSize: 12, color: 'var(--gray-400)'}}>(.xlsx 형식)</div>
-              <input type="file" ref={pilotImportFileRef} onChange={handleBulkPilotImportFile} accept=".xlsx,.xls" style={{display: 'none'}} />
+              <div style={{fontSize: 12, color: 'var(--gray-400)'}}>(.xlsx / .xlsm 형식)</div>
+              <input type="file" ref={pilotImportFileRef} onChange={handleBulkPilotImportFile} accept=".xlsx,.xls,.xlsm" style={{display: 'none'}} />
               <button className="btn btn-primary btn-sm" onClick={function(){pilotImportFileRef.current && pilotImportFileRef.current.click();}} style={{marginTop: 12}}>파일 선택</button>
             </div>
           </div>

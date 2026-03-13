@@ -343,8 +343,8 @@ class WeeklyUploadHandler(BaseHandler):
         f = files[0]
         orig_name = f["filename"]
         ext = os.path.splitext(orig_name)[1].lower()
-        if ext not in ('.xlsx', '.xls'):
-            return self.error("Only .xlsx or .xls files are supported")
+        if ext not in ('.xlsx', '.xls', '.xlsm'):
+            return self.error("Only .xlsx, .xls, .xlsm files are supported")
         if len(f["body"]) > 10 * 1024 * 1024:
             return self.error("File too large (max 10MB)")
 
