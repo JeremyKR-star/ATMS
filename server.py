@@ -59,7 +59,7 @@ def _is_bot(request):
     ua = request.headers.get("User-Agent", "").lower()
     ip = _get_client_ip(request)
     # Skip loopback, Render health checks, and known bots
-    if ip in SKIP_IPS or ip.startswith("10."):
+    if ip in SKIP_IPS or ip.startswith("10.") or ip.startswith("35.") or ip.startswith("34."):
         return True
     if any(b in ua for b in ("bot", "spider", "crawl", "monitor", "health", "uptimerobot", "render")):
         return True
@@ -144,7 +144,7 @@ def log_request(handler):
     try:
         path = uri.split("?")[0]
         skip_exts = ('.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.map')
-        is_bot = ip in SKIP_IPS or ip.startswith("10.") or method == "HEAD"
+        is_bot = ip in SKIP_IPS or ip.startswith("10.") or ip.startswith("35.") or ip.startswith("34.") or method == "HEAD"
         if not is_bot and not path.endswith(skip_exts) and method in ('GET', 'POST', 'PUT', 'DELETE', 'PATCH'):
             db = get_db()
             db.execute(
