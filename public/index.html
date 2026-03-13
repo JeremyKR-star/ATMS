@@ -598,7 +598,7 @@ body.dark-mode .sidebar { background: linear-gradient(180deg, rgba(10,14,39,0.9)
 @keyframes loader3dOrbitFlex2 { 0% { transform: rotate(120deg) translateX(calc(var(--loader-size) * 0.31)) rotate(-120deg); } 100% { transform: rotate(480deg) translateX(calc(var(--loader-size) * 0.31)) rotate(-480deg); } }
 @keyframes loader3dOrbitFlex3 { 0% { transform: rotate(240deg) translateX(calc(var(--loader-size) * 0.31)) rotate(-240deg); } 100% { transform: rotate(600deg) translateX(calc(var(--loader-size) * 0.31)) rotate(-600deg); } }
 @keyframes loader3dGlow { 0%,100% { box-shadow: 0 0 15px rgba(99,102,241,0.3), 0 0 30px rgba(99,102,241,0.1); } 50% { box-shadow: 0 0 25px rgba(99,102,241,0.6), 0 0 50px rgba(99,102,241,0.2); } }
-.atms-3d-loader { --loader-size: min(28vw, 28vh, 220px); display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; perspective:1200px; }
+.atms-3d-loader { --loader-size: min(35vw, 40vh, 320px); display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; perspective:1200px; }
 .atms-3d-loader .scene { position:relative; width:var(--loader-size); height:var(--loader-size); transform-style:preserve-3d; animation: loader3dSpin 4s linear infinite; }
 .atms-3d-loader .ring { position:absolute; top:0; left:0; width:100%; height:100%; border-radius:50%; border:calc(var(--loader-size) * 0.02) solid transparent; }
 .atms-3d-loader .ring:nth-child(1) { border-top-color:#6366f1; border-bottom-color:#6366f1; animation: loader3dRing 2s linear infinite; }
