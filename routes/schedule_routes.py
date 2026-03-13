@@ -234,8 +234,12 @@ class AttendanceHandler(BaseHandler):
         db = get_db()
         for rec in records:
             db.execute("""
-                INSERT OR REPLACE INTO attendance (schedule_id, trainee_id, status, check_in_time, notes)
+                INSERT INTO attendance (schedule_id, trainee_id, status, check_in_time, notes)
                 VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (schedule_id, trainee_id) DO UPDATE SET
+                    status = EXCLUDED.status,
+                    check_in_time = EXCLUDED.check_in_time,
+                    notes = EXCLUDED.notes
             """, (schedule_id, rec["trainee_id"], rec.get("status", "present"),
                   rec.get("check_in_time", ""), rec.get("notes", "")))
         db.commit()

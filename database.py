@@ -6,6 +6,8 @@ Auto-converts SQL syntax between backends.
 import sqlite3
 import os
 import re
+import datetime
+import decimal
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "atms.db")
@@ -19,19 +21,38 @@ else:
     print("[DB] Using SQLite backend (local dev fallback)")
 
 
+def _sanitize_value(val):
+    """Convert non-JSON-serializable types to strings."""
+    if isinstance(val, (datetime.datetime, datetime.date, datetime.time)):
+        return val.isoformat()
+    if isinstance(val, datetime.timedelta):
+        total = int(val.total_seconds())
+        hours, remainder = divmod(total, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{hours}:{minutes:02d}:{seconds:02d}"
+    if isinstance(val, decimal.Decimal):
+        return float(val)
+    if isinstance(val, memoryview):
+        return bytes(val).decode("utf-8", errors="replace")
+    return val
+
+
+def _sanitize_dict(d):
+    """Sanitize all values in a dict for JSON serialization."""
+    return {k: _sanitize_value(v) for k, v in d.items()}
+
+
 class DictRow:
     """A row that supports both dict-style (row['col']) and index-style (row[0]) access."""
 
     def __init__(self, data):
         if isinstance(data, dict):
-            self._dict = data
-            self._keys = list(data.keys())
-            self._values = list(data.values())
+            self._dict = _sanitize_dict(data)
         else:
             # sqlite3.Row or similar
-            self._dict = dict(data)
-            self._keys = list(self._dict.keys())
-            self._values = list(self._dict.values())
+            self._dict = _sanitize_dict(dict(data))
+        self._keys = list(self._dict.keys())
+        self._values = list(self._dict.values())
 
     def __getitem__(self, key):
         if isinstance(key, int):
