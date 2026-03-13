@@ -853,22 +853,34 @@ class WeeklyUploadHandler(BaseHandler):
             # --- Parse Individual Status sheet and sync to pilot_training ---
             individual_synced = 0
             courses_created = 0
+            ind_error = None
+            ind_debug = {}
             try:
                 wb2 = openpyxl.load_workbook(io.BytesIO(file_binary), data_only=True)
+                ind_debug['sheets'] = wb2.sheetnames
                 ind_ws = None
                 for sn in wb2.sheetnames:
                     if 'individual' in sn.lower() and 'status' in sn.lower():
                         ind_ws = wb2[sn]
+                        ind_debug['found_sheet'] = sn
                         break
                 if ind_ws:
                     individual_data = self._parse_individual_status_sheet(ind_ws)
+                    ind_debug['parsed_count'] = len(individual_data)
+                    ind_debug['pilot_names'] = list(set(r['pilot_name'] for r in individual_data))[:6] if individual_data else []
                     if individual_data:
                         individual_synced, courses_created = self._sync_individual_status(conn, individual_data, pilots)
                         conn.commit()
+                        ind_debug['synced'] = individual_synced
+                        ind_debug['created'] = courses_created
+                else:
+                    ind_debug['error'] = 'No Individual Status sheet found'
                 wb2.close()
             except Exception as ex2:
                 import traceback
                 traceback.print_exc()
+                ind_error = str(ex2)
+                ind_debug['exception'] = ind_error
                 print(f"[WARN] Individual Status parsing failed: {ex2}")
 
             msg = f"Uploaded successfully: {len(parsed_rows)} rows parsed"
@@ -876,8 +888,11 @@ class WeeklyUploadHandler(BaseHandler):
                 msg += f", {individual_synced} training records synced"
             if courses_created > 0:
                 msg += f", {courses_created} new courses created"
+            if ind_error:
+                msg += f" (Individual Status error: {ind_error})"
             self.success({'upload': upload, 'parsed_rows': parsed_rows, 'matched': matched,
-                          'individual_synced': individual_synced, 'courses_created': courses_created},
+                          'individual_synced': individual_synced, 'courses_created': courses_created,
+                          'ind_debug': ind_debug},
                          msg)
         except Exception as e:
             conn.rollback()

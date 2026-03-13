@@ -3099,7 +3099,9 @@ function PilotPage() {
       var matched = d.matched || 0;
       var individualSynced = d.individual_synced || 0;
       var coursesCreated = d.courses_created || 0;
-      setUploadProgress({step: 'done', filename: file.name, filesize: file.size, rows: rows, matched: matched, total: rows.length, individualSynced: individualSynced, coursesCreated: coursesCreated});
+      var indDebug = d.ind_debug || {};
+      console.log('[ATMS] Upload response ind_debug:', JSON.stringify(indDebug));
+      setUploadProgress({step: 'done', filename: file.name, filesize: file.size, rows: rows, matched: matched, total: rows.length, individualSynced: individualSynced, coursesCreated: coursesCreated, indDebug: indDebug});
       await loadAll();
     } catch(err) {
       setUploadProgress({step: 'error', filename: file.name, error: err.message});
@@ -3527,9 +3529,9 @@ function PilotPage() {
                   <div className="progress-fill" style={{width:uploadProgress.step==='uploading'?'40%':'80%',background:'linear-gradient(90deg,#6366f1,#818cf8)',transition:'width 0.5s ease'}}/>
                 </div>
                 <div style={{display:'flex',justifyContent:'center',gap:24,fontSize:12,color:'var(--gray-400)'}}>
-                  <span style={{color:uploadProgress.step==='uploading'?'var(--primary)':'var(--gray-400)',fontWeight:uploadProgress.step==='uploading'?700:400}}>1. \uC5C5\uB85C\uB4DC</span>
-                  <span style={{color:uploadProgress.step==='parsing'?'var(--primary)':'var(--gray-400)',fontWeight:uploadProgress.step==='parsing'?700:400}}>2. \uD30C\uC2F1</span>
-                  <span style={{color:'var(--gray-400)'}}>3. \uC644\uB8CC</span>
+                  <span style={{color:uploadProgress.step==='uploading'?'var(--primary)':'var(--gray-400)',fontWeight:uploadProgress.step==='uploading'?700:400}}>{'1. 업로드'}</span>
+                  <span style={{color:uploadProgress.step==='parsing'?'var(--primary)':'var(--gray-400)',fontWeight:uploadProgress.step==='parsing'?700:400}}>{'2. 파싱'}</span>
+                  <span style={{color:'var(--gray-400)'}}>{'3. 완료'}</span>
                 </div>
               </div>
             )}
@@ -3538,25 +3540,30 @@ function PilotPage() {
               <div>
                 <div style={{background:'var(--gray-50)',borderRadius:12,padding:16,marginBottom:16}}>
                   <div style={{display:'flex',justifyContent:'space-around',textAlign:'center'}}>
-                    <div><div style={{fontSize:24,fontWeight:800,color:'var(--primary)'}}>{uploadProgress.total}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>\uD30C\uC2F1\uB41C \uC870\uC885\uC0AC</div></div>
-                    <div><div style={{fontSize:24,fontWeight:800,color:'var(--success)'}}>{uploadProgress.matched}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>\uB9E4\uCE6D \uC131\uACF5</div></div>
-                    <div><div style={{fontSize:24,fontWeight:800,color:uploadProgress.total - uploadProgress.matched > 0 ? 'var(--danger)' : 'var(--gray-400)'}}>{uploadProgress.total - uploadProgress.matched}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>\uBBF8\uB9E4\uCE6D</div></div>
+                    <div><div style={{fontSize:24,fontWeight:800,color:'var(--primary)'}}>{uploadProgress.total}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>{'파싱된 조종사'}</div></div>
+                    <div><div style={{fontSize:24,fontWeight:800,color:'var(--success)'}}>{uploadProgress.matched}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>{'매칭 성공'}</div></div>
+                    <div><div style={{fontSize:24,fontWeight:800,color:uploadProgress.total - uploadProgress.matched > 0 ? 'var(--danger)' : 'var(--gray-400)'}}>{uploadProgress.total - uploadProgress.matched}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>{'미매칭'}</div></div>
                   </div>
                 </div>
-                {(uploadProgress.individualSynced > 0 || uploadProgress.coursesCreated > 0) && (
+                {(uploadProgress.individualSynced > 0 || uploadProgress.coursesCreated > 0) ? (
                   <div style={{background:'#f0fdf4',borderRadius:12,padding:12,marginBottom:16,display:'flex',alignItems:'center',gap:10}}>
                     <span style={{fontSize:22}}>{'\u2705'}</span>
                     <div style={{fontSize:13,color:'#15803d'}}>
-                      <b>{'\uAC1C\uC778\uBCC4 \uD604\uD669 \uB3D9\uAE30 \uC644\uB8CC'}</b>
-                      <span style={{marginLeft:6}}>{uploadProgress.individualSynced}{'\uAC1C \uD6C8\uB828\uAE30\uB85D'}</span>
-                      {uploadProgress.coursesCreated > 0 && <span style={{marginLeft:6}}>{'/ '}{uploadProgress.coursesCreated}{'\uAC1C \uC2E0\uADDC\uACFC\uBAA9 \uC0DD\uC131'}</span>}
+                      <b>{'개인별 현황 동기화 완료'}</b>
+                      <span style={{marginLeft:6}}>{uploadProgress.individualSynced}{'개 훈련기록'}</span>
+                      {uploadProgress.coursesCreated > 0 && <span style={{marginLeft:6}}>{'/ '}{uploadProgress.coursesCreated}{'개 신규과목 생성'}</span>}
                     </div>
                   </div>
-                )}
+                ) : uploadProgress.indDebug ? (
+                  <div style={{background:'#fef9c3',borderRadius:12,padding:12,marginBottom:16,fontSize:11,color:'#854d0e'}}>
+                    <b>{'개인별 현황 동기화 미실행'}</b>
+                    <div style={{marginTop:4,wordBreak:'break-all'}}>{JSON.stringify(uploadProgress.indDebug)}</div>
+                  </div>
+                ) : null}
                 {uploadProgress.rows && uploadProgress.rows.length > 0 && (
                   <div style={{maxHeight:200,overflow:'auto',marginBottom:16}}>
                     <table style={{fontSize:12,width:'100%'}}>
-                      <thead><tr style={{background:'var(--gray-50)'}}><th>\uC870\uC885\uC0AC</th><th className="text-center">Flt</th><th className="text-center">Sim</th><th className="text-center">Total</th></tr></thead>
+                      <thead><tr style={{background:'var(--gray-50)'}}><th>{'조종사'}</th><th className="text-center">Flt</th><th className="text-center">Sim</th><th className="text-center">Total</th></tr></thead>
                       <tbody>{uploadProgress.rows.map(function(r,i){
                         return React.createElement('tr', {key:i},
                           React.createElement('td', null, r.name),
