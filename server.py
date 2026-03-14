@@ -280,6 +280,35 @@ class AccessLogsHandler(BaseHandler):
         })
 
 
+class AccessLogsUniqueIPsHandler(BaseHandler):
+    """GET unique IP list — all time or today only"""
+    @require_auth(roles=["admin"])
+    def get(self):
+        db = get_db()
+        scope = self.get_argument("scope", "all")  # "all" or "today"
+
+        if scope == "today":
+            today = time.strftime("%Y-%m-%d")
+            rows = dicts_from_rows(db.execute(
+                """SELECT ip_address, COUNT(*) as request_count,
+                   MIN(created_at) as first_seen, MAX(created_at) as last_seen
+                   FROM access_logs
+                   WHERE CAST(created_at AS TEXT) LIKE ?
+                   GROUP BY ip_address ORDER BY request_count DESC""",
+                (today + "%",)
+            ).fetchall())
+        else:
+            rows = dicts_from_rows(db.execute(
+                """SELECT ip_address, COUNT(*) as request_count,
+                   MIN(created_at) as first_seen, MAX(created_at) as last_seen
+                   FROM access_logs
+                   GROUP BY ip_address ORDER BY request_count DESC"""
+            ).fetchall())
+
+        db.close()
+        self.success(rows)
+
+
 def make_app():
     return tornado.web.Application([
         # ── Auth ──
@@ -373,6 +402,7 @@ def make_app():
 
         (r"/api/active-users", ActiveUsersHandler),
         (r"/api/access-logs", AccessLogsHandler),
+        (r"/api/access-logs/unique-ips", AccessLogsUniqueIPsHandler),
 
         # ── Uploaded files ──
         (r"/uploads/(.*)", tornado.web.StaticFileHandler, {"path": UPLOAD_PATH}),

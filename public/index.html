@@ -2513,6 +2513,9 @@ function AccessLogsPage() {
   var _showFiltersState = useState(false);
   var showFilters = _showFiltersState[0];
   var setShowFilters = _showFiltersState[1];
+  var _ipModalState = useState(null);
+  var ipModal = _ipModalState[0];
+  var setIpModal = _ipModalState[1];
   var _loadingState = useState(false);
   var loading = _loadingState[0];
   var setLoading = _loadingState[1];
@@ -2566,6 +2569,16 @@ function AccessLogsPage() {
       setLoading(false);
     }).catch(function(e) { showToast(e.message, 'danger'); setLoading(false); });
   };
+  var showUniqueIPs = function(scope) {
+    setIpModal({loading: true, scope: scope, ips: []});
+    api('/access-logs/unique-ips?scope=' + scope).then(function(d) {
+      setIpModal({loading: false, scope: scope, ips: d.data || []});
+    }).catch(function(e) {
+      showToast(e.message, 'danger');
+      setIpModal(null);
+    });
+  };
+
   var activeFilterCount = [ipFilter, methodFilter, statusFilter, dateFrom, dateTo, pathFilter].filter(Boolean).length;
   var totalPages = Math.ceil(total / LIMIT) || 1;
 
@@ -2576,19 +2589,27 @@ function AccessLogsPage() {
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:16,marginBottom:24}}>
         <div className="card" style={{padding:20,textAlign:'center'}}>
           <div style={{fontSize:28,fontWeight:700,color:'var(--primary)'}}>{stats.total_requests || 0}</div>
-          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>전체 요청</div>
+          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>{'전체 요청'}</div>
         </div>
-        <div className="card" style={{padding:20,textAlign:'center'}}>
+        <div className="card" style={{padding:20,textAlign:'center',cursor:'pointer',transition:'transform 0.15s'}}
+          onClick={function(){showUniqueIPs('all');}}
+          onMouseEnter={function(e){e.currentTarget.style.transform='scale(1.03)';}}
+          onMouseLeave={function(e){e.currentTarget.style.transform='scale(1)';}}
+          title={'클릭하여 IP 목록 보기'}>
           <div style={{fontSize:28,fontWeight:700,color:'#10b981'}}>{stats.unique_ips || 0}</div>
-          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>고유 IP</div>
+          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>{'고유 IP'} <span style={{fontSize:10}}>{'(클릭)'}</span></div>
         </div>
         <div className="card" style={{padding:20,textAlign:'center'}}>
           <div style={{fontSize:28,fontWeight:700,color:'#f59e0b'}}>{stats.today_requests || 0}</div>
-          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>오늘 요청</div>
+          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>{'오늘 요청'}</div>
         </div>
-        <div className="card" style={{padding:20,textAlign:'center'}}>
+        <div className="card" style={{padding:20,textAlign:'center',cursor:'pointer',transition:'transform 0.15s'}}
+          onClick={function(){showUniqueIPs('today');}}
+          onMouseEnter={function(e){e.currentTarget.style.transform='scale(1.03)';}}
+          onMouseLeave={function(e){e.currentTarget.style.transform='scale(1)';}}
+          title={'클릭하여 오늘 IP 목록 보기'}>
           <div style={{fontSize:28,fontWeight:700,color:'#8b5cf6'}}>{stats.today_unique_ips || 0}</div>
-          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>오늘 고유 IP</div>
+          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>{'오늘 고유 IP'} <span style={{fontSize:10}}>{'(클릭)'}</span></div>
         </div>
       </div>
 
@@ -2713,6 +2734,79 @@ function AccessLogsPage() {
             return <button key={p} className={'btn btn-sm ' + (p===pg?'btn-primary':'')} onClick={function(){setPg(p);}}>{p}</button>;
           })}
           <button className="btn btn-sm" disabled={pg>=totalPages} onClick={function(){setPg(pg+1);}}>다음</button>
+        </div>
+      )}
+
+      {/* ── Unique IPs Modal ── */}
+      {ipModal && (
+        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center'}}
+          onClick={function(){setIpModal(null);}}>
+          <div style={{background:'white',borderRadius:16,padding:28,maxWidth:600,width:'92%',maxHeight:'80vh',display:'flex',flexDirection:'column',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}
+            onClick={function(e){e.stopPropagation();}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+              <h4 style={{margin:0,fontSize:17}}>
+                {ipModal.scope === 'today' ? '\uD83D\uDCC5 ' : '\uD83C\uDF10 '}
+                {ipModal.scope === 'today' ? '오늘 접속 IP 목록' : '전체 고유 IP 목록'}
+              </h4>
+              <button onClick={function(){setIpModal(null);}} style={{background:'none',border:'none',fontSize:20,cursor:'pointer',color:'var(--gray-400)',padding:4}}>{'\u2715'}</button>
+            </div>
+            {ipModal.loading ? (
+              <div style={{textAlign:'center',padding:40,color:'var(--gray-400)'}}>{'로딩 중...'}</div>
+            ) : (
+              <div style={{flex:1,overflow:'auto'}}>
+                <div style={{fontSize:13,color:'var(--gray-500)',marginBottom:12}}>
+                  {'총 '}<b style={{color:'var(--primary)'}}>{ipModal.ips.length}</b>{'개 고유 IP'}
+                </div>
+                <table className="table" style={{fontSize:13}}>
+                  <thead>
+                    <tr style={{position:'sticky',top:0,background:'white'}}>
+                      <th style={{width:30}}>{'#'}</th>
+                      <th>{'IP 주소'}</th>
+                      <th style={{textAlign:'right'}}>{'요청 수'}</th>
+                      <th>{'최초 접속'}</th>
+                      <th>{'최근 접속'}</th>
+                      <th style={{width:40}}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ipModal.ips.map(function(item, idx) {
+                      return React.createElement('tr', {key: item.ip_address},
+                        React.createElement('td', {style:{color:'var(--gray-400)',fontSize:11}}, idx + 1),
+                        React.createElement('td', {style:{fontFamily:'monospace',fontWeight:600}}, item.ip_address),
+                        React.createElement('td', {style:{textAlign:'right',fontWeight:700,color: item.request_count > 100 ? '#ef4444' : item.request_count > 30 ? '#f59e0b' : 'var(--gray-700)'}},
+                          item.request_count.toLocaleString()
+                        ),
+                        React.createElement('td', {style:{fontSize:11,color:'var(--gray-500)'}},
+                          item.first_seen ? new Date(item.first_seen + 'Z').toLocaleString('ko-KR', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}) : '-'
+                        ),
+                        React.createElement('td', {style:{fontSize:11,color:'var(--gray-500)'}},
+                          item.last_seen ? new Date(item.last_seen + 'Z').toLocaleString('ko-KR', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}) : '-'
+                        ),
+                        React.createElement('td', null,
+                          React.createElement('button', {
+                            className:'btn btn-sm',
+                            style:{fontSize:10,padding:'2px 6px'},
+                            title:'이 IP로 로그 필터',
+                            onClick: function() {
+                              setIpFilter(item.ip_address); setIpModal(null); setPg(1);
+                              setMethodFilter(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); setPathFilter('');
+                              setLoading(true);
+                              api('/access-logs?page=1&limit=' + LIMIT + '&ip=' + encodeURIComponent(item.ip_address)).then(function(d) {
+                                setLogs(d.data.logs || []); setTotal(d.data.total || 0); setStats(d.data.stats || {}); setLoading(false);
+                              }).catch(function(e) { showToast(e.message,'danger'); setLoading(false); });
+                            }
+                          }, '\uD83D\uDD0D')
+                        )
+                      );
+                    })}
+                    {ipModal.ips.length === 0 && (
+                      <tr><td colSpan={6} style={{textAlign:'center',padding:30,color:'var(--gray-400)'}}>{'접속 기록이 없습니다'}</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
