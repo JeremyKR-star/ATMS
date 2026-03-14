@@ -96,10 +96,11 @@ a { color: var(--primary); text-decoration: none; }
 
 /* ── Layout ── */
 .app-layout { display: flex; min-height: 100vh; }
-.sidebar { width: var(--sidebar-w); background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+.sidebar { width: var(--sidebar-w); background: transparent;
   color: #fff; position: fixed; top: 0; left: 0; bottom: 0; display: flex; flex-direction: column; z-index: 100;
-  transition: width 0.3s ease; overflow: hidden; }
-.sidebar::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 1px; background: linear-gradient(180deg, rgba(37,99,235,0.3) 0%, rgba(37,99,235,0) 50%, rgba(37,99,235,0.3) 100%); }
+  transition: width 0.3s ease; overflow: hidden; perspective: 800px; }
+.sidebar-3d-bg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: -1; pointer-events: none; }
+.sidebar::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 1px; background: linear-gradient(180deg, rgba(99,102,241,0.5) 0%, rgba(99,102,241,0) 40%, rgba(99,102,241,0) 60%, rgba(99,102,241,0.5) 100%); z-index: 2; }
 .sidebar.collapsed { width: var(--sidebar-collapsed-w); }
 .sidebar-header { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; }
 .sidebar-header h2 { font-size: 22px; color: #fff; letter-spacing: 2px; white-space: nowrap; background: linear-gradient(135deg, #60a5fa, #a78bfa, #60a5fa); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: gradientShift 3s ease infinite; }
@@ -115,9 +116,13 @@ a { color: var(--primary); text-decoration: none; }
 .sidebar.collapsed .sidebar-user { justify-content: center; padding: 12px 8px; }
 .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
 .nav-item { padding: 11px 20px; cursor: pointer; font-size: 14px; color: rgba(255,255,255,0.6);
-  transition: all 0.3s cubic-bezier(0.4,0,0.2,1); display: flex; align-items: center; gap: 12px; margin: 2px 8px; border-radius: 10px; white-space: nowrap; }
-.nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; transform: translateX(4px); }
-.nav-item.active { background: linear-gradient(135deg, var(--primary), #4f46e5); color: #fff; box-shadow: 0 4px 12px rgba(37,99,235,0.4); animation: slideUpBounce 0.4s ease; }
+  transition: all 0.3s cubic-bezier(0.4,0,0.2,1); display: flex; align-items: center; gap: 12px; margin: 2px 8px; border-radius: 10px; white-space: nowrap;
+  transform-style: preserve-3d; position: relative; }
+.nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; transform: translateX(4px) translateZ(8px) rotateY(-2deg);
+  box-shadow: 4px 0 16px rgba(99,102,241,0.15); }
+.nav-item.active { background: linear-gradient(135deg, var(--primary), #4f46e5); color: #fff;
+  box-shadow: 0 4px 20px rgba(99,102,241,0.5), inset 0 1px 0 rgba(255,255,255,0.15); animation: slideUpBounce 0.4s ease;
+  transform: translateZ(12px); }
 .sidebar.collapsed .nav-item { justify-content: center; padding: 11px 8px; }
 .sidebar.collapsed .nav-item span:last-child { display: none; }
 .nav-section { padding: 16px 20px 6px; font-size: 11px; text-transform: uppercase; color: rgba(255,255,255,0.3); letter-spacing: 1.5px; white-space: nowrap; }
@@ -1907,6 +1912,166 @@ function ProgressBars3D({ simDone, simTotal, fltDone, fltTotal }) {
       </div>
     </div>
   );
+}
+
+// ── 3D Sidebar Background ──
+function Sidebar3DBackground() {
+  var mountRef = useRef(null);
+  var frameRef = useRef(null);
+
+  useEffect(function() {
+    if (!mountRef.current || typeof THREE === 'undefined') return;
+    var el = mountRef.current;
+    var w = el.clientWidth, h = el.clientHeight;
+    if (w < 10 || h < 10) return;
+
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 50);
+    camera.position.set(0, 0, 3);
+
+    var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+    el.appendChild(renderer.domElement);
+
+    // Floating particles
+    var particleCount = 80;
+    var pGeo = new THREE.BufferGeometry();
+    var positions = new Float32Array(particleCount * 3);
+    var colors = new Float32Array(particleCount * 3);
+    var speeds = [];
+    for (var i = 0; i < particleCount; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 4;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 8;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 3;
+      // Blue-purple palette
+      var r = 0.25 + Math.random() * 0.15;
+      var g = 0.3 + Math.random() * 0.2;
+      var b = 0.7 + Math.random() * 0.3;
+      colors[i * 3] = r;
+      colors[i * 3 + 1] = g;
+      colors[i * 3 + 2] = b;
+      speeds.push(0.002 + Math.random() * 0.004);
+    }
+    pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    pGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    var pMat = new THREE.PointsMaterial({ size: 0.04, vertexColors: true, transparent: true, opacity: 0.6 });
+    var particles = new THREE.Points(pGeo, pMat);
+    scene.add(particles);
+
+    // Floating geometric shapes
+    var shapes = [];
+    var shapeColors = [0x6366f1, 0x818cf8, 0x4f46e5, 0x3b82f6, 0xa78bfa];
+    for (var j = 0; j < 6; j++) {
+      var geo;
+      var type = j % 3;
+      if (type === 0) geo = new THREE.OctahedronGeometry(0.08 + Math.random() * 0.06, 0);
+      else if (type === 1) geo = new THREE.TetrahedronGeometry(0.06 + Math.random() * 0.05, 0);
+      else geo = new THREE.IcosahedronGeometry(0.05 + Math.random() * 0.04, 0);
+
+      var mat = new THREE.MeshBasicMaterial({
+        color: shapeColors[j % shapeColors.length],
+        wireframe: true,
+        transparent: true,
+        opacity: 0.2 + Math.random() * 0.15
+      });
+      var mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(
+        (Math.random() - 0.5) * 2.5,
+        (Math.random() - 0.5) * 6,
+        (Math.random() - 0.5) * 2
+      );
+      scene.add(mesh);
+      shapes.push({
+        mesh: mesh,
+        rotSpeed: { x: (Math.random() - 0.5) * 0.02, y: (Math.random() - 0.5) * 0.02, z: (Math.random() - 0.5) * 0.01 },
+        floatSpeed: 0.001 + Math.random() * 0.003,
+        floatOffset: Math.random() * Math.PI * 2
+      });
+    }
+
+    // Connecting lines (constellation effect)
+    var lineGeo = new THREE.BufferGeometry();
+    var linePositions = new Float32Array(60 * 6); // 60 possible line segments
+    lineGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+    var lineMat = new THREE.LineBasicMaterial({ color: 0x6366f1, transparent: true, opacity: 0.08 });
+    var lines = new THREE.LineSegments(lineGeo, lineMat);
+    scene.add(lines);
+
+    var t = 0;
+    function animate() {
+      frameRef.current = requestAnimationFrame(animate);
+      t += 0.008;
+
+      // Move particles upward slowly
+      var posArr = particles.geometry.attributes.position.array;
+      for (var k = 0; k < particleCount; k++) {
+        posArr[k * 3 + 1] += speeds[k];
+        // Slight horizontal drift
+        posArr[k * 3] += Math.sin(t + k) * 0.001;
+        if (posArr[k * 3 + 1] > 4.5) {
+          posArr[k * 3 + 1] = -4.5;
+          posArr[k * 3] = (Math.random() - 0.5) * 4;
+        }
+      }
+      particles.geometry.attributes.position.needsUpdate = true;
+
+      // Rotate and float shapes
+      shapes.forEach(function(s) {
+        s.mesh.rotation.x += s.rotSpeed.x;
+        s.mesh.rotation.y += s.rotSpeed.y;
+        s.mesh.rotation.z += s.rotSpeed.z;
+        s.mesh.position.y += Math.sin(t * 2 + s.floatOffset) * 0.002;
+        s.mesh.material.opacity = 0.15 + Math.sin(t + s.floatOffset) * 0.08;
+      });
+
+      // Update constellation lines (connect nearby particles)
+      var lp = lines.geometry.attributes.position.array;
+      var lineIdx = 0;
+      var maxLines = 60;
+      for (var a = 0; a < Math.min(particleCount, 30) && lineIdx < maxLines; a++) {
+        for (var b = a + 1; b < Math.min(particleCount, 30) && lineIdx < maxLines; b++) {
+          var dx = posArr[a*3] - posArr[b*3];
+          var dy = posArr[a*3+1] - posArr[b*3+1];
+          var dz = posArr[a*3+2] - posArr[b*3+2];
+          var dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+          if (dist < 1.2) {
+            lp[lineIdx*6] = posArr[a*3]; lp[lineIdx*6+1] = posArr[a*3+1]; lp[lineIdx*6+2] = posArr[a*3+2];
+            lp[lineIdx*6+3] = posArr[b*3]; lp[lineIdx*6+4] = posArr[b*3+1]; lp[lineIdx*6+5] = posArr[b*3+2];
+            lineIdx++;
+          }
+        }
+      }
+      for (var c = lineIdx; c < maxLines; c++) {
+        lp[c*6] = 0; lp[c*6+1] = 0; lp[c*6+2] = 0;
+        lp[c*6+3] = 0; lp[c*6+4] = 0; lp[c*6+5] = 0;
+      }
+      lines.geometry.attributes.position.needsUpdate = true;
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    var onResize = function() {
+      var nw = el.clientWidth, nh = el.clientHeight;
+      if (nw < 10 || nh < 10) return;
+      camera.aspect = nw / nh;
+      camera.updateProjectionMatrix();
+      renderer.setSize(nw, nh);
+    };
+    window.addEventListener('resize', onResize);
+
+    return function() {
+      cancelAnimationFrame(frameRef.current);
+      window.removeEventListener('resize', onResize);
+      if (renderer.domElement && renderer.domElement.parentNode) el.removeChild(renderer.domElement);
+      renderer.dispose();
+    };
+  }, []);
+
+  return React.createElement('div', { ref: mountRef, className: 'sidebar-3d-bg',
+    style: { background: 'linear-gradient(180deg, #0a0f1e 0%, #0d1526 40%, #111827 100%)' } });
 }
 
 // ━━━━━━━━━━━━ DASHBOARD ━━━━━━━━━━━━
@@ -4805,6 +4970,7 @@ function App() {
         <div className="app-layout">
           <div className={`sidebar-overlay ${sidebarOpen?'open':''}`} onClick={()=>setSidebarOpen(false)} />
           <div className={`sidebar ${sidebarOpen?'open':''} ${sidebarCollapsed?'collapsed':''}`}>
+            <Sidebar3DBackground />
             <div className="sidebar-header">
             <h2>ATMS</h2>
             <button className="sidebar-toggle" onClick={()=>setSidebarCollapsed(!sidebarCollapsed)}
