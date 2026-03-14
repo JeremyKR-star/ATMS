@@ -347,6 +347,7 @@ def make_app():
         (r"/api/ojt/programs/(\d+)", OJTProgramDetailHandler),
         (r"/api/ojt/programs/(\d+)/tasks", OJTTasksHandler),
         (r"/api/ojt/programs/(\d+)/enroll", OJTEnrollHandler),  # FIXED: was /api/ojt/enroll
+        (r"/api/ojt/evaluations", OJTEvaluationsHandler),
 
         # ── Content ──
         (r"/api/content", ContentHandler),
