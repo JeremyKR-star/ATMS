@@ -2144,7 +2144,7 @@ function ProfilePage() {
 }
 
 // ━━━━━━━━━━━━ WEEKLY REPORT SUB-COMPONENT ━━━━━━━━━━━━
-function WeeklyReportTable({ rows, title }) {
+function WeeklyReportTable({ rows, onPilotClick }) {
   var gFltPlan = rows.reduce(function(s,w){return s+w.fltPlan;},0);
   var gFltDone = rows.reduce(function(s,w){return s+w.fltDone;},0);
   var gSimPlan = rows.reduce(function(s,w){return s+w.simPlan;},0);
@@ -2172,7 +2172,13 @@ function WeeklyReportTable({ rows, title }) {
           var pct=total?Math.round((done/total)*100):0;
           return (
             <tr key={w.id}>
-              <td><strong>{w.name}</strong></td>
+              <td>
+                {onPilotClick && w.id ? (
+                  <strong style={{cursor:'pointer',color:'var(--primary)',textDecoration:'underline dotted',textUnderlineOffset:3}}
+                    onClick={function(){onPilotClick(w.id, w.name);}}
+                    title={'개인별 현황 보기'}>{w.name}</strong>
+                ) : <strong>{w.name}</strong>}
+              </td>
               <td className="text-center">{w.fltPlan}</td><td className="text-center" style={{color:'var(--wr-flight)',fontWeight:700}}>{w.fltDone}</td>
               <td className="text-center" style={{color:'var(--danger)'}}>{w.fltRemain}</td>
               <td className="text-center">{w.simPlan}</td><td className="text-center" style={{color:'var(--wr-sim)',fontWeight:700}}>{w.simDone}</td>
@@ -2191,23 +2197,86 @@ function WeeklyReportTable({ rows, title }) {
   );
 }
 
-function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap }) {
+function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap, onPilotClick, onAddNationality }) {
+  var _showAddState = useState(false);
+  var showAdd = _showAddState[0];
+  var setShowAdd = _showAddState[1];
+  var _codeState = useState('');
+  var code = _codeState[0];
+  var setCode = _codeState[1];
+  var _labelState = useState('');
+  var label = _labelState[0];
+  var setLabel = _labelState[1];
+
+  var handleAdd = function() {
+    if (!code || !label) return;
+    onAddNationality(code, label);
+    setCode(''); setLabel(''); setShowAdd(false);
+  };
+
+  // All nationalities with pilots
+  var hasData = false;
   return (
     <div>
       {nationalities.map(function(nat){
-        // Match weekly rows to pilots of this nationality
         var natPilotIds = {};
         pilots.forEach(function(p){ if(normalizeNat(p.nationality)===nat.code) natPilotIds[p.id]=true; });
         var natWeekly = weekly.filter(function(w){ return natPilotIds[w.id]; });
         if (natWeekly.length === 0) return null;
+        hasData = true;
         return (
           <div className="card" key={nat.code} style={{marginBottom:16}}>
             <div className="card-header"><h3 style={{margin:0,fontSize:16}}>{nat.label_ko} - Weekly Report</h3>
               <span className="badge badge-yellow" style={{marginLeft:8}}>As of {new Date().toISOString().slice(0,10)}</span></div>
-            <WeeklyReportTable rows={natWeekly} />
+            <WeeklyReportTable rows={natWeekly} onPilotClick={onPilotClick} />
           </div>
         );
       })}
+
+      {/* Nationalities without pilots yet */}
+      {nationalities.map(function(nat){
+        var natPilotIds = {};
+        pilots.forEach(function(p){ if(normalizeNat(p.nationality)===nat.code) natPilotIds[p.id]=true; });
+        var natWeekly = weekly.filter(function(w){ return natPilotIds[w.id]; });
+        if (natWeekly.length > 0) return null;
+        var natPilotCount = pilots.filter(function(p){ return normalizeNat(p.nationality)===nat.code; }).length;
+        if (natPilotCount === 0) return null;
+        return (
+          <div className="card" key={nat.code} style={{marginBottom:16,opacity:0.7}}>
+            <div className="card-header"><h3 style={{margin:0,fontSize:16}}>{nat.label_ko} - Weekly Report</h3>
+              <span className="badge" style={{marginLeft:8,background:'var(--gray-200)',color:'var(--gray-500)'}}>{'데이터 없음'}</span></div>
+            <div className="card-body" style={{textAlign:'center',padding:24,color:'var(--gray-400)',fontSize:13}}>
+              {nat.label_ko}{' 조종사 '}{natPilotCount}{'명 등록됨 — 주간보고 엑셀 업로드 시 자동 반영'}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Add Nationality */}
+      <div style={{marginTop:8}}>
+        {!showAdd ? (
+          <button className="btn btn-sm" style={{border:'2px dashed var(--gray-300)',background:'transparent',color:'var(--gray-500)',width:'100%',padding:12}}
+            onClick={function(){setShowAdd(true);}}>
+            {'+ 국적 추가'}
+          </button>
+        ) : (
+          <div className="card" style={{padding:16}}>
+            <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+              <input type="text" className="form-input" placeholder="국적 코드 (예: Philippines)"
+                value={code} onChange={function(e){setCode(e.target.value);}} style={{flex:1,minWidth:150}} />
+              <input type="text" className="form-input" placeholder="한글명 (예: 필리핀)"
+                value={label} onChange={function(e){setLabel(e.target.value);}}
+                onKeyDown={function(e){if(e.key==='Enter')handleAdd();}}
+                style={{flex:1,minWidth:120}} />
+              <button className="btn btn-primary btn-sm" onClick={handleAdd}>{'추가'}</button>
+              <button className="btn btn-sm" onClick={function(){setShowAdd(false);setCode('');setLabel('');}}>{'취소'}</button>
+            </div>
+            <div style={{fontSize:11,color:'var(--gray-400)',marginTop:8}}>
+              {'국적을 추가하면 해당 국적의 조종사가 등록될 때 주간 보고 레이아웃이 자동 생성됩니다.'}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -3265,6 +3334,24 @@ function PilotPage() {
     } catch(e) { showToast(e.message,'error'); }
   };
 
+  // Handle pilot click from weekly report → navigate to individual status tab with that pilot selected
+  var handlePilotClick = function(pilotId, pilotName) {
+    var pilot = pilots.find(function(p){ return p.id === pilotId; });
+    if (!pilot) { showToast('Pilot not found','error'); return; }
+    setSelectedPilot(pilotId);
+    setSubTab('individual');
+  };
+
+  // Handle add nationality from weekly report
+  var handleAddNationality = async function(code, label) {
+    if (!code || !label) return showToast('Code and label required','error');
+    try {
+      await api('/pilots/nationalities',{method:'POST',body:JSON.stringify({code:code,label_ko:label})});
+      showToast('Nationality added','success');
+      loadAll();
+    } catch(e) { showToast(e.message,'error'); }
+  };
+
   // Weekly Excel upload handler
   var handleWeeklyUpload = async function(e) {
     var file = e.target.files[0];
@@ -3691,7 +3778,7 @@ function PilotPage() {
       {subTab==='weekly' && (
         <div>
           <div style={{marginBottom: 16}}><button className="btn btn-primary btn-sm" onClick={downloadWeeklyReport}>📥 엑셀 다운로드</button></div>
-          <WeeklyReport weekly={weekly} pilots={pilots} nationalities={nationalities} normalizeNat={normalizeNat} natLabelMap={natLabelMap} />
+          <WeeklyReport weekly={weekly} pilots={pilots} nationalities={nationalities} normalizeNat={normalizeNat} natLabelMap={natLabelMap} onPilotClick={handlePilotClick} onAddNationality={handleAddNationality} />
         </div>
       )}
 
