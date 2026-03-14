@@ -1328,20 +1328,270 @@ function LoginPage({ onLogin }) {
 
 // ━━━━━━━━━━━━ 3D COMPONENTS (Three.js r128) ━━━━━━━━━━━━
 
-// ── 3D Globe: Nationality Distribution (High Quality) ──
+// ── Military HUD Hero Banner with Radar ──
+function Aircraft3D({ completionRate }) {
+  var mountRef = useRef(null);
+  var frameRef = useRef(null);
+
+  useEffect(function() {
+    if (!mountRef.current || typeof THREE === 'undefined') return;
+    var el = mountRef.current;
+    var w = el.clientWidth, h = el.clientHeight;
+
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 1000);
+    camera.position.set(0, 0, 5);
+    camera.lookAt(0, 0, 0);
+
+    var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+    el.appendChild(renderer.domElement);
+
+    // Minimal lighting for HUD
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
+    var pct = completionRate || 0;
+
+    // Grid background lines
+    var gridGeo = new THREE.BufferGeometry();
+    var gridPoints = [];
+    var gridSpacing = 0.5;
+    for (var x = -3; x <= 3; x += gridSpacing) {
+      gridPoints.push(new THREE.Vector3(x, -2, 0));
+      gridPoints.push(new THREE.Vector3(x, 2, 0));
+    }
+    for (var y = -2; y <= 2; y += gridSpacing) {
+      gridPoints.push(new THREE.Vector3(-3, y, 0));
+      gridPoints.push(new THREE.Vector3(3, y, 0));
+    }
+    gridGeo.setFromPoints(gridPoints);
+    var gridMat = new THREE.LineBasicMaterial({ color: 0x00aa88, transparent: true, opacity: 0.1, linewidth: 1 });
+    var gridLines = new THREE.LineSegments(gridGeo, gridMat);
+    scene.add(gridLines);
+
+    // HUD targeting brackets (center)
+    var bracketGeo = new THREE.BufferGeometry();
+    var bracketSize = 0.3;
+    var bracketPts = [
+      // Top-left bracket
+      new THREE.Vector3(-bracketSize, bracketSize, 0.1), new THREE.Vector3(-bracketSize * 0.5, bracketSize, 0.1),
+      new THREE.Vector3(-bracketSize, bracketSize, 0.1), new THREE.Vector3(-bracketSize, bracketSize * 0.5, 0.1),
+      // Top-right bracket
+      new THREE.Vector3(bracketSize, bracketSize, 0.1), new THREE.Vector3(bracketSize * 0.5, bracketSize, 0.1),
+      new THREE.Vector3(bracketSize, bracketSize, 0.1), new THREE.Vector3(bracketSize, bracketSize * 0.5, 0.1),
+      // Bottom-left bracket
+      new THREE.Vector3(-bracketSize, -bracketSize, 0.1), new THREE.Vector3(-bracketSize * 0.5, -bracketSize, 0.1),
+      new THREE.Vector3(-bracketSize, -bracketSize, 0.1), new THREE.Vector3(-bracketSize, -bracketSize * 0.5, 0.1),
+      // Bottom-right bracket
+      new THREE.Vector3(bracketSize, -bracketSize, 0.1), new THREE.Vector3(bracketSize * 0.5, -bracketSize, 0.1),
+      new THREE.Vector3(bracketSize, -bracketSize, 0.1), new THREE.Vector3(bracketSize, -bracketSize * 0.5, 0.1),
+      // Center crosshair
+      new THREE.Vector3(-0.1, 0, 0.1), new THREE.Vector3(0.1, 0, 0.1),
+      new THREE.Vector3(0, -0.1, 0.1), new THREE.Vector3(0, 0.1, 0.1)
+    ];
+    bracketGeo.setFromPoints(bracketPts);
+    var bracketMat = new THREE.LineBasicMaterial({ color: 0x00ff88, linewidth: 2 });
+    var brackets = new THREE.LineSegments(bracketGeo, bracketMat);
+    scene.add(brackets);
+
+    // HUD frame border
+    var frameGeo = new THREE.BufferGeometry();
+    var frameBorder = [
+      new THREE.Vector3(-3, 2, 0.05), new THREE.Vector3(3, 2, 0.05),
+      new THREE.Vector3(3, 2, 0.05), new THREE.Vector3(3, -2, 0.05),
+      new THREE.Vector3(3, -2, 0.05), new THREE.Vector3(-3, -2, 0.05),
+      new THREE.Vector3(-3, -2, 0.05), new THREE.Vector3(-3, 2, 0.05)
+    ];
+    frameGeo.setFromPoints(frameBorder);
+    var frameMat = new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.6, linewidth: 3 });
+    var frameLines = new THREE.LineSegments(frameGeo, frameMat);
+    scene.add(frameLines);
+
+    // Particle streaks (flying through atmosphere effect)
+    var particleGeo = new THREE.BufferGeometry();
+    var particlePositions = new Float32Array(100 * 3);
+    var particleSpeeds = [];
+    for (var i = 0; i < 100; i++) {
+      particlePositions[i * 3] = (Math.random() - 0.5) * 6;
+      particlePositions[i * 3 + 1] = (Math.random() - 0.5) * 4;
+      particlePositions[i * 3 + 2] = Math.random() * 3 - 1;
+      particleSpeeds.push(0.03 + Math.random() * 0.05);
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+    var particleMat = new THREE.PointsMaterial({ color: 0x00ffaa, size: 0.05, transparent: true, opacity: 0.7 });
+    var particles = new THREE.Points(particleGeo, particleMat);
+    scene.add(particles);
+
+    // Radar in top-right (canvas texture)
+    var radarCanvas = document.createElement('canvas');
+    radarCanvas.width = 256;
+    radarCanvas.height = 256;
+    var radarCtx = radarCanvas.getContext('2d');
+    radarCtx.fillStyle = 'rgba(10, 20, 40, 0.9)';
+    radarCtx.fillRect(0, 0, 256, 256);
+    radarCtx.strokeStyle = '#00ff88';
+    radarCtx.lineWidth = 1;
+    radarCtx.beginPath();
+    radarCtx.arc(128, 128, 100, 0, Math.PI * 2);
+    radarCtx.stroke();
+    for (var r = 1; r <= 3; r++) {
+      radarCtx.beginPath();
+      radarCtx.arc(128, 128, 100 / 3 * r, 0, Math.PI * 2);
+      radarCtx.stroke();
+    }
+    var radarTex = new THREE.CanvasTexture(radarCanvas);
+    var radarGeo = new THREE.PlaneGeometry(2, 2);
+    var radarMat = new THREE.MeshBasicMaterial({ map: radarTex, transparent: true });
+    var radarMesh = new THREE.Mesh(radarGeo, radarMat);
+    radarMesh.position.set(2, 1.3, 0.2);
+    scene.add(radarMesh);
+
+    // Data readout (canvas texture for HUD text)
+    var dataCanvas = document.createElement('canvas');
+    dataCanvas.width = 400;
+    dataCanvas.height = 150;
+    var dataCtx = dataCanvas.getContext('2d');
+    dataCtx.fillStyle = 'rgba(10, 20, 40, 0.8)';
+    dataCtx.fillRect(0, 0, 400, 150);
+    dataCtx.fillStyle = '#00ffff';
+    dataCtx.font = 'bold 24px monospace';
+    dataCtx.fillText('ALT 35000', 20, 40);
+    dataCtx.fillText('SPD M0.85', 20, 80);
+    dataCtx.fillText('HDG 270', 20, 120);
+    dataCtx.fillStyle = '#00ff88';
+    dataCtx.font = 'bold 32px monospace';
+    dataCtx.fillText(pct + '%', 250, 80);
+    var dataTex = new THREE.CanvasTexture(dataCanvas);
+    var dataGeo = new THREE.PlaneGeometry(3, 1.1);
+    var dataMat = new THREE.MeshBasicMaterial({ map: dataTex, transparent: true });
+    var dataMesh = new THREE.Mesh(dataGeo, dataMat);
+    dataMesh.position.set(0, -1.3, 0.1);
+    scene.add(dataMesh);
+
+    // Animation
+    var radarAngle = 0;
+    var t = 0;
+    function animate() {
+      frameRef.current = requestAnimationFrame(animate);
+      t += 0.016;
+      radarAngle += 0.01;
+
+      // Update particle positions (streak effect)
+      var pPos = particleGeo.attributes.position.array;
+      for (var pi = 0; pi < 100; pi++) {
+        pPos[pi * 3] -= particleSpeeds[pi];
+        if (pPos[pi * 3] < -3) {
+          pPos[pi * 3] = 3;
+        }
+      }
+      particleGeo.attributes.position.needsUpdate = true;
+
+      // Update radar
+      radarCanvas.width = radarCanvas.width;
+      radarCtx.fillStyle = 'rgba(10, 20, 40, 0.9)';
+      radarCtx.fillRect(0, 0, 256, 256);
+      radarCtx.strokeStyle = '#00ff88';
+      radarCtx.lineWidth = 1;
+      radarCtx.beginPath();
+      radarCtx.arc(128, 128, 100, 0, Math.PI * 2);
+      radarCtx.stroke();
+      for (var rr = 1; rr <= 3; rr++) {
+        radarCtx.beginPath();
+        radarCtx.arc(128, 128, 100 / 3 * rr, 0, Math.PI * 2);
+        radarCtx.stroke();
+      }
+      // Draw sweep line
+      radarCtx.strokeStyle = '#00ffaa';
+      radarCtx.lineWidth = 2;
+      radarCtx.beginPath();
+      radarCtx.moveTo(128, 128);
+      var sweepX = 128 + Math.cos(radarAngle) * 100;
+      var sweepY = 128 + Math.sin(radarAngle) * 100;
+      radarCtx.lineTo(sweepX, sweepY);
+      radarCtx.stroke();
+      // Draw some target dots
+      radarCtx.fillStyle = '#ff4488';
+      for (var d = 0; d < 3; d++) {
+        var dotAngle = (radarAngle + d * Math.PI * 2 / 3 + t * 0.1) % (Math.PI * 2);
+        var dotDist = 60 + Math.sin(t + d) * 20;
+        var dotX = 128 + Math.cos(dotAngle) * dotDist;
+        var dotY = 128 + Math.sin(dotAngle) * dotDist;
+        radarCtx.beginPath();
+        radarCtx.arc(dotX, dotY, 4, 0, Math.PI * 2);
+        radarCtx.fill();
+      }
+      radarTex.needsUpdate = true;
+
+      brackets.rotation.z = Math.sin(t * 2) * 0.05;
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    var onResize = function() {
+      var nw = el.clientWidth, nh = el.clientHeight;
+      camera.aspect = nw / nh;
+      camera.updateProjectionMatrix();
+      renderer.setSize(nw, nh);
+    };
+    window.addEventListener('resize', onResize);
+
+    return function() {
+      cancelAnimationFrame(frameRef.current);
+      window.removeEventListener('resize', onResize);
+      if (renderer.domElement.parentNode) el.removeChild(renderer.domElement);
+      renderer.dispose();
+      radarTex.dispose();
+      dataTex.dispose();
+    };
+  }, [completionRate]);
+
+  var pct = completionRate || 0;
+  var statusText = pct >= 80 ? 'Excellent' : pct >= 50 ? 'On Track' : 'In Progress';
+  var statusColor = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#2563eb';
+
+  return (
+    <div style={{position:'relative',overflow:'hidden',borderRadius:16,
+      background:'linear-gradient(135deg, #0f1b3d 0%, #162050 40%, #1e2d6a 70%, #0f1b3d 100%)',
+      border:'1px solid rgba(0,255,136,0.2)',marginBottom:20}}>
+      <div ref={mountRef} style={{width:'100%',height:250}} />
+      <div style={{position:'absolute',top:16,left:20}}>
+        <div style={{fontSize:11,color:'rgba(0,255,136,0.7)',textTransform:'uppercase',letterSpacing:2,marginBottom:4}}>
+          {'ATMS T-50 TRAINING SYSTEM'}
+        </div>
+        <div style={{fontSize:28,fontWeight:800,color:'#00ffff',lineHeight:1.1}}>
+          {'Military HUD'}
+        </div>
+        <div style={{fontSize:13,color:statusColor,fontWeight:600,marginTop:6}}>
+          {statusText}{' • '}{pct}{'% 완료'}
+        </div>
+      </div>
+      <div style={{position:'absolute',bottom:12,left:20,right:20}}>
+        <div style={{height:4,background:'rgba(0,255,136,0.1)',borderRadius:2,overflow:'hidden'}}>
+          <div style={{height:'100%',width:pct+'%',background:'linear-gradient(90deg,'+statusColor+',#00ffaa)',borderRadius:2,
+            transition:'width 1s ease',boxShadow:'0 0 8px '+statusColor}} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 3D Globe: Nationality Distribution with Visible Beams ──
 function Globe3D({ nationalities, pilots }) {
   var mountRef = useRef(null);
   var frameRef = useRef(null);
 
   var COORDS = {
-    'Malaysia': { lat: 4.2, lon: 101.9, color: 0xcc0001 },
-    'Malaysian': { lat: 4.2, lon: 101.9, color: 0xcc0001 },
-    'Poland': { lat: 51.9, lon: 19.1, color: 0xdc143c },
-    'Iraq': { lat: 33.2, lon: 43.7, color: 0x007a3d },
-    'Philippines': { lat: 12.8, lon: 121.7, color: 0x0038a8 },
-    'Indonesia': { lat: -0.7, lon: 113.9, color: 0xff0000 },
-    'South Korea': { lat: 35.9, lon: 127.7, color: 0x003478 },
-    'Korea': { lat: 35.9, lon: 127.7, color: 0x003478 }
+    'Malaysia': { lat: 4.2, lon: 101.9, color: 0xff3333 },
+    'Malaysian': { lat: 4.2, lon: 101.9, color: 0xff3333 },
+    'Poland': { lat: 51.9, lon: 19.1, color: 0xff4466 },
+    'Iraq': { lat: 33.2, lon: 43.7, color: 0x33ff88 },
+    'Philippines': { lat: 12.8, lon: 121.7, color: 0x0055ff },
+    'Indonesia': { lat: -0.7, lon: 113.9, color: 0xff5533 },
+    'South Korea': { lat: 35.9, lon: 127.7, color: 0x0088ff },
+    'Korea': { lat: 35.9, lon: 127.7, color: 0x0088ff }
   };
 
   useEffect(function() {
@@ -1369,12 +1619,12 @@ function Globe3D({ nationalities, pilots }) {
     rimLight.position.set(-3, -1, -3);
     scene.add(rimLight);
 
-    // Deep ocean blue globe
+    // Brighter ocean blue globe
     var globeGeo = new THREE.SphereGeometry(1, 64, 64);
     var globeMat = new THREE.MeshPhongMaterial({
-      color: 0x0a2463,
-      emissive: 0x0a2463,
-      emissiveIntensity: 0.3,
+      color: 0x1a3a7a,
+      emissive: 0x0a1a40,
+      emissiveIntensity: 0.2,
       specular: 0x4488ff,
       shininess: 40,
       transparent: true,
@@ -1383,41 +1633,11 @@ function Globe3D({ nationalities, pilots }) {
     var globe = new THREE.Mesh(globeGeo, globeMat);
     scene.add(globe);
 
-    // Latitude grid lines (horizontal rings)
-    var latLines = new THREE.Group();
-    for (var lat = -60; lat <= 60; lat += 20) {
-      var latRad = lat * Math.PI / 180;
-      var radius = Math.cos(latRad);
-      var yPos = Math.sin(latRad);
-      var latGeo = new THREE.BufferGeometry();
-      var latSegments = 64;
-      var latPts = [];
-      for (var i = 0; i <= latSegments; i++) {
-        var lon = (i / latSegments) * Math.PI * 2;
-        latPts.push(new THREE.Vector3(radius * Math.cos(lon), yPos, radius * Math.sin(lon)));
-      }
-      latGeo.setFromPoints(latPts);
-      var latLine = new THREE.Line(latGeo, new THREE.LineBasicMaterial({ color: 0x4488ff, transparent: true, opacity: 0.25, linewidth: 1 }));
-      latLines.add(latLine);
-    }
-    scene.add(latLines);
-
-    // Longitude lines (vertical meridians)
-    var lonLines = new THREE.Group();
-    for (var lon = 0; lon < 360; lon += 30) {
-      var lonRad = lon * Math.PI / 180;
-      var lonGeo = new THREE.BufferGeometry();
-      var lonSegments = 32;
-      var lonPts = [];
-      for (var j = 0; j <= lonSegments; j++) {
-        var lat2 = (-90 + (j / lonSegments) * 180) * Math.PI / 180;
-        lonPts.push(new THREE.Vector3(Math.cos(lat2) * Math.cos(lonRad), Math.sin(lat2), Math.cos(lat2) * Math.sin(lonRad)));
-      }
-      lonGeo.setFromPoints(lonPts);
-      var lonLine = new THREE.Line(lonGeo, new THREE.LineBasicMaterial({ color: 0x4488ff, transparent: true, opacity: 0.15, linewidth: 1 }));
-      lonLines.add(lonLine);
-    }
-    scene.add(lonLines);
+    // Wireframe grid overlay
+    var wireGeo = new THREE.SphereGeometry(1.01, 32, 32);
+    var wireMat = new THREE.MeshBasicMaterial({ wireframe: true, color: 0x4488ff, transparent: true, opacity: 0.2 });
+    var wireframe = new THREE.Mesh(wireGeo, wireMat);
+    scene.add(wireframe);
 
     function latLonToVec3(lat, lon, radius) {
       var phi = (90 - lat) * Math.PI / 180;
@@ -1436,22 +1656,21 @@ function Globe3D({ nationalities, pilots }) {
       natCounts[nat] = (natCounts[nat] || 0) + 1;
     });
 
-    // Add markers
+    // Add markers - very bright and visible
     var markers = [];
-    var arcLines = [];
     Object.keys(natCounts).forEach(function(nat) {
       var coord = COORDS[nat];
       if (!coord) return;
       var count = natCounts[nat];
       var pos = latLonToVec3(coord.lat, coord.lon, 1.02);
 
-      // Large bright pillar
-      var pillarH = 0.15 + count * 0.03;
-      var pillarGeo = new THREE.CylinderGeometry(0.04, 0.04, pillarH, 16);
+      // Bright tapered beam pillar
+      var pillarH = 0.2 + count * 0.15;
+      var pillarGeo = new THREE.CylinderGeometry(0.01, 0.03, pillarH, 16);
       var pillarMat = new THREE.MeshPhongMaterial({
         color: coord.color,
         emissive: coord.color,
-        emissiveIntensity: 0.8,
+        emissiveIntensity: 1.0,
         specular: 0xffffff,
         shininess: 100
       });
@@ -1462,8 +1681,8 @@ function Globe3D({ nationalities, pilots }) {
       pillar.translateY(pillarH / 2);
       scene.add(pillar);
 
-      // Glowing sphere on top
-      var sphereR = 0.05 + count * 0.01;
+      // Large glowing sphere on top
+      var sphereR = 0.08 + count * 0.03;
       var sphereGeo = new THREE.SphereGeometry(sphereR, 20, 20);
       var sphereMat = new THREE.MeshPhongMaterial({
         color: coord.color,
@@ -1480,14 +1699,36 @@ function Globe3D({ nationalities, pilots }) {
       scene.add(sphere);
       markers.push({ sphere: sphere, pillar: pillar, time: Math.random() * Math.PI * 2, count: count });
 
-      // Larger pulse rings
-      var ringGeo = new THREE.RingGeometry(0.08, 0.18, 48);
-      var ringMat = new THREE.MeshBasicMaterial({ color: coord.color, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+      // Large pulsing ring base
+      var ringGeo = new THREE.RingGeometry(0.05, 0.15, 48);
+      var ringMat = new THREE.MeshBasicMaterial({ color: coord.color, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
       var ring = new THREE.Mesh(ringGeo, ringMat);
       ring.position.copy(pos);
       ring.lookAt(new THREE.Vector3(0, 0, 0));
       scene.add(ring);
       markers.push({ ring: ring, ringMat: ringMat, time: Math.random() * Math.PI * 2 });
+
+      // Floating label with country name and pilot count
+      var labelCanvas = document.createElement('canvas');
+      labelCanvas.width = 256;
+      labelCanvas.height = 64;
+      var labelCtx = labelCanvas.getContext('2d');
+      labelCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      labelCtx.fillRect(0, 0, 256, 64);
+      labelCtx.fillStyle = '#ffffff';
+      labelCtx.font = 'bold 32px Arial';
+      labelCtx.textAlign = 'center';
+      labelCtx.fillText(nat, 128, 25);
+      labelCtx.fillText(count + '명', 128, 50);
+      var labelTex = new THREE.CanvasTexture(labelCanvas);
+      var labelGeo = new THREE.PlaneGeometry(0.5, 0.15);
+      var labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true });
+      var labelMesh = new THREE.Mesh(labelGeo, labelMat);
+      var labelPos = latLonToVec3(coord.lat, coord.lon, 1.35 + pillarH);
+      labelMesh.position.copy(labelPos);
+      labelMesh.lookAt(camera.position);
+      scene.add(labelMesh);
+      markers.push({ label: labelMesh, labelPos: labelPos, labelTex: labelTex });
     });
 
     // Animation
@@ -1505,21 +1746,26 @@ function Globe3D({ nationalities, pilots }) {
         rotVel.x *= 0.95;
       }
       globe.rotation.y += rotVel.y;
-      latLines.rotation.y = globe.rotation.y;
-      lonLines.rotation.y = globe.rotation.y;
+      wireframe.rotation.y = globe.rotation.y;
       globe.rotation.x += rotVel.x;
-      latLines.rotation.x = globe.rotation.x;
-      lonLines.rotation.x = globe.rotation.x;
+      wireframe.rotation.x = globe.rotation.x;
 
       markers.forEach(function(m) {
         m.time += 0.02;
         if (m.sphere) {
-          m.sphere.scale.setScalar(1 + Math.sin(m.time * 2) * 0.2);
+          m.sphere.scale.setScalar(1 + Math.sin(m.time * 2) * 0.25);
         }
         if (m.ring && m.ringMat) {
           var pulse = (Math.sin(m.time * 1.5) + 1) * 0.5;
-          m.ringMat.opacity = 0.2 + pulse * 0.4;
-          m.ring.scale.setScalar(1 + pulse * 0.4);
+          m.ringMat.opacity = 0.3 + pulse * 0.5;
+          m.ring.scale.setScalar(1 + pulse * 0.3);
+        }
+        if (m.label && m.labelPos) {
+          var rotatedPos = m.labelPos.clone();
+          rotatedPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotVel.y);
+          rotatedPos.applyAxisAngle(new THREE.Vector3(1, 0, 0), rotVel.x);
+          m.label.position.copy(rotatedPos);
+          m.label.lookAt(camera.position);
         }
       });
 
@@ -1570,7 +1816,7 @@ function Globe3D({ nationalities, pilots }) {
     <div className="card" style={{overflow:'hidden'}}>
       <div className="card-header"><h3 style={{margin:0,fontSize:16}}>{'🌍 국적별 훈련생 분포'}</h3></div>
       <div style={{position:'relative'}}>
-        <div ref={mountRef} style={{width:'100%',height:320,cursor:'grab',background:'radial-gradient(ellipse at 30% 20%, #1a2a5e 0%, #0d1a3a 40%, #091428 80%)'}} />
+        <div ref={mountRef} style={{width:'100%',height:320,cursor:'grab',background:'radial-gradient(ellipse at 30% 30%, #1a2d5e 0%, #0f1b3d 60%, #0a1530 100%)'}} />
         <div style={{position:'absolute',bottom:12,left:12,display:'flex',gap:8,flexWrap:'wrap'}}>
           {Object.keys(natCounts).map(function(nat) {
             var c = COORDS[nat];
@@ -1588,271 +1834,7 @@ function Globe3D({ nationalities, pilots }) {
   );
 }
 
-// ── 3D Aircraft Model (High Quality T-50) ──
-function Aircraft3D({ completionRate }) {
-  var mountRef = useRef(null);
-  var frameRef = useRef(null);
-
-  useEffect(function() {
-    if (!mountRef.current || typeof THREE === 'undefined') return;
-    var el = mountRef.current;
-    var w = el.clientWidth, h = el.clientHeight;
-
-    var scene = new THREE.Scene();
-    var camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 100);
-    camera.position.set(3.5, 1.8, 4.5);
-    camera.lookAt(0, 0, 0);
-
-    var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(w, h);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x000000, 0);
-    el.appendChild(renderer.domElement);
-
-    // Lights
-    scene.add(new THREE.AmbientLight(0x6080a8, 0.6));
-    var sunLight = new THREE.DirectionalLight(0xffffff, 1.3);
-    sunLight.position.set(6, 6, 6);
-    scene.add(sunLight);
-    var fillLight = new THREE.DirectionalLight(0x5599ff, 0.4);
-    fillLight.position.set(-4, 2, -2);
-    scene.add(fillLight);
-
-    // Star field background
-    var starsGeo = new THREE.BufferGeometry();
-    var starPositions = new Float32Array(200 * 3);
-    for (var i = 0; i < 200; i++) {
-      starPositions[i * 3] = (Math.random() - 0.5) * 200;
-      starPositions[i * 3 + 1] = (Math.random() - 0.5) * 200;
-      starPositions[i * 3 + 2] = (Math.random() - 0.5) * 200;
-    }
-    starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    var starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.4, transparent: true, opacity: 0.6 });
-    var stars = new THREE.Points(starsGeo, starsMat);
-    scene.add(stars);
-
-    var aircraftGroup = new THREE.Group();
-    var pct = completionRate || 0;
-    var bodyColor = pct >= 80 ? 0x059669 : pct >= 50 ? 0xd97706 : 0x2563eb;
-    var accentColor = 0xffd700;
-
-    // Main fuselage body - multiple cylinders joined
-    var fuselageMain = new THREE.CylinderGeometry(0.13, 0.08, 2.8, 16);
-    var fuselageMat = new THREE.MeshStandardMaterial({
-      color: 0x1a1a2e,
-      metalness: 0.6,
-      roughness: 0.3,
-      emissive: 0x0a0a1a,
-      emissiveIntensity: 0.2
-    });
-    var fuselage = new THREE.Mesh(fuselageMain, fuselageMat);
-    fuselage.rotation.z = Math.PI / 2;
-    aircraftGroup.add(fuselage);
-
-    // Nose cone
-    var noseGeo = new THREE.ConeGeometry(0.13, 0.8, 16);
-    var noseMat = new THREE.MeshStandardMaterial({ color: 0x0a0a1a, metalness: 0.7, roughness: 0.25 });
-    var nose = new THREE.Mesh(noseGeo, noseMat);
-    nose.rotation.z = -Math.PI / 2;
-    nose.position.x = 1.6;
-    aircraftGroup.add(nose);
-
-    // Air intake bumps on fuselage sides
-    [-0.18, 0.18].forEach(function(zOff) {
-      var intakeGeo = new THREE.BoxGeometry(0.12, 0.08, 0.06);
-      var intakeMat = new THREE.MeshStandardMaterial({ color: 0x0a0a1a, metalness: 0.8 });
-      var intake = new THREE.Mesh(intakeGeo, intakeMat);
-      intake.position.set(0.3, zOff, 0);
-      aircraftGroup.add(intake);
-    });
-
-    // Main wing assembly - three pieces for swept look
-    var wingMain = new THREE.BoxGeometry(2.0, 0.018, 0.4);
-    var wingMat = new THREE.MeshStandardMaterial({ color: bodyColor, metalness: 0.5, roughness: 0.4 });
-    var wing = new THREE.Mesh(wingMain, wingMat);
-    wing.position.set(-0.2, -0.04, 0);
-    wing.rotation.y = 0.08;
-    aircraftGroup.add(wing);
-
-    // Wing root spar
-    var wingRootGeo = new THREE.BoxGeometry(0.3, 0.04, 0.5);
-    var wingRoot = new THREE.Mesh(wingRootGeo, wingMat);
-    wingRoot.position.set(0.1, -0.04, 0);
-    aircraftGroup.add(wingRoot);
-
-    // Winglets
-    [-1, 1].forEach(function(side) {
-      var wingletGeo = new THREE.BoxGeometry(0.2, 0.35, 0.04);
-      var wingletMat = new THREE.MeshStandardMaterial({ color: accentColor, emissive: accentColor, emissiveIntensity: 0.4 });
-      var winglet = new THREE.Mesh(wingletGeo, wingletMat);
-      winglet.position.set(-0.2, 0.15, side * 1.0);
-      winglet.rotation.z = side * 0.3;
-      aircraftGroup.add(winglet);
-    });
-
-    // Twin vertical stabilizers
-    [-0.08, 0.08].forEach(function(zOff) {
-      var tailGeo = new THREE.BoxGeometry(0.6, 0.6, 0.025);
-      var tailMat = new THREE.MeshStandardMaterial({ color: bodyColor, metalness: 0.5, roughness: 0.4 });
-      var tail = new THREE.Mesh(tailGeo, tailMat);
-      tail.position.set(-1.15, 0.2, zOff);
-      tail.rotation.z = 0.2;
-      aircraftGroup.add(tail);
-    });
-
-    // Horizontal stabilizers
-    var stabGeo = new THREE.BoxGeometry(0.5, 0.02, 1.0);
-    var stab = new THREE.Mesh(stabGeo, wingMat);
-    stab.position.set(-1.15, 0.08, 0);
-    stab.rotation.x = 0.1;
-    aircraftGroup.add(stab);
-
-    // Canopy - elongated glass
-    var canopyGeo = new THREE.SphereGeometry(0.11, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.6);
-    var canopyMat = new THREE.MeshStandardMaterial({
-      color: 0x88ddff,
-      metalness: 0.3,
-      roughness: 0.1,
-      transparent: true,
-      opacity: 0.6,
-      emissive: 0x4499ff,
-      emissiveIntensity: 0.2
-    });
-    var canopy = new THREE.Mesh(canopyGeo, canopyMat);
-    canopy.position.set(0.6, 0.15, 0);
-    canopy.scale.set(1, 0.85, 0.75);
-    aircraftGroup.add(canopy);
-
-    // Engine nozzle ring
-    var nozzleGeo = new THREE.CylinderGeometry(0.075, 0.065, 0.15, 12);
-    var nozzleMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.9, roughness: 0.2 });
-    var nozzle = new THREE.Mesh(nozzleGeo, nozzleMat);
-    nozzle.rotation.z = Math.PI / 2;
-    nozzle.position.x = -1.4;
-    aircraftGroup.add(nozzle);
-
-    // Inner glow mesh for exhaust
-    var exhaustGlowGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.12, 8);
-    var exhaustGlowMat = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.6 });
-    var exhaustGlow = new THREE.Mesh(exhaustGlowGeo, exhaustGlowMat);
-    exhaustGlow.rotation.z = Math.PI / 2;
-    exhaustGlow.position.x = -1.38;
-    aircraftGroup.add(exhaustGlow);
-
-    // Landing gear bays
-    [-0.15, 0.15].forEach(function(zOff) {
-      var gearBayGeo = new THREE.BoxGeometry(0.1, 0.06, 0.08);
-      var gearBayMat = new THREE.MeshStandardMaterial({ color: 0x0a0a1a, metalness: 0.9 });
-      var gearBay = new THREE.Mesh(gearBayGeo, gearBayMat);
-      gearBay.position.set(-0.1, -0.08, zOff);
-      aircraftGroup.add(gearBay);
-    });
-
-    // Panel lines as thin line segments
-    var panelLineGeo = new THREE.BufferGeometry();
-    var panelPts = [
-      new THREE.Vector3(-0.8, 0.08, 0), new THREE.Vector3(0.8, 0.08, 0),
-      new THREE.Vector3(-0.8, -0.08, 0), new THREE.Vector3(0.8, -0.08, 0),
-      new THREE.Vector3(-0.5, 0, 0.12), new THREE.Vector3(-0.5, 0, -0.12),
-      new THREE.Vector3(0.3, 0, 0.12), new THREE.Vector3(0.3, 0, -0.12)
-    ];
-    panelLineGeo.setFromPoints(panelPts);
-    var panelLineMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, linewidth: 1 });
-    var panelLines = new THREE.LineSegments(panelLineGeo, panelLineMat);
-    aircraftGroup.add(panelLines);
-
-    // Korean Air Force roundel on wings
-    [-0.8, 0.8].forEach(function(side) {
-      var roundelGeo = new THREE.CircleGeometry(0.12, 32);
-      var roundelMat = new THREE.MeshBasicMaterial({ color: 0xcc0000 });
-      var roundel = new THREE.Mesh(roundelGeo, roundelMat);
-      roundel.position.set(-0.3, -0.06, side);
-      roundel.rotation.x = 0.01;
-      aircraftGroup.add(roundel);
-      var blueDiskGeo = new THREE.CircleGeometry(0.09, 32);
-      var blueMat = new THREE.MeshBasicMaterial({ color: 0x0038a8 });
-      var blueDisk = new THREE.Mesh(blueDiskGeo, blueMat);
-      blueDisk.position.set(-0.3, -0.055, side);
-      blueDisk.rotation.x = 0.01;
-      aircraftGroup.add(blueDisk);
-      var whiteDiskGeo = new THREE.CircleGeometry(0.05, 32);
-      var whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      var whiteDisk = new THREE.Mesh(whiteDiskGeo, whiteMat);
-      whiteDisk.position.set(-0.3, -0.05, side);
-      whiteDisk.rotation.x = 0.01;
-      aircraftGroup.add(whiteDisk);
-    });
-
-    scene.add(aircraftGroup);
-
-    // Animation
-    var t = 0;
-    function animate() {
-      frameRef.current = requestAnimationFrame(animate);
-      t += 0.012;
-
-      aircraftGroup.position.y = Math.sin(t * 1.2) * 0.08;
-      aircraftGroup.rotation.z = Math.sin(t * 0.6) * 0.04;
-      aircraftGroup.rotation.x = Math.sin(t * 0.9) * 0.025;
-
-      exhaustGlow.material.emissiveIntensity = 0.8 + Math.sin(t * 10) * 0.4;
-      exhaustGlow.scale.x = 1 + Math.sin(t * 8) * 0.25;
-
-      camera.position.x = 3.5 * Math.cos(t * 0.15);
-      camera.position.z = 4.5 * Math.sin(t * 0.15);
-      camera.lookAt(0, 0.2, 0);
-
-      renderer.render(scene, camera);
-    }
-    animate();
-
-    var onResize = function() {
-      var nw = el.clientWidth, nh = el.clientHeight;
-      camera.aspect = nw / nh;
-      camera.updateProjectionMatrix();
-      renderer.setSize(nw, nh);
-    };
-    window.addEventListener('resize', onResize);
-
-    return function() {
-      cancelAnimationFrame(frameRef.current);
-      window.removeEventListener('resize', onResize);
-      if (renderer.domElement.parentNode) el.removeChild(renderer.domElement);
-      renderer.dispose();
-    };
-  }, [completionRate]);
-
-  var pct = completionRate || 0;
-  var statusText = pct >= 80 ? 'Excellent' : pct >= 50 ? 'On Track' : 'In Progress';
-  var statusColor = pct >= 80 ? '#059669' : pct >= 50 ? '#d97706' : '#2563eb';
-
-  return (
-    <div style={{position:'relative',overflow:'hidden',borderRadius:16,
-      background:'linear-gradient(135deg, #0c1445 0%, #162055 30%, #1a2a5e 60%, #0d1a3a 100%)',
-      border:'1px solid rgba(99,102,241,0.15)',marginBottom:20}}>
-      <div ref={mountRef} style={{width:'100%',height:240}} />
-      <div style={{position:'absolute',top:16,left:20}}>
-        <div style={{fontSize:11,color:'rgba(255,255,255,0.5)',textTransform:'uppercase',letterSpacing:2,marginBottom:4}}>
-          {'ATMS 비행훈련 시스템'}
-        </div>
-        <div style={{fontSize:28,fontWeight:800,color:'#fff',lineHeight:1.1}}>
-          {'T-50 Golden Eagle'}
-        </div>
-        <div style={{fontSize:13,color:statusColor,fontWeight:600,marginTop:6}}>
-          {statusText}{' • '}{pct}{'% 완료'}
-        </div>
-      </div>
-      <div style={{position:'absolute',bottom:12,left:20,right:20}}>
-        <div style={{height:4,background:'rgba(255,255,255,0.1)',borderRadius:2,overflow:'hidden'}}>
-          <div style={{height:'100%',width:pct+'%',background:'linear-gradient(90deg,'+statusColor+',#ffd700)',borderRadius:2,
-            transition:'width 1s ease',boxShadow:'0 0 8px '+statusColor}} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── 3D Progress Rings (Holographic Style) ──
+// ── 3D Progress Gauges with Canvas Arcs ──
 function ProgressBars3D({ simDone, simTotal, fltDone, fltTotal }) {
   var mountRef = useRef(null);
   var frameRef = useRef(null);
@@ -1864,8 +1846,8 @@ function ProgressBars3D({ simDone, simTotal, fltDone, fltTotal }) {
 
     var scene = new THREE.Scene();
     var camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 100);
-    camera.position.set(0, 1.5, 4);
-    camera.lookAt(0, 0.5, 0);
+    camera.position.set(0, 1, 4);
+    camera.lookAt(0, 0, 0);
 
     var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(w, h);
@@ -1877,87 +1859,97 @@ function ProgressBars3D({ simDone, simTotal, fltDone, fltTotal }) {
     var dLight = new THREE.DirectionalLight(0xffffff, 1.1);
     dLight.position.set(4, 5, 4);
     scene.add(dLight);
-    var pointLight = new THREE.PointLight(0x6366f1, 1.0, 12);
-    pointLight.position.set(0, 2.5, 0);
-    scene.add(pointLight);
-
-    // Holographic grid particles
-    var gridGeo = new THREE.BufferGeometry();
-    var gridPos = new Float32Array(400 * 3);
-    for (var i = 0; i < 400; i++) {
-      gridPos[i * 3] = (Math.random() - 0.5) * 6;
-      gridPos[i * 3 + 1] = (Math.random() - 0.5) * 3;
-      gridPos[i * 3 + 2] = (Math.random() - 0.5) * 4;
-    }
-    gridGeo.setAttribute('position', new THREE.BufferAttribute(gridPos, 3));
-    var gridMat = new THREE.PointsMaterial({ color: 0x6366f1, size: 0.02, transparent: true, opacity: 0.15 });
-    var gridParticles = new THREE.Points(gridGeo, gridMat);
-    scene.add(gridParticles);
 
     var simPct = simTotal ? simDone / simTotal : 0;
     var fltPct = fltTotal ? fltDone / fltTotal : 0;
 
-    // SIM ring (left)
-    var simGeo = new THREE.TorusGeometry(1.0, 0.12, 32, 100);
-    var simTrackMat = new THREE.MeshBasicMaterial({ color: 0x4f46e5, transparent: true, opacity: 0.15 });
-    var simTrack = new THREE.Mesh(simGeo, simTrackMat);
-    simTrack.position.set(-1.5, 0.5, 0);
-    scene.add(simTrack);
+    // Create canvas-based gauge for SIM (left side)
+    var simCanvas = document.createElement('canvas');
+    simCanvas.width = 400;
+    simCanvas.height = 300;
+    var simCtx = simCanvas.getContext('2d');
 
-    var simArc = simPct * Math.PI * 2;
-    var simProgressGeo = new THREE.TorusGeometry(1.0, 0.12, 32, Math.max(Math.floor(simArc / Math.PI * 50), 2), 0, simArc);
-    var simProgressMat = new THREE.MeshBasicMaterial({ color: 0x818cf8, transparent: true, opacity: 0.9 });
-    var simProgress = new THREE.Mesh(simProgressGeo, simProgressMat);
-    simProgress.position.set(-1.5, 0.5, 0);
-    scene.add(simProgress);
+    function drawGauge(ctx, pct, color, title, done, total) {
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      ctx.fillStyle = 'rgba(10, 20, 40, 0.9)';
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    var simCapGeo = new THREE.SphereGeometry(0.14, 16, 16);
-    var simCapMat = new THREE.MeshPhongMaterial({ color: 0x818cf8, emissive: 0x818cf8, emissiveIntensity: 0.8 });
-    var simCap = new THREE.Mesh(simCapGeo, simCapMat);
-    var simCapX = -1.5 + Math.cos(simArc) * 1.0;
-    var simCapZ = Math.sin(simArc) * 1.0;
-    simCap.position.set(simCapX, 0.5, simCapZ);
-    scene.add(simCap);
+      var cX = ctx.canvas.width / 2;
+      var cY = ctx.canvas.height / 2;
+      var radius = 80;
 
-    // FLT ring (right)
-    var fltGeo = new THREE.TorusGeometry(1.0, 0.12, 32, 100);
-    var fltTrackMat = new THREE.MeshBasicMaterial({ color: 0x059669, transparent: true, opacity: 0.15 });
-    var fltTrack = new THREE.Mesh(fltGeo, fltTrackMat);
-    fltTrack.position.set(1.5, 0.5, 0);
-    scene.add(fltTrack);
+      // Background arc (dim)
+      ctx.strokeStyle = 'rgba(50, 50, 80, 0.5)';
+      ctx.lineWidth = 15;
+      ctx.beginPath();
+      ctx.arc(cX, cY, radius, Math.PI + Math.PI * 0.25, Math.PI * 0.25);
+      ctx.stroke();
 
-    var fltArc = fltPct * Math.PI * 2;
-    var fltProgressGeo = new THREE.TorusGeometry(1.0, 0.12, 32, Math.max(Math.floor(fltArc / Math.PI * 50), 2), 0, fltArc);
-    var fltProgressMat = new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.9 });
-    var fltProgress = new THREE.Mesh(fltProgressGeo, fltProgressMat);
-    fltProgress.position.set(1.5, 0.5, 0);
-    scene.add(fltProgress);
+      // Progress arc (bright)
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 15;
+      var sweepAngle = (Math.PI + Math.PI * 0.25) + pct * (Math.PI * 1.5);
+      ctx.beginPath();
+      ctx.arc(cX, cY, radius, Math.PI + Math.PI * 0.25, sweepAngle);
+      ctx.stroke();
 
-    var fltCapGeo = new THREE.SphereGeometry(0.14, 16, 16);
-    var fltCapMat = new THREE.MeshPhongMaterial({ color: 0x34d399, emissive: 0x34d399, emissiveIntensity: 0.8 });
-    var fltCap = new THREE.Mesh(fltCapGeo, fltCapMat);
-    var fltCapX = 1.5 + Math.cos(fltArc) * 1.0;
-    var fltCapZ = Math.sin(fltArc) * 1.0;
-    fltCap.position.set(fltCapX, 0.5, fltCapZ);
-    scene.add(fltCap);
+      // Center text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 48px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(Math.round(pct * 100) + '%', cX, cY - 20);
+
+      ctx.fillStyle = 'rgba(200, 200, 200, 0.8)';
+      ctx.font = '16px Arial';
+      ctx.fillText(title, cX, cY + 60);
+      ctx.fillText(done + ' / ' + total, cX, cY + 85);
+    }
+
+    drawGauge(simCtx, simPct, '#6366f1', 'SIM Training', simDone, simTotal);
+    var simTex = new THREE.CanvasTexture(simCanvas);
+    var simGeo = new THREE.PlaneGeometry(3, 2.25);
+    var simMat = new THREE.MeshBasicMaterial({ map: simTex, transparent: true });
+    var simMesh = new THREE.Mesh(simGeo, simMat);
+    simMesh.position.set(-2, 0, 0.1);
+    scene.add(simMesh);
+
+    // Create canvas-based gauge for FLT (right side)
+    var fltCanvas = document.createElement('canvas');
+    fltCanvas.width = 400;
+    fltCanvas.height = 300;
+    var fltCtx = fltCanvas.getContext('2d');
+    drawGauge(fltCtx, fltPct, '#10b981', 'Flight Training', fltDone, fltTotal);
+    var fltTex = new THREE.CanvasTexture(fltCanvas);
+    var fltGeo = new THREE.PlaneGeometry(3, 2.25);
+    var fltMat = new THREE.MeshBasicMaterial({ map: fltTex, transparent: true });
+    var fltMesh = new THREE.Mesh(fltGeo, fltMat);
+    fltMesh.position.set(2, 0, 0.1);
+    scene.add(fltMesh);
+
+    // Frame rings behind gauges
+    var frameTorusGeo = new THREE.TorusGeometry(1.15, 0.05, 32, 100);
+    var frameTorusMat = new THREE.MeshPhongMaterial({ color: 0x6366f1, emissive: 0x6366f1, emissiveIntensity: 0.3 });
+    var simFrame = new THREE.Mesh(frameTorusGeo, frameTorusMat);
+    simFrame.position.set(-2, 0, 0);
+    scene.add(simFrame);
+    var fltFrame = new THREE.Mesh(frameTorusGeo, frameTorusMat);
+    fltFrame.material = new THREE.MeshPhongMaterial({ color: 0x10b981, emissive: 0x10b981, emissiveIntensity: 0.3 });
+    fltFrame.position.set(2, 0, 0);
+    scene.add(fltFrame);
 
     var t = 0;
     function animate() {
       frameRef.current = requestAnimationFrame(animate);
       t += 0.016;
 
-      simTrack.rotation.z += 0.001;
-      simProgress.rotation.z += 0.001;
-      fltTrack.rotation.z -= 0.001;
-      fltProgress.rotation.z -= 0.001;
+      simFrame.rotation.z += 0.005;
+      fltFrame.rotation.z -= 0.005;
 
-      simCap.material.emissiveIntensity = 0.6 + Math.sin(t * 3) * 0.3;
-      fltCap.material.emissiveIntensity = 0.6 + Math.sin(t * 3 + 1) * 0.3;
-
-      gridParticles.position.y = Math.sin(t * 0.3) * 0.1;
-
-      camera.position.x = Math.sin(t * 0.2) * 0.3;
-      camera.lookAt(0, 0.5, 0);
+      drawGauge(simCtx, simPct, '#6366f1', 'SIM Training', simDone, simTotal);
+      simTex.needsUpdate = true;
+      drawGauge(fltCtx, fltPct, '#10b981', 'Flight Training', fltDone, fltTotal);
+      fltTex.needsUpdate = true;
 
       renderer.render(scene, camera);
     }
@@ -1976,6 +1968,8 @@ function ProgressBars3D({ simDone, simTotal, fltDone, fltTotal }) {
       window.removeEventListener('resize', onResize);
       if (renderer.domElement.parentNode) el.removeChild(renderer.domElement);
       renderer.dispose();
+      simTex.dispose();
+      fltTex.dispose();
     };
   }, [simDone, simTotal, fltDone, fltTotal]);
 
@@ -1985,7 +1979,7 @@ function ProgressBars3D({ simDone, simTotal, fltDone, fltTotal }) {
   return (
     <div className="card" style={{overflow:'hidden'}}>
       <div className="card-header"><h3 style={{margin:0,fontSize:16}}>{'📊 훈련 진행률 (3D)'}</h3></div>
-      <div ref={mountRef} style={{width:'100%',height:300,background:'radial-gradient(ellipse at center, #0d1a2e 0%, #080d16 100%)'}} />
+      <div ref={mountRef} style={{width:'100%',height:320,background:'linear-gradient(135deg, #0f1b3d 0%, #1a2a55 50%, #0f1b3d 100%)'}} />
       <div style={{display:'flex',justifyContent:'space-around',padding:'12px 16px',borderTop:'1px solid rgba(99,102,241,0.1)'}}>
         <div style={{textAlign:'center'}}>
           <div style={{fontSize:20,fontWeight:800,color:'#818cf8'}}>{simDone}{' / '}{simTotal}</div>
@@ -2060,7 +2054,7 @@ function Sidebar3DBackground() {
         color: shapeColors[j % shapeColors.length],
         wireframe: true,
         transparent: true,
-        opacity: 0.35 + Math.random() * 0.15
+        opacity: 0.3 + Math.random() * 0.15
       });
       var mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(
@@ -2153,7 +2147,7 @@ function Sidebar3DBackground() {
   }, []);
 
   return React.createElement('div', { ref: mountRef, className: 'sidebar-3d-bg',
-    style: { background: 'linear-gradient(180deg, #0a0d1a 0%, #0d1423 40%, #0a0f1a 100%)' } });
+    style: { background: 'linear-gradient(180deg, #0e1a38 0%, #132247 40%, #0e1a38 100%)' } });
 }
 
 // ━━━━━━━━━━━━ DASHBOARD ━━━━━━━━━━━━
