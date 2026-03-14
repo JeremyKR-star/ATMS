@@ -215,6 +215,32 @@ class ScheduleConflictCheckHandler(BaseHandler):
         })
 
 
+class ScheduleEnrollmentsHandler(BaseHandler):
+    """Get enrolled students for a specific schedule's course"""
+    @require_auth()
+    def get(self, schedule_id):
+        db = get_db()
+        # Get the course_id for this schedule
+        schedule = db.execute("SELECT course_id FROM schedules WHERE id = ?", (schedule_id,)).fetchone()
+        if not schedule:
+            db.close()
+            return self.error("Schedule not found", 404)
+        course_id = schedule[0]
+        if not course_id:
+            db.close()
+            return self.success([])
+        # Get enrolled students for this course
+        students = dicts_from_rows(db.execute("""
+            SELECT u.id, u.name, u.employee_id, u.department, e.status as enrollment_status
+            FROM enrollments e
+            JOIN users u ON e.trainee_id = u.id
+            WHERE e.course_id = ? AND e.status IN ('enrolled','in_progress','completed')
+            ORDER BY u.name
+        """, (course_id,)).fetchall())
+        db.close()
+        self.success(students)
+
+
 class AttendanceHandler(BaseHandler):
     @require_auth(roles=["admin", "instructor", "ojt_admin"])
     def get(self, schedule_id):

@@ -18,7 +18,7 @@ from auth import get_current_user, require_auth
 from routes.auth_routes import LoginHandler, RegisterHandler, VerifyIdHandler, ProfileHandler, ChangePasswordHandler, BaseHandler
 from routes.user_routes import UsersHandler, UserDetailHandler, ResetPasswordHandler, InstructorsHandler
 from routes.course_routes import CoursesHandler, CourseDetailHandler, ModulesHandler, EnrollmentHandler
-from routes.schedule_routes import SchedulesHandler, ScheduleDetailHandler, AttendanceHandler, ScheduleConflictCheckHandler
+from routes.schedule_routes import SchedulesHandler, ScheduleDetailHandler, AttendanceHandler, ScheduleConflictCheckHandler, ScheduleEnrollmentsHandler
 from routes.evaluation_routes import EvaluationsHandler, EvaluationDetailHandler, SubmitEvaluationHandler, BulkCreateEvaluationsHandler
 from routes.ojt_routes import OJTProgramsHandler, OJTProgramDetailHandler, OJTTasksHandler, OJTEnrollHandler, OJTEvaluationsHandler
 from routes.content_routes import ContentHandler, ContentDetailHandler
@@ -335,6 +335,7 @@ def make_app():
         (r"/api/schedules/check-conflicts", ScheduleConflictCheckHandler),
         (r"/api/schedules/(\d+)", ScheduleDetailHandler),
         (r"/api/schedules/(\d+)/attendance", AttendanceHandler),  # FIXED: was /api/attendance
+        (r"/api/schedules/(\d+)/enrollments", ScheduleEnrollmentsHandler),
 
         # ── Evaluations ──
         (r"/api/evaluations", EvaluationsHandler),
