@@ -2495,16 +2495,44 @@ function AccessLogsPage() {
   var _ipFilterState = useState('');
   var ipFilter = _ipFilterState[0];
   var setIpFilter = _ipFilterState[1];
+  var _methodFilterState = useState('');
+  var methodFilter = _methodFilterState[0];
+  var setMethodFilter = _methodFilterState[1];
+  var _statusFilterState = useState('');
+  var statusFilter = _statusFilterState[0];
+  var setStatusFilter = _statusFilterState[1];
+  var _dateFromState = useState('');
+  var dateFrom = _dateFromState[0];
+  var setDateFrom = _dateFromState[1];
+  var _dateToState = useState('');
+  var dateTo = _dateToState[0];
+  var setDateTo = _dateToState[1];
+  var _pathFilterState = useState('');
+  var pathFilter = _pathFilterState[0];
+  var setPathFilter = _pathFilterState[1];
+  var _showFiltersState = useState(false);
+  var showFilters = _showFiltersState[0];
+  var setShowFilters = _showFiltersState[1];
   var _loadingState = useState(false);
   var loading = _loadingState[0];
   var setLoading = _loadingState[1];
   var { showToast } = useApp();
   var LIMIT = 50;
 
-  var fetchLogs = function(p, ip, silent) {
-    if (!silent) setLoading(true);
+  var buildFilterUrl = function(p) {
     var url = '/access-logs?page=' + p + '&limit=' + LIMIT;
-    if (ip) url += '&ip=' + encodeURIComponent(ip);
+    if (ipFilter) url += '&ip=' + encodeURIComponent(ipFilter);
+    if (methodFilter) url += '&method=' + encodeURIComponent(methodFilter);
+    if (statusFilter) url += '&status=' + encodeURIComponent(statusFilter);
+    if (dateFrom) url += '&date_from=' + encodeURIComponent(dateFrom);
+    if (dateTo) url += '&date_to=' + encodeURIComponent(dateTo);
+    if (pathFilter) url += '&path=' + encodeURIComponent(pathFilter);
+    return url;
+  };
+
+  var fetchLogs = function(p, silent) {
+    if (!silent) setLoading(true);
+    var url = buildFilterUrl(p);
     api(url).then(function(d) {
       setLogs(d.data.logs || []);
       setTotal(d.data.total || 0);
@@ -2517,16 +2545,28 @@ function AccessLogsPage() {
   var autoRefresh = _autoState[0];
   var setAutoRefresh = _autoState[1];
 
-  useEffect(function() { fetchLogs(pg, ipFilter); }, [pg]);
+  useEffect(function() { fetchLogs(pg); }, [pg]);
 
   // Auto-refresh every 5 seconds
   useEffect(function() {
     if (!autoRefresh) return;
-    var iv = setInterval(function() { fetchLogs(pg, ipFilter, true); }, 5000);
+    var iv = setInterval(function() { fetchLogs(pg, true); }, 5000);
     return function() { clearInterval(iv); };
-  }, [autoRefresh, pg, ipFilter]);
+  }, [autoRefresh, pg, ipFilter, methodFilter, statusFilter, dateFrom, dateTo, pathFilter]);
 
-  var handleSearch = function() { setPg(1); fetchLogs(1, ipFilter); };
+  var handleSearch = function() { setPg(1); fetchLogs(1); };
+  var handleReset = function() {
+    setIpFilter(''); setMethodFilter(''); setStatusFilter('');
+    setDateFrom(''); setDateTo(''); setPathFilter('');
+    setPg(1);
+    // Fetch with no filters directly since state updates are async
+    setLoading(true);
+    api('/access-logs?page=1&limit=' + LIMIT).then(function(d) {
+      setLogs(d.data.logs || []); setTotal(d.data.total || 0); setStats(d.data.stats || {});
+      setLoading(false);
+    }).catch(function(e) { showToast(e.message, 'danger'); setLoading(false); });
+  };
+  var activeFilterCount = [ipFilter, methodFilter, statusFilter, dateFrom, dateTo, pathFilter].filter(Boolean).length;
   var totalPages = Math.ceil(total / LIMIT) || 1;
 
   return (
@@ -2553,23 +2593,76 @@ function AccessLogsPage() {
       </div>
 
       <div className="card" style={{padding:16,marginBottom:16}}>
-        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+        <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
           <input type="text" className="form-input" placeholder="IP 주소 검색..."
             value={ipFilter} onChange={function(e){setIpFilter(e.target.value);}}
             onKeyDown={function(e){if(e.key==='Enter')handleSearch();}}
-            style={{flex:1,maxWidth:300}} />
-          <button className="btn btn-primary btn-sm" onClick={handleSearch}>검색</button>
-          <button className="btn btn-sm" onClick={function(){setIpFilter('');setPg(1);fetchLogs(1,'');}}>초기화</button>
+            style={{flex:1,minWidth:150,maxWidth:250}} />
+          <button className="btn btn-primary btn-sm" onClick={handleSearch}>{'검색'}</button>
+          <button className="btn btn-sm" style={{position:'relative'}} onClick={function(){setShowFilters(!showFilters);}}>
+            {'\uD83D\uDD0D '}{'필터'}
+            {activeFilterCount > 0 && <span style={{position:'absolute',top:-6,right:-6,background:'var(--danger)',color:'white',borderRadius:'50%',width:18,height:18,fontSize:10,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>{activeFilterCount}</span>}
+          </button>
+          {activeFilterCount > 0 && <button className="btn btn-sm" onClick={handleReset} style={{color:'var(--danger)'}}>{'초기화'}</button>}
           <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:12}}>
             <label style={{display:'flex',alignItems:'center',gap:6,fontSize:13,cursor:'pointer',color: autoRefresh ? '#10b981' : 'var(--gray-400)'}}>
               <span style={{width:8,height:8,borderRadius:'50%',background: autoRefresh ? '#10b981' : '#ccc',display:'inline-block',animation: autoRefresh ? 'pulse 1.5s infinite' : 'none'}}></span>
-              <span onClick={function(){setAutoRefresh(!autoRefresh);}}>실시간 {autoRefresh ? 'ON' : 'OFF'}</span>
+              <span onClick={function(){setAutoRefresh(!autoRefresh);}}>{'실시간 '}{autoRefresh ? 'ON' : 'OFF'}</span>
             </label>
             <div style={{fontSize:13,color:'var(--gray-400)'}}>
-              총 {total}건 (페이지 {pg}/{totalPages})
+              {'총 '}{total}{'건 (페이지 '}{pg}/{totalPages}{')'}
             </div>
           </div>
         </div>
+
+        {showFilters && (
+          <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid var(--gray-200)',display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
+            <div>
+              <label style={{fontSize:11,color:'var(--gray-500)',marginBottom:4,display:'block'}}>{'메서드'}</label>
+              <select className="form-input" value={methodFilter} onChange={function(e){setMethodFilter(e.target.value);}} style={{fontSize:13}}>
+                <option value="">{'전체'}</option>
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="DELETE">DELETE</option>
+                <option value="DISCONNECT">DISCONNECT</option>
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:'var(--gray-500)',marginBottom:4,display:'block'}}>{'상태코드'}</label>
+              <select className="form-input" value={statusFilter} onChange={function(e){setStatusFilter(e.target.value);}} style={{fontSize:13}}>
+                <option value="">{'전체'}</option>
+                <option value="2xx">{'2xx (성공)'}</option>
+                <option value="3xx">{'3xx (리다이렉트)'}</option>
+                <option value="4xx">{'4xx (클라이언트 에러)'}</option>
+                <option value="5xx">{'5xx (서버 에러)'}</option>
+                <option value="disconnect">{'DISCONNECT'}</option>
+                <option value="200">200</option>
+                <option value="304">304</option>
+                <option value="404">404</option>
+                <option value="500">500</option>
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:'var(--gray-500)',marginBottom:4,display:'block'}}>{'시작일'}</label>
+              <input type="date" className="form-input" value={dateFrom} onChange={function(e){setDateFrom(e.target.value);}} style={{fontSize:13}} />
+            </div>
+            <div>
+              <label style={{fontSize:11,color:'var(--gray-500)',marginBottom:4,display:'block'}}>{'종료일'}</label>
+              <input type="date" className="form-input" value={dateTo} onChange={function(e){setDateTo(e.target.value);}} style={{fontSize:13}} />
+            </div>
+            <div>
+              <label style={{fontSize:11,color:'var(--gray-500)',marginBottom:4,display:'block'}}>{'경로'}</label>
+              <input type="text" className="form-input" placeholder="/api/..." value={pathFilter}
+                onChange={function(e){setPathFilter(e.target.value);}}
+                onKeyDown={function(e){if(e.key==='Enter')handleSearch();}}
+                style={{fontSize:13}} />
+            </div>
+            <div style={{display:'flex',alignItems:'flex-end'}}>
+              <button className="btn btn-primary btn-sm" onClick={handleSearch} style={{width:'100%'}}>{'필터 적용'}</button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="card" style={{overflow:'auto'}}>

@@ -190,6 +190,11 @@ class AccessLogsHandler(BaseHandler):
         page = int(self.get_argument("page", "1"))
         limit = int(self.get_argument("limit", "50"))
         ip_filter = self.get_argument("ip", "")
+        method_filter = self.get_argument("method", "")
+        status_filter = self.get_argument("status", "")
+        date_from = self.get_argument("date_from", "")
+        date_to = self.get_argument("date_to", "")
+        path_filter = self.get_argument("path", "")
         offset = (page - 1) * limit
 
         query = "SELECT * FROM access_logs WHERE 1=1"
@@ -201,12 +206,58 @@ class AccessLogsHandler(BaseHandler):
             count_query += " AND ip_address LIKE ?"
             params.append(f"%{ip_filter}%")
 
+        if method_filter:
+            query += " AND method=?"
+            count_query += " AND method=?"
+            params.append(method_filter)
+
+        if status_filter:
+            if status_filter == '2xx':
+                query += " AND status_code >= 200 AND status_code < 300"
+                count_query += " AND status_code >= 200 AND status_code < 300"
+            elif status_filter == '3xx':
+                query += " AND status_code >= 300 AND status_code < 400"
+                count_query += " AND status_code >= 300 AND status_code < 400"
+            elif status_filter == '4xx':
+                query += " AND status_code >= 400 AND status_code < 500"
+                count_query += " AND status_code >= 400 AND status_code < 500"
+            elif status_filter == '5xx':
+                query += " AND status_code >= 500"
+                count_query += " AND status_code >= 500"
+            elif status_filter == 'disconnect':
+                query += " AND method='DISCONNECT'"
+                count_query += " AND method='DISCONNECT'"
+            else:
+                try:
+                    sc = int(status_filter)
+                    query += " AND status_code=?"
+                    count_query += " AND status_code=?"
+                    params.append(sc)
+                except ValueError:
+                    pass
+
+        if date_from:
+            query += " AND CAST(created_at AS TEXT) >= ?"
+            count_query += " AND CAST(created_at AS TEXT) >= ?"
+            params.append(date_from)
+
+        if date_to:
+            query += " AND CAST(created_at AS TEXT) < ?"
+            count_query += " AND CAST(created_at AS TEXT) < ?"
+            # Add one day to include the full end date
+            params.append(date_to + " 23:59:59")
+
+        if path_filter:
+            query += " AND path LIKE ?"
+            count_query += " AND path LIKE ?"
+            params.append(f"%{path_filter}%")
+
         total = db.execute(count_query, params).fetchone()["cnt"]
         query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
         logs = dicts_from_rows(db.execute(query, params).fetchall())
 
-        # Unique visitor stats
+        # Unique visitor stats (for filtered results too)
         stats = {}
         stats["total_requests"] = total
         stats["unique_ips"] = db.execute("SELECT COUNT(DISTINCT ip_address) as cnt FROM access_logs").fetchone()["cnt"]
