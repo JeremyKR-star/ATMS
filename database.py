@@ -864,6 +864,19 @@ def init_db():
         )
     """)
 
+    # ── OJT Program Admins (per-program admin assignments) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_program_admins (
+            id {get_pk_syntax()},
+            program_id INTEGER NOT NULL REFERENCES ojt_programs(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            admin_role TEXT DEFAULT 'dedicated_admin',
+            permissions TEXT DEFAULT 'read,write',
+            assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(program_id, user_id)
+        )
+    """)
+
     # ── OJT Training Specification (TS) documents ──
     c.execute(f"""
         CREATE TABLE IF NOT EXISTS ojt_training_specs (

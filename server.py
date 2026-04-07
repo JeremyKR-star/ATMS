@@ -18,11 +18,11 @@ from auth import get_current_user, require_auth
 from routes.auth_routes import LoginHandler, RegisterHandler, VerifyIdHandler, ProfileHandler, ChangePasswordHandler, BaseHandler
 from routes.user_routes import UsersHandler, UserDetailHandler, ResetPasswordHandler, InstructorsHandler
 from routes.course_routes import CoursesHandler, CourseDetailHandler, ModulesHandler, EnrollmentHandler
-from routes.schedule_routes import SchedulesHandler, ScheduleDetailHandler, AttendanceHandler, ScheduleConflictCheckHandler, ScheduleEnrollmentsHandler
+from routes.schedule_routes import SchedulesHandler, ScheduleDetailHandler, AttendanceHandler, ScheduleConflictCheckHandler, ScheduleEnrollmentsHandler, ScheduleOptimizeHandler
 from routes.evaluation_routes import EvaluationsHandler, EvaluationDetailHandler, SubmitEvaluationHandler, BulkCreateEvaluationsHandler
 from routes.ojt_routes import OJTProgramsHandler, OJTProgramDetailHandler, OJTTasksHandler, OJTEnrollHandler, OJTEvaluationsHandler
 from routes.content_routes import ContentHandler, ContentDetailHandler
-from routes.report_routes import DashboardHandler, CourseReportHandler, TraineeReportHandler, AttendanceReportHandler, MonthlyStatsHandler
+from routes.report_routes import DashboardHandler, CourseReportHandler, TraineeReportHandler, AttendanceReportHandler, MonthlyStatsHandler, ReportExportHandler
 from routes.notification_routes import NotificationsHandler, NotificationReadHandler, NotificationReadAllHandler, SurveyHandler
 from routes.photo_routes import PhotoUploadHandler
 from routes.pilot_routes import (PilotsHandler, PilotDetailHandler, PilotPhotoHandler,
@@ -42,6 +42,7 @@ from routes.wrapup_routes import (WrapUpTestsHandler, WrapUpTestDetailHandler,
 from routes.assignment_routes import (AssignmentSubmissionsHandler, AssignmentGradeHandler,
                                        DigitalSignaturesHandler, DigitalSignatureVerifyHandler,
                                        CounselingHandler, UserProfileExtHandler)
+from websocket_handler import ATMSWebSocketHandler, broadcast_to_user, broadcast_to_all
 from routes.ojt_extended_routes import (
     OJTSubTasksHandler, OJTSubTaskDetailHandler,
     OJTLeadersHandler, OJTLeaderDetailHandler,
@@ -56,7 +57,8 @@ from routes.ojt_extended_routes import (
     CareerRoadmapHandler, CareerRoadmapDetailHandler,
     CareerRoadmapTasksHandler, CareerRoadmapSubTasksHandler,
     CareerRoadmapProgressHandler,
-    OJTTrainingResultsHandler
+    OJTTrainingResultsHandler, OJTTrainingResultDetailHandler,
+    OJTProgramAdminsHandler, OJTProgramAdminDetailHandler
 )
 
 PORT = int(os.environ.get('PORT', 8080))
@@ -355,6 +357,7 @@ def make_app():
         # ── Schedule ──
         (r"/api/schedules", SchedulesHandler),
         (r"/api/schedules/check-conflicts", ScheduleConflictCheckHandler),
+        (r"/api/schedules/optimize", ScheduleOptimizeHandler),
         (r"/api/schedules/(\d+)", ScheduleDetailHandler),
         (r"/api/schedules/(\d+)/attendance", AttendanceHandler),  # FIXED: was /api/attendance
         (r"/api/schedules/(\d+)/enrollments", ScheduleEnrollmentsHandler),
@@ -382,6 +385,7 @@ def make_app():
         (r"/api/reports/trainees", TraineeReportHandler),
         (r"/api/reports/attendance", AttendanceReportHandler),
         (r"/api/reports/monthly", MonthlyStatsHandler),
+        (r"/api/reports/export", ReportExportHandler),
 
         # ── Notifications & Surveys ──
         (r"/api/notifications", NotificationsHandler),
@@ -459,6 +463,9 @@ def make_app():
         (r"/api/ojt/schedules", OJTSchedulesHandler),
         (r"/api/ojt/schedules/(\d+)", OJTScheduleDetailHandler),
         (r"/api/ojt/training-results", OJTTrainingResultsHandler),
+        (r"/api/ojt/training-results/(\d+)", OJTTrainingResultDetailHandler),
+        (r"/api/ojt/programs/(\d+)/admins", OJTProgramAdminsHandler),
+        (r"/api/ojt/program-admins/(\d+)", OJTProgramAdminDetailHandler),
 
         # ── Career Roadmap ──
         (r"/api/career-roadmap", CareerRoadmapHandler),
@@ -478,6 +485,9 @@ def make_app():
         (r"/api/active-users", ActiveUsersHandler),
         (r"/api/access-logs", AccessLogsHandler),
         (r"/api/access-logs/unique-ips", AccessLogsUniqueIPsHandler),
+
+        # ── WebSocket ──
+        (r"/ws", ATMSWebSocketHandler),
 
         # ── Uploaded files ──
         (r"/uploads/(.*)", tornado.web.StaticFileHandler, {"path": UPLOAD_PATH}),

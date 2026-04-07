@@ -3,6 +3,11 @@ from routes.auth_routes import BaseHandler
 from database import get_db, dict_from_row, dicts_from_rows
 from auth import require_auth
 
+try:
+    from websocket_handler import broadcast_to_user
+except ImportError:
+    broadcast_to_user = None
+
 
 class EvaluationsHandler(BaseHandler):
     @require_auth()
@@ -104,6 +109,17 @@ class EvaluationDetailHandler(BaseHandler):
             db.execute(f"UPDATE evaluations SET {set_clause} WHERE id = ?", values)
 
         db.commit()
+        # Notify trainee when evaluation is graded
+        if broadcast_to_user and "status" in updates and updates["status"] == "graded":
+            try:
+                ev = dict_from_row(db.execute("SELECT trainee_id, title FROM evaluations WHERE id = ?", (eval_id,)).fetchone())
+                if ev:
+                    broadcast_to_user(ev["trainee_id"], {
+                        "type": "notification",
+                        "data": {"title": "\uD3C9\uAC00 \uCC44\uC810 \uC644\uB8CC", "message": ev["title"], "notification_type": "success"}
+                    })
+            except Exception:
+                pass
         db.close()
         self.success(None, "Evaluation updated")
 
@@ -121,6 +137,15 @@ class SubmitEvaluationHandler(BaseHandler):
 
         db.execute("UPDATE evaluations SET status = 'submitted', submitted_at = CURRENT_TIMESTAMP WHERE id = ?", (eval_id,))
         db.commit()
+        # Notify evaluator when trainee submits
+        if broadcast_to_user and ev.get("evaluator_id"):
+            try:
+                broadcast_to_user(ev["evaluator_id"], {
+                    "type": "notification",
+                    "data": {"title": "\uD3C9\uAC00 \uC81C\uCD9C\uB428", "message": ev["title"], "notification_type": "info"}
+                })
+            except Exception:
+                pass
         db.close()
         self.success(None, "Submitted successfully")
 

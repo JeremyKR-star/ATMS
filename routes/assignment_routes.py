@@ -1,7 +1,14 @@
 """Assignment Submission & Digital Signature Routes"""
+import os
+import time
 from routes.auth_routes import BaseHandler
 from database import get_db, dict_from_row, dicts_from_rows
 from auth import require_auth
+
+try:
+    from websocket_handler import broadcast_to_user
+except ImportError:
+    broadcast_to_user = None
 
 
 class AssignmentSubmissionsHandler(BaseHandler):
@@ -45,24 +52,77 @@ class AssignmentSubmissionsHandler(BaseHandler):
 
     @require_auth()
     def post(self):
-        """Trainee submits an assignment"""
-        body = self.get_json_body()
-        if not body.get("content_id"):
-            return self.error("content_id is required")
-
+        """Trainee submits an assignment (supports JSON and multipart/form-data)"""
         trainee_id = self.current_user_data["user_id"]
-        db = get_db()
+        file_path = ""
+        submission_text = ""
+        content_id = None
 
-        db.execute("""
-            INSERT INTO assignment_submissions (content_id, trainee_id, file_path, submission_text, status)
-            VALUES (?, ?, ?, ?, 'submitted')
-            ON CONFLICT (content_id, trainee_id) DO UPDATE SET
-                file_path = EXCLUDED.file_path, submission_text = EXCLUDED.submission_text,
-                status = 'submitted', submitted_at = CURRENT_TIMESTAMP
-        """, (body["content_id"], trainee_id, body.get("file_path", ""), body.get("submission_text", "")))
-        db.commit()
-        db.close()
-        self.success(None, "Assignment submitted")
+        # Check if this is a multipart/form-data submission
+        if "assignment" in self.request.files:
+            # Handle file upload
+            content_id = self.get_argument("content_id", None)
+            submission_text = self.get_argument("submission_text", "")
+
+            if not content_id:
+                return self.error("content_id is required")
+
+            assignment_file = self.request.files["assignment"][0]
+            filename = assignment_file["filename"]
+
+            # Validate file
+            if not filename:
+                return self.error("File upload failed - no filename")
+
+            # Max 50MB for assignment files
+            if len(assignment_file["body"]) > 50 * 1024 * 1024:
+                return self.error("File too large. Max 50MB")
+
+            # Create upload directory
+            upload_base = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public", "uploads", "assignments")
+            os.makedirs(upload_base, exist_ok=True)
+
+            # Generate unique filename: timestamp + original filename
+            timestamp = str(int(time.time() * 1000))
+            filename_base = os.path.splitext(filename)[0]
+            filename_ext = os.path.splitext(filename)[1]
+            unique_filename = f"{timestamp}_{filename_base}{filename_ext}"
+            filepath = os.path.join(upload_base, unique_filename)
+
+            # Save file
+            try:
+                with open(filepath, "wb") as f:
+                    f.write(assignment_file["body"])
+                file_path = f"/uploads/assignments/{unique_filename}"
+            except IOError as e:
+                return self.error(f"Failed to save file: {str(e)}")
+        else:
+            # Handle JSON submission (original behavior)
+            body = self.get_json_body()
+            if not body.get("content_id"):
+                return self.error("content_id is required")
+
+            content_id = body["content_id"]
+            file_path = body.get("file_path", "")
+            submission_text = body.get("submission_text", "")
+
+        db = get_db()
+        try:
+            db.execute("""
+                INSERT INTO assignment_submissions (content_id, trainee_id, file_path, submission_text, status)
+                VALUES (?, ?, ?, ?, 'submitted')
+                ON CONFLICT (content_id, trainee_id) DO UPDATE SET
+                    file_path = EXCLUDED.file_path, submission_text = EXCLUDED.submission_text,
+                    status = 'submitted', submitted_at = CURRENT_TIMESTAMP
+            """, (content_id, trainee_id, file_path, submission_text))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            return self.error(f"Database error: {str(e)}")
+        finally:
+            db.close()
+
+        self.success({"file_path": file_path} if file_path else None, "Assignment submitted")
 
 
 class AssignmentGradeHandler(BaseHandler):
@@ -79,6 +139,21 @@ class AssignmentGradeHandler(BaseHandler):
         """, (body.get("score"), body.get("feedback", ""),
               body.get("status", "graded"), self.current_user_data["user_id"], submission_id))
         db.commit()
+        # Notify trainee that their assignment has been graded
+        if broadcast_to_user:
+            try:
+                sub = db.execute("SELECT trainee_id FROM assignment_submissions WHERE id = ?", (submission_id,)).fetchone()
+                if sub:
+                    broadcast_to_user(sub[0], {
+                        "type": "notification",
+                        "data": {
+                            "title": "\uACFC\uC81C \uCC44\uC810 \uC644\uB8CC",
+                            "message": str(body.get("score", "")) + "\uC810",
+                            "notification_type": "success"
+                        }
+                    })
+            except Exception:
+                pass
         db.close()
         self.success(None, "Assignment graded")
 

@@ -3,6 +3,16 @@ from routes.auth_routes import BaseHandler
 from database import get_db, dicts_from_rows
 from auth import require_auth
 
+try:
+    from email_utils import send_notification_email
+except ImportError:
+    send_notification_email = None
+
+try:
+    from websocket_handler import broadcast_to_user
+except ImportError:
+    broadcast_to_user = None
+
 
 class NotificationsHandler(BaseHandler):
     @require_auth()
@@ -39,6 +49,31 @@ class NotificationsHandler(BaseHandler):
         """, (body["user_id"], body["title"], body.get("message", ""),
               body.get("notification_type", "info"), body.get("link", "")))
         db.commit()
+
+        # Send email notification if configured
+        if send_notification_email:
+            user_email = db.execute("SELECT email FROM users WHERE id = ?", (body["user_id"],)).fetchone()
+            if user_email and user_email[0]:
+                try:
+                    send_notification_email(user_email[0], body.get("title", "ATMS Notification"), body.get("message", ""))
+                except Exception:
+                    pass  # Email failure should not block notification creation
+
+        # Broadcast via WebSocket for real-time delivery
+        if broadcast_to_user:
+            try:
+                broadcast_to_user(body["user_id"], {
+                    "type": "notification",
+                    "data": {
+                        "title": body.get("title", ""),
+                        "message": body.get("message", ""),
+                        "notification_type": body.get("notification_type", "info"),
+                        "link": body.get("link", "")
+                    }
+                })
+            except Exception:
+                pass
+
         db.close()
         self.success(None, "Notification sent")
 

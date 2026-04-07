@@ -3,6 +3,11 @@ from routes.auth_routes import BaseHandler
 from database import get_db, dict_from_row, dicts_from_rows
 from auth import require_auth
 
+try:
+    from websocket_handler import broadcast_to_user
+except ImportError:
+    broadcast_to_user = None
+
 
 class WrapUpTestsHandler(BaseHandler):
     @require_auth()
@@ -254,5 +259,18 @@ class WrapUpGradeHandler(BaseHandler):
         """, (total_score, max_score, percentage, body.get("feedback", ""), test_id, trainee_id))
 
         db.commit()
+        # Notify trainee that their wrap-up test has been graded
+        if broadcast_to_user:
+            try:
+                broadcast_to_user(int(trainee_id), {
+                    "type": "notification",
+                    "data": {
+                        "title": "Wrap-up Test \uCC44\uC810 \uC644\uB8CC",
+                        "message": str(round(percentage, 1)) + "\uC810",
+                        "notification_type": "success"
+                    }
+                })
+            except Exception:
+                pass
         db.close()
         self.success({"total_score": total_score, "percentage": percentage}, "Grading saved")

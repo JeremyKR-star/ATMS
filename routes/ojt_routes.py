@@ -3,6 +3,11 @@ from routes.auth_routes import BaseHandler
 from database import get_db, dict_from_row, dicts_from_rows
 from auth import require_auth
 
+try:
+    from websocket_handler import broadcast_to_user
+except ImportError:
+    broadcast_to_user = None
+
 
 class OJTProgramsHandler(BaseHandler):
     @require_auth()
@@ -117,7 +122,26 @@ class OJTEnrollHandler(BaseHandler):
                 VALUES (?, ?, ?, 'enrolled')
             """, (program_id, trainee_id, trainer_id))
             db.commit()
+
+            # Fetch trainee and program names for broadcast
+            trainee = db.execute("SELECT name FROM users WHERE id = ?", (trainee_id,)).fetchone()
+            program = db.execute("SELECT name FROM ojt_programs WHERE id = ?", (program_id,)).fetchone()
             db.close()
+
+            # Broadcast OJT enrollment event
+            if broadcast_to_user:
+                try:
+                    broadcast_to_user(trainee_id, {
+                        "type": "ojt_enrollment",
+                        "data": {
+                            "program_name": program[0] if program else "",
+                            "trainee_name": trainee[0] if trainee else "",
+                            "status": "enrolled"
+                        }
+                    })
+                except Exception:
+                    pass
+
             self.success(None, "Trainee enrolled in OJT")
         except Exception as e:
             db.close()
@@ -175,5 +199,26 @@ class OJTEvaluationsHandler(BaseHandler):
               body.get("feedback", ""), body.get("eval_date", "")))
         db.commit()
         eid = cur.lastrowid
+
+        # Fetch related data for broadcast
+        enrollment = db.execute("SELECT trainee_id, program_id FROM ojt_enrollments WHERE id = ?", (body["enrollment_id"],)).fetchone()
+        task = db.execute("SELECT name FROM ojt_tasks WHERE id = ?", (body["task_id"],)).fetchone()
+        program = db.execute("SELECT name FROM ojt_programs WHERE id = ?", (enrollment[1],)).fetchone() if enrollment else None
         db.close()
+
+        # Broadcast OJT evaluation creation event
+        if broadcast_to_user and enrollment:
+            try:
+                broadcast_to_user(enrollment[0], {
+                    "type": "ojt_evaluation",
+                    "data": {
+                        "program_name": program[0] if program else "",
+                        "task_name": task[0] if task else "",
+                        "score": body.get("score"),
+                        "status": body.get("status", "pending")
+                    }
+                })
+            except Exception:
+                pass
+
         self.success({"id": eid}, "OJT Evaluation created")

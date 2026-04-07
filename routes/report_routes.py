@@ -1,5 +1,7 @@
 """Reporting & Analytics Routes"""
 import traceback
+import csv
+import io
 from routes.auth_routes import BaseHandler
 from database import get_db, dicts_from_rows
 from auth import require_auth
@@ -190,3 +192,83 @@ class MonthlyStatsHandler(BaseHandler):
             db.close()
             print(f"[MonthlyStatsHandler ERROR] {ex}\n{traceback.format_exc()}")
             self.error(f"Monthly stats error: {str(ex)}", 500)
+
+
+class ReportExportHandler(BaseHandler):
+    @require_auth(roles=["admin", "instructor", "ojt_admin", "manager"])
+    def get(self):
+        report_type = self.get_argument("type", None)
+        db = get_db()
+        try:
+            if not report_type or report_type not in ["courses", "trainees", "attendance"]:
+                self.error("Invalid report type. Must be 'courses', 'trainees', or 'attendance'", 400)
+                return
+
+            # Generate CSV data
+            if report_type == "courses":
+                data = dicts_from_rows(db.execute("""
+                    SELECT c.id, c.name, c.code, c.type, c.status, c.start_date, c.end_date,
+                           c.max_trainees, c.description, c.created_at,
+                           COUNT(DISTINCT e.trainee_id) as enrolled_count,
+                           COUNT(DISTINCT CASE WHEN e.status='completed' THEN e.trainee_id END) as completed_count,
+                           ROUND(CAST(AVG(CASE WHEN e.status='completed' THEN CAST(e.final_score AS FLOAT) END) AS NUMERIC), 1) as avg_score,
+                           ROUND(CAST(AVG(s.overall_rating) AS NUMERIC), 1) as avg_satisfaction
+                    FROM courses c
+                    LEFT JOIN enrollments e ON c.id = e.course_id
+                    LEFT JOIN surveys s ON c.id = s.course_id
+                    GROUP BY c.id, c.name, c.code, c.type, c.status, c.start_date, c.end_date,
+                             c.max_trainees, c.description, c.created_at
+                    ORDER BY c.start_date DESC
+                """).fetchall())
+                filename = "courses_report.csv"
+
+            elif report_type == "trainees":
+                data = dicts_from_rows(db.execute("""
+                    SELECT u.id, u.employee_id, u.name, u.department, u.status,
+                           COUNT(DISTINCT e.course_id) as courses_enrolled,
+                           COUNT(DISTINCT CASE WHEN e.status='completed' THEN e.course_id END) as courses_completed,
+                           ROUND(CAST(AVG(CASE WHEN ev.status='graded' THEN CAST(ev.score AS FLOAT)/CAST(ev.max_score AS FLOAT)*100 END) AS NUMERIC), 1) as avg_score
+                    FROM users u
+                    LEFT JOIN enrollments e ON u.id = e.trainee_id
+                    LEFT JOIN evaluations ev ON u.id = ev.trainee_id AND ev.max_score > 0
+                    WHERE u.role = 'trainee'
+                    GROUP BY u.id, u.employee_id, u.name, u.department, u.status
+                    ORDER BY u.name
+                """).fetchall())
+                filename = "trainees_report.csv"
+
+            elif report_type == "attendance":
+                data = dicts_from_rows(db.execute("""
+                    SELECT u.id as trainee_id, u.name as trainee_name, u.employee_id,
+                           COUNT(a.id) as total_sessions,
+                           SUM(CASE WHEN a.status='present' THEN 1 ELSE 0 END) as present,
+                           SUM(CASE WHEN a.status='absent' THEN 1 ELSE 0 END) as absent,
+                           SUM(CASE WHEN a.status='late' THEN 1 ELSE 0 END) as late,
+                           SUM(CASE WHEN a.status='excused' THEN 1 ELSE 0 END) as excused
+                    FROM attendance a
+                    JOIN users u ON a.trainee_id = u.id
+                    JOIN schedules s ON a.schedule_id = s.id
+                    GROUP BY u.id, u.name, u.employee_id ORDER BY u.name
+                """).fetchall())
+                filename = "attendance_report.csv"
+
+            # Convert to CSV
+            if data:
+                output = io.StringIO()
+                writer = csv.DictWriter(output, fieldnames=data[0].keys())
+                writer.writeheader()
+                writer.writerows(data)
+                csv_content = output.getvalue()
+            else:
+                csv_content = ""
+
+            db.close()
+
+            # Set response headers for file download
+            self.set_header("Content-Type", "text/csv; charset=utf-8")
+            self.set_header("Content-Disposition", f"attachment; filename={filename}")
+            self.write(csv_content)
+        except Exception as ex:
+            db.close()
+            print(f"[ReportExportHandler ERROR] {ex}\n{traceback.format_exc()}")
+            self.error(f"Report export error: {str(ex)}", 500)

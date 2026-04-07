@@ -3,6 +3,11 @@ from routes.auth_routes import BaseHandler
 from database import get_db, dict_from_row, dicts_from_rows
 from auth import require_auth
 
+try:
+    from websocket_handler import broadcast_to_user
+except ImportError:
+    broadcast_to_user = None
+
 
 # ── OJT Sub-tasks ──
 class OJTSubTasksHandler(BaseHandler):
@@ -511,7 +516,26 @@ class OJTSurveyResponsesHandler(BaseHandler):
             """, (template_id, resp["item_id"], trainee_id,
                   resp.get("response", ""), resp.get("rating")))
         db.commit()
+
+        # Fetch template name for broadcast
+        template = db.execute("SELECT title FROM ojt_survey_templates WHERE id = ?", (template_id,)).fetchone()
+        trainee = db.execute("SELECT name FROM users WHERE id = ?", (trainee_id,)).fetchone()
         db.close()
+
+        # Broadcast survey submission event
+        if broadcast_to_user:
+            try:
+                broadcast_to_user(trainee_id, {
+                    "type": "survey_submission",
+                    "data": {
+                        "template_name": template[0] if template else "",
+                        "trainee_name": trainee[0] if trainee else "",
+                        "response_count": len(responses)
+                    }
+                })
+            except Exception:
+                pass
+
         self.success(None, "Survey submitted")
 
 
@@ -802,3 +826,111 @@ class OJTTrainingResultsHandler(BaseHandler):
         rid = cur.lastrowid
         db.close()
         self.success({"id": rid}, "Training result recorded")
+
+
+class OJTTrainingResultDetailHandler(BaseHandler):
+    @require_auth(roles=["admin", "ojt_admin", "instructor"])
+    def put(self, result_id):
+        body = self.get_json_body()
+        db = get_db()
+        # Check exists
+        result = db.execute("SELECT enrollment_id, task_id FROM ojt_training_results WHERE id = ?", (result_id,)).fetchone()
+        if not result:
+            db.close()
+            return self.error("Training result not found", 404)
+
+        fields = []
+        params = []
+        for col in ["attendance_status", "completion_status", "score", "notes", "result_date"]:
+            if col in body:
+                fields.append(col + " = ?")
+                params.append(body[col])
+        if not fields:
+            db.close()
+            return self.error("No fields to update")
+        params.append(result_id)
+        db.execute("UPDATE ojt_training_results SET " + ", ".join(fields) + " WHERE id = ?", params)
+        db.commit()
+
+        # Fetch related data for broadcast
+        enrollment = db.execute("SELECT trainee_id, program_id FROM ojt_enrollments WHERE id = ?", (result[0],)).fetchone()
+        task = db.execute("SELECT name FROM ojt_tasks WHERE id = ?", (result[1],)).fetchone()
+        program = db.execute("SELECT name FROM ojt_programs WHERE id = ?", (enrollment[1],)).fetchone() if enrollment else None
+        db.close()
+
+        # Broadcast training result update event
+        if broadcast_to_user and enrollment:
+            try:
+                broadcast_to_user(enrollment[0], {
+                    "type": "training_result_update",
+                    "data": {
+                        "program_name": program[0] if program else "",
+                        "task_name": task[0] if task else "",
+                        "completion_status": body.get("completion_status"),
+                        "score": body.get("score")
+                    }
+                })
+            except Exception:
+                pass
+
+        self.success(None, "Training result updated")
+
+    @require_auth(roles=["admin", "ojt_admin"])
+    def delete(self, result_id):
+        db = get_db()
+        existing = db.execute("SELECT id FROM ojt_training_results WHERE id = ?", (result_id,)).fetchone()
+        if not existing:
+            db.close()
+            return self.error("Training result not found", 404)
+        db.execute("DELETE FROM ojt_training_results WHERE id = ?", (result_id,))
+        db.commit()
+        db.close()
+        self.success(None, "Training result deleted")
+
+
+# ── OJT Program Admins ──
+class OJTProgramAdminsHandler(BaseHandler):
+    @require_auth(roles=["admin", "ojt_admin"])
+    def get(self, program_id):
+        db = get_db()
+        admins = dicts_from_rows(db.execute("""
+            SELECT pa.*, u.name as user_name, u.email, u.role as user_role
+            FROM ojt_program_admins pa
+            JOIN users u ON pa.user_id = u.id
+            WHERE pa.program_id = ?
+            ORDER BY pa.assigned_at DESC
+        """, (program_id,)).fetchall())
+        db.close()
+        self.success(admins)
+
+    @require_auth(roles=["admin", "ojt_admin"])
+    def post(self, program_id):
+        body = self.get_json_body()
+        user_id = body.get("user_id")
+        admin_role = body.get("admin_role", "dedicated_admin")
+        permissions = body.get("permissions", "read,write")
+        if not user_id:
+            return self.error("user_id is required", 400)
+
+        db = get_db()
+        try:
+            db.execute("""
+                INSERT INTO ojt_program_admins (program_id, user_id, admin_role, permissions)
+                VALUES (?, ?, ?, ?)
+            """, (program_id, user_id, admin_role, permissions))
+            db.commit()
+            db.close()
+            self.success(None, "Program admin assigned")
+        except Exception as e:
+            db.close()
+            self.error(str(e), 400)
+
+
+class OJTProgramAdminDetailHandler(BaseHandler):
+    @require_auth(roles=["admin", "ojt_admin"])
+    def delete(self, admin_id):
+        db = get_db()
+        db.execute("DELETE FROM ojt_program_admins WHERE id = ?", (admin_id,))
+        db.commit()
+        db.close()
+        self.success(None, "Program admin removed")

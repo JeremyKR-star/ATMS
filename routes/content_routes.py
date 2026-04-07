@@ -1,7 +1,12 @@
 """Content & Learning Materials Routes"""
+import os
+import time
 from routes.auth_routes import BaseHandler
 from database import get_db, dict_from_row, dicts_from_rows
 from auth import require_auth
+
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public", "uploads", "content")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 class ContentHandler(BaseHandler):
@@ -38,6 +43,36 @@ class ContentHandler(BaseHandler):
 
     @require_auth(roles=["admin", "instructor", "ojt_admin"])
     def post(self):
+        # Support both JSON and multipart/form-data
+        content_type_header = self.request.headers.get("Content-Type", "")
+        if "multipart/form-data" in content_type_header:
+            title = self.get_argument("title", "")
+            ctype = self.get_argument("content_type", "")
+            if not title or not ctype:
+                return self.error("title and content_type are required")
+            course_id = self.get_argument("course_id", None) or None
+            module_id = self.get_argument("module_id", None) or None
+            description = self.get_argument("description", "")
+            file_path = ""
+            if "content_file" in self.request.files:
+                file_info = self.request.files["content_file"][0]
+                ext = os.path.splitext(file_info["filename"])[1]
+                safe_name = str(int(time.time() * 1000)) + ext
+                dest = os.path.join(UPLOAD_DIR, safe_name)
+                with open(dest, "wb") as f:
+                    f.write(file_info["body"])
+                file_path = "/uploads/content/" + safe_name
+            db = get_db()
+            cur = db.execute("""
+                INSERT INTO content (course_id, module_id, title, content_type, description, file_path, uploaded_by, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (course_id, module_id, title, ctype, description, file_path,
+                  self.current_user_data["user_id"], "active"))
+            db.commit()
+            cid = cur.lastrowid
+            db.close()
+            return self.success({"id": cid}, "Content added")
+
         body = self.get_json_body()
         if not body.get("title") or not body.get("content_type"):
             return self.error("title and content_type are required")

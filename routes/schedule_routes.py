@@ -3,6 +3,11 @@ from routes.auth_routes import BaseHandler
 from database import get_db, dict_from_row, dicts_from_rows
 from auth import require_auth
 
+try:
+    from websocket_handler import broadcast_to_all
+except ImportError:
+    broadcast_to_all = None
+
 
 def check_schedule_conflicts(db, schedule_date, start_time, end_time, instructor_id=None, room=None, exclude_schedule_id=None):
     """
@@ -119,6 +124,16 @@ class SchedulesHandler(BaseHandler):
         db.commit()
         sid = cur.lastrowid
         db.close()
+        # Broadcast schedule creation to all connected users
+        if broadcast_to_all:
+            try:
+                broadcast_to_all({
+                    "type": "schedule_update",
+                    "action": "created",
+                    "data": {"id": sid, "title": body["title"], "date": body["schedule_date"]}
+                })
+            except Exception:
+                pass
         self.success({"id": sid}, "Schedule created")
 
 
@@ -271,3 +286,171 @@ class AttendanceHandler(BaseHandler):
         db.commit()
         db.close()
         self.success(None, "Attendance recorded")
+
+
+class ScheduleOptimizeHandler(BaseHandler):
+    """Generate optimized schedule suggestions for a course"""
+
+    @require_auth(roles=["admin", "ojt_admin"])
+    def post(self):
+        body = self.get_json_body()
+        course_id = body.get("course_id")
+        date_from = body.get("date_from")
+        date_to = body.get("date_to")
+        preferred_times = body.get("preferred_times", ["09:00-12:00", "13:00-17:00"])
+        preferred_rooms = body.get("preferred_rooms", [])
+
+        if not course_id or not date_from or not date_to:
+            return self.error("course_id, date_from, and date_to are required")
+
+        db = get_db()
+
+        # Get all instructors assigned to this course
+        instructors = dicts_from_rows(db.execute("""
+            SELECT DISTINCT ci.instructor_id, u.name, u.id
+            FROM course_instructors ci
+            JOIN users u ON ci.instructor_id = u.id
+            WHERE ci.course_id = ?
+            ORDER BY u.name
+        """, (course_id,)).fetchall())
+
+        if not instructors:
+            db.close()
+            return self.error("No instructors assigned to this course", 404)
+
+        # Get all course modules that need scheduling
+        modules = dicts_from_rows(db.execute("""
+            SELECT * FROM course_modules
+            WHERE course_id = ?
+            ORDER BY module_order ASC
+        """, (course_id,)).fetchall())
+
+        if not modules:
+            db.close()
+            return self.error("No modules found for this course", 404)
+
+        # Get existing schedules in the date range to identify busy slots
+        existing_schedules = dicts_from_rows(db.execute("""
+            SELECT * FROM schedules
+            WHERE schedule_date >= ? AND schedule_date <= ?
+            AND (instructor_id IS NOT NULL OR room IS NOT NULL)
+            ORDER BY schedule_date, start_time
+        """, (date_from, date_to)).fetchall())
+
+        db.close()
+
+        # Build a map of busy slots: {(instructor_id, date, start_time): True}
+        busy_slots = {}
+        for schedule in existing_schedules:
+            instr_id = schedule.get("instructor_id")
+            room = schedule.get("room")
+            date = schedule.get("schedule_date")
+            start = schedule.get("start_time")
+            end = schedule.get("end_time")
+
+            if instr_id:
+                busy_slots[(instr_id, date, start, end)] = True
+            if room:
+                busy_slots[(room, date, start, end)] = True
+
+        # Generate available time slots
+        available_times = self._parse_time_ranges(preferred_times)
+
+        # Generate optimization suggestions
+        suggestions = []
+        instructor_module_count = {}
+
+        # Initialize module counts per instructor
+        for instr in instructors:
+            instructor_module_count[instr["instructor_id"]] = 0
+
+        # Sort modules by order
+        sorted_modules = sorted(modules, key=lambda m: m.get("module_order", 0))
+
+        # Generate date range
+        from datetime import datetime, timedelta
+        current_date = datetime.strptime(date_from, "%Y-%m-%d")
+        end_date = datetime.strptime(date_to, "%Y-%m-%d")
+
+        # Try to distribute modules across the date range
+        for module in sorted_modules:
+            module_id = module.get("id")
+            module_name = module.get("module_name", f"Module {module_id}")
+
+            # Find instructor with least modules assigned
+            best_instructor = min(instructors,
+                                 key=lambda x: instructor_module_count[x["instructor_id"]])
+
+            # Find the best available slot
+            slot_found = False
+            temp_date = current_date
+
+            while temp_date <= end_date and not slot_found:
+                date_str = temp_date.strftime("%Y-%m-%d")
+
+                for time_slot in available_times:
+                    start_time, end_time = time_slot
+
+                    # Check if slot is available for instructor
+                    slot_key = (best_instructor["instructor_id"], date_str, start_time, end_time)
+
+                    # Check if this slot conflicts with any existing schedules
+                    has_conflict = False
+                    for busy_key in busy_slots:
+                        if (busy_key[0] == best_instructor["instructor_id"] and
+                            busy_key[1] == date_str):
+                            busy_start, busy_end = busy_key[2], busy_key[3]
+                            # Check for time overlap
+                            if start_time < busy_end and end_time > busy_start:
+                                has_conflict = True
+                                break
+
+                    # Check if preferred room is available
+                    room = ""
+                    if preferred_rooms:
+                        room = preferred_rooms[len(suggestions) % len(preferred_rooms)]
+                        for busy_key in busy_slots:
+                            if (busy_key[0] == room and
+                                busy_key[1] == date_str):
+                                busy_start, busy_end = busy_key[2], busy_key[3]
+                                if start_time < busy_end and end_time > busy_start:
+                                    has_conflict = True
+                                    break
+
+                    if not has_conflict:
+                        suggestions.append({
+                            "module_id": module_id,
+                            "module_name": module_name,
+                            "instructor_id": best_instructor["instructor_id"],
+                            "instructor_name": best_instructor["name"],
+                            "schedule_date": date_str,
+                            "start_time": start_time,
+                            "end_time": end_time,
+                            "room": room,
+                            "title": f"{module_name} - {best_instructor['name']}",
+                            "schedule_type": "lecture"
+                        })
+                        instructor_module_count[best_instructor["instructor_id"]] += 1
+                        slot_found = True
+                        break
+
+                temp_date += timedelta(days=1)
+
+        # Sort by date and start time
+        suggestions.sort(key=lambda x: (x["schedule_date"], x["start_time"]))
+
+        self.success({
+            "suggestions": suggestions,
+            "instructor_count": len(instructors),
+            "module_count": len(modules),
+            "suggested_count": len(suggestions)
+        }, "Schedule optimization completed")
+
+    def _parse_time_ranges(self, time_ranges):
+        """Parse time range strings like '09:00-12:00' into tuples"""
+        parsed = []
+        for time_range in time_ranges:
+            if '-' in time_range:
+                start, end = time_range.split('-')
+                parsed.append((start.strip(), end.strip()))
+        return parsed if parsed else [("09:00", "12:00"), ("13:00", "17:00")]

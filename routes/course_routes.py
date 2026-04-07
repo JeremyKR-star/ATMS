@@ -4,6 +4,11 @@ from routes.auth_routes import BaseHandler
 from database import get_db, dict_from_row, dicts_from_rows
 from auth import require_auth
 
+try:
+    from websocket_handler import broadcast_to_user
+except ImportError:
+    broadcast_to_user = None
+
 
 class CoursesHandler(BaseHandler):
     @require_auth()
@@ -163,6 +168,23 @@ class EnrollmentHandler(BaseHandler):
             except Exception:
                 pass
         db.commit()
+        # Notify each enrolled trainee via WebSocket
+        if broadcast_to_user:
+            course_name = ""
+            try:
+                cn = db.execute("SELECT name FROM courses WHERE id = ?", (course_id,)).fetchone()
+                if cn:
+                    course_name = cn[0]
+            except Exception:
+                pass
+            for tid in enrolled:
+                try:
+                    broadcast_to_user(tid, {
+                        "type": "notification",
+                        "data": {"title": "\uACFC\uC815 \uB4F1\uB85D", "message": course_name, "notification_type": "success"}
+                    })
+                except Exception:
+                    pass
         db.close()
         self.success({"enrolled": enrolled}, f"{len(enrolled)} trainee(s) enrolled")
 
