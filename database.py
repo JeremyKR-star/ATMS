@@ -834,6 +834,378 @@ def init_db():
         )
     """)
 
+    # ══════════════════════════════════════════════════════════
+    # NEW TABLES FOR ATMS FULL SPEC (PDF Requirements)
+    # ══════════════════════════════════════════════════════════
+
+    # ── OJT Sub-tasks (hierarchical under ojt_tasks) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_sub_tasks (
+            id {get_pk_syntax()},
+            task_id INTEGER NOT NULL REFERENCES ojt_tasks(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            description TEXT,
+            order_num INTEGER DEFAULT 0,
+            required_hours REAL,
+            criteria TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── OJT Leaders (assigned to programs) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_leaders (
+            id {get_pk_syntax()},
+            program_id INTEGER NOT NULL REFERENCES ojt_programs(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            role TEXT DEFAULT 'leader' CHECK(role IN ('leader','dedicated_admin')),
+            assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(program_id, user_id)
+        )
+    """)
+
+    # ── OJT Training Specification (TS) documents ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_training_specs (
+            id {get_pk_syntax()},
+            program_id INTEGER NOT NULL REFERENCES ojt_programs(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            description TEXT,
+            content TEXT,
+            file_path TEXT,
+            version TEXT DEFAULT '1.0',
+            status TEXT DEFAULT 'draft' CHECK(status IN ('draft','active','archived')),
+            created_by INTEGER REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── OJT Evaluation Specification (ES) documents ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_eval_specs (
+            id {get_pk_syntax()},
+            program_id INTEGER NOT NULL REFERENCES ojt_programs(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            description TEXT,
+            content TEXT,
+            file_path TEXT,
+            version TEXT DEFAULT '1.0',
+            status TEXT DEFAULT 'draft' CHECK(status IN ('draft','active','archived')),
+            created_by INTEGER REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── OJT Pre-assignments (사전과제) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_pre_assignments (
+            id {get_pk_syntax()},
+            program_id INTEGER NOT NULL REFERENCES ojt_programs(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            description TEXT,
+            file_path TEXT,
+            due_date TEXT,
+            created_by INTEGER REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── OJT Venues (훈련장소) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_venues (
+            id {get_pk_syntax()},
+            name TEXT NOT NULL,
+            location TEXT,
+            capacity INTEGER,
+            equipment TEXT,
+            notes TEXT,
+            status TEXT DEFAULT 'active' CHECK(status IN ('active','inactive')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── OJT Announcements (공지사항) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_announcements (
+            id {get_pk_syntax()},
+            program_id INTEGER REFERENCES ojt_programs(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            content TEXT,
+            priority TEXT DEFAULT 'normal' CHECK(priority IN ('low','normal','high','urgent')),
+            created_by INTEGER REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── OJT Survey Templates ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_survey_templates (
+            id {get_pk_syntax()},
+            program_id INTEGER REFERENCES ojt_programs(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            description TEXT,
+            start_date TEXT,
+            end_date TEXT,
+            status TEXT DEFAULT 'draft' CHECK(status IN ('draft','active','closed','forced_close')),
+            created_by INTEGER REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── OJT Survey Items (questions) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_survey_items (
+            id {get_pk_syntax()},
+            template_id INTEGER NOT NULL REFERENCES ojt_survey_templates(id) ON DELETE CASCADE,
+            question TEXT NOT NULL,
+            question_type TEXT DEFAULT 'rating' CHECK(question_type IN ('rating','text','multiple_choice','yes_no')),
+            options TEXT,
+            order_num INTEGER DEFAULT 0,
+            required INTEGER DEFAULT 1
+        )
+    """)
+
+    # ── OJT Survey Responses ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_survey_responses (
+            id {get_pk_syntax()},
+            template_id INTEGER NOT NULL REFERENCES ojt_survey_templates(id) ON DELETE CASCADE,
+            item_id INTEGER NOT NULL REFERENCES ojt_survey_items(id) ON DELETE CASCADE,
+            trainee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            response TEXT,
+            rating REAL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── Career Development Roadmap (경력개발 로드맵) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS career_roadmap (
+            id {get_pk_syntax()},
+            level INTEGER NOT NULL CHECK(level IN (3,5,7)),
+            level_name TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            requirements TEXT,
+            duration_months INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── Career Roadmap Tasks ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS career_roadmap_tasks (
+            id {get_pk_syntax()},
+            roadmap_id INTEGER NOT NULL REFERENCES career_roadmap(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            description TEXT,
+            order_num INTEGER DEFAULT 0,
+            required INTEGER DEFAULT 1
+        )
+    """)
+
+    # ── Career Roadmap Sub-tasks ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS career_roadmap_sub_tasks (
+            id {get_pk_syntax()},
+            task_id INTEGER NOT NULL REFERENCES career_roadmap_tasks(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            description TEXT,
+            order_num INTEGER DEFAULT 0
+        )
+    """)
+
+    # ── Career Roadmap Trainee Progress ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS career_roadmap_progress (
+            id {get_pk_syntax()},
+            trainee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            roadmap_id INTEGER NOT NULL REFERENCES career_roadmap(id) ON DELETE CASCADE,
+            task_id INTEGER REFERENCES career_roadmap_tasks(id) ON DELETE CASCADE,
+            sub_task_id INTEGER REFERENCES career_roadmap_sub_tasks(id) ON DELETE CASCADE,
+            status TEXT DEFAULT 'pending' CHECK(status IN ('pending','in_progress','completed')),
+            completed_at TIMESTAMP,
+            notes TEXT,
+            UNIQUE(trainee_id, roadmap_id, task_id, sub_task_id)
+        )
+    """)
+
+    # ── Wrap-up Tests (강사가 생성하는 Daily 테스트) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS wrap_up_tests (
+            id {get_pk_syntax()},
+            course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+            module_id INTEGER REFERENCES course_modules(id) ON DELETE SET NULL,
+            instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            description TEXT,
+            test_date TEXT,
+            time_limit_minutes INTEGER DEFAULT 30,
+            status TEXT DEFAULT 'draft' CHECK(status IN ('draft','active','closed')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── Wrap-up Test Questions ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS wrap_up_questions (
+            id {get_pk_syntax()},
+            test_id INTEGER NOT NULL REFERENCES wrap_up_tests(id) ON DELETE CASCADE,
+            question TEXT NOT NULL,
+            question_type TEXT DEFAULT 'multiple_choice' CHECK(question_type IN ('multiple_choice','true_false','short_answer','essay')),
+            options TEXT,
+            correct_answer TEXT,
+            points REAL DEFAULT 10,
+            order_num INTEGER DEFAULT 0
+        )
+    """)
+
+    # ── Wrap-up Test Responses (trainee answers) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS wrap_up_responses (
+            id {get_pk_syntax()},
+            test_id INTEGER NOT NULL REFERENCES wrap_up_tests(id) ON DELETE CASCADE,
+            trainee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            question_id INTEGER NOT NULL REFERENCES wrap_up_questions(id) ON DELETE CASCADE,
+            answer TEXT,
+            is_correct INTEGER DEFAULT 0,
+            score REAL DEFAULT 0,
+            feedback TEXT,
+            submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(test_id, trainee_id, question_id)
+        )
+    """)
+
+    # ── Wrap-up Test Results (aggregate per trainee per test) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS wrap_up_results (
+            id {get_pk_syntax()},
+            test_id INTEGER NOT NULL REFERENCES wrap_up_tests(id) ON DELETE CASCADE,
+            trainee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            total_score REAL DEFAULT 0,
+            max_score REAL DEFAULT 0,
+            percentage REAL DEFAULT 0,
+            status TEXT DEFAULT 'pending' CHECK(status IN ('pending','submitted','graded')),
+            instructor_feedback TEXT,
+            submitted_at TIMESTAMP,
+            graded_at TIMESTAMP,
+            UNIQUE(test_id, trainee_id)
+        )
+    """)
+
+    # ── Assignment Submissions (과제 제출) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS assignment_submissions (
+            id {get_pk_syntax()},
+            content_id INTEGER NOT NULL REFERENCES content(id) ON DELETE CASCADE,
+            trainee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            file_path TEXT,
+            submission_text TEXT,
+            score REAL,
+            max_score REAL DEFAULT 100,
+            feedback TEXT,
+            status TEXT DEFAULT 'pending' CHECK(status IN ('pending','submitted','graded','returned','resubmit')),
+            submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            graded_at TIMESTAMP,
+            graded_by INTEGER REFERENCES users(id),
+            UNIQUE(content_id, trainee_id)
+        )
+    """)
+
+    # ── Digital Signatures (JPG 서명) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS digital_signatures (
+            id {get_pk_syntax()},
+            trainee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+            module_id INTEGER REFERENCES course_modules(id),
+            signature_data TEXT,
+            signature_path TEXT,
+            purpose TEXT DEFAULT 'course_completion',
+            status TEXT DEFAULT 'pending' CHECK(status IN ('pending','signed','verified','rejected')),
+            signed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            verified_by INTEGER REFERENCES users(id),
+            verified_at TIMESTAMP
+        )
+    """)
+
+    # ── Counseling Records (상담기록) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS counseling_records (
+            id {get_pk_syntax()},
+            trainee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            counselor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            course_id INTEGER REFERENCES courses(id) ON DELETE SET NULL,
+            topic TEXT NOT NULL,
+            content TEXT,
+            action_items TEXT,
+            counseling_date TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── OJT Training Schedules (훈련일정) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_schedules (
+            id {get_pk_syntax()},
+            program_id INTEGER NOT NULL REFERENCES ojt_programs(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            schedule_date TEXT NOT NULL,
+            start_time TEXT,
+            end_time TEXT,
+            venue_id INTEGER REFERENCES ojt_venues(id),
+            instructor_id INTEGER REFERENCES users(id),
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── User Extended Profile (추가 필드 - 별도 테이블) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS user_profiles (
+            id {get_pk_syntax()},
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            major TEXT,
+            career_history TEXT,
+            qualifications TEXT,
+            pre_training TEXT,
+            visa_info TEXT,
+            visa_expiry TEXT,
+            medical_check TEXT,
+            medical_check_date TEXT,
+            military_number TEXT,
+            payroll TEXT,
+            gender TEXT,
+            date_of_birth TEXT,
+            organization TEXT,
+            job_experience TEXT,
+            specialty_skill TEXT,
+            equipment_issued TEXT,
+            rnr TEXT,
+            bio_data TEXT,
+            training_system TEXT,
+            UNIQUE(user_id)
+        )
+    """)
+
+    # ── OJT Training Results (훈련결과) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_training_results (
+            id {get_pk_syntax()},
+            enrollment_id INTEGER NOT NULL REFERENCES ojt_enrollments(id) ON DELETE CASCADE,
+            task_id INTEGER NOT NULL REFERENCES ojt_tasks(id) ON DELETE CASCADE,
+            attendance_status TEXT DEFAULT 'present' CHECK(attendance_status IN ('present','absent','late','excused')),
+            completion_status TEXT DEFAULT 'pending' CHECK(completion_status IN ('pending','in_progress','completed','failed')),
+            score REAL,
+            notes TEXT,
+            result_date TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
     backend_name = "PostgreSQL" if IS_POSTGRES else "SQLite"

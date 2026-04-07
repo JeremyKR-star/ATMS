@@ -36,6 +36,28 @@ from routes.mechanic_routes import (MechanicsHandler, MechanicDetailHandler, Mec
                                     MechanicSummaryHandler)
 from routes.audit_routes import AuditLogHandler
 from routes.backup_routes import BackupHandler, BackupListHandler, BackupCreateHandler
+from routes.wrapup_routes import (WrapUpTestsHandler, WrapUpTestDetailHandler,
+                                   WrapUpQuestionsHandler, WrapUpQuestionDetailHandler,
+                                   WrapUpSubmitHandler, WrapUpGradeHandler)
+from routes.assignment_routes import (AssignmentSubmissionsHandler, AssignmentGradeHandler,
+                                       DigitalSignaturesHandler, DigitalSignatureVerifyHandler,
+                                       CounselingHandler, UserProfileExtHandler)
+from routes.ojt_extended_routes import (
+    OJTSubTasksHandler, OJTSubTaskDetailHandler,
+    OJTLeadersHandler, OJTLeaderDetailHandler,
+    OJTTrainingSpecsHandler, OJTTrainingSpecDetailHandler,
+    OJTEvalSpecsHandler, OJTEvalSpecDetailHandler,
+    OJTPreAssignmentsHandler,
+    OJTVenuesHandler, OJTVenueDetailHandler,
+    OJTAnnouncementsHandler, OJTAnnouncementDetailHandler,
+    OJTSurveyTemplatesHandler, OJTSurveyTemplateDetailHandler,
+    OJTSurveyItemsHandler, OJTSurveyResponsesHandler, OJTSurveyResultsHandler,
+    OJTSchedulesHandler, OJTScheduleDetailHandler,
+    CareerRoadmapHandler, CareerRoadmapDetailHandler,
+    CareerRoadmapTasksHandler, CareerRoadmapSubTasksHandler,
+    CareerRoadmapProgressHandler,
+    OJTTrainingResultsHandler
+)
 
 PORT = int(os.environ.get('PORT', 8080))
 STATIC_PATH = os.path.join(os.path.dirname(__file__), "public")
@@ -393,7 +415,58 @@ def make_app():
         (r"/api/mechanics/certifications/(\d+)", MechanicCertDetailHandler),
         (r"/api/mechanics/summary", MechanicSummaryHandler),
 
-        # ── Active Users ──
+        # ── Wrap-up Tests ──
+        (r"/api/wrapup-tests", WrapUpTestsHandler),
+        (r"/api/wrapup-tests/(\d+)", WrapUpTestDetailHandler),
+        (r"/api/wrapup-tests/(\d+)/questions", WrapUpQuestionsHandler),
+        (r"/api/wrapup-questions/(\d+)", WrapUpQuestionDetailHandler),
+        (r"/api/wrapup-tests/(\d+)/submit", WrapUpSubmitHandler),
+        (r"/api/wrapup-tests/(\d+)/grade/(\d+)", WrapUpGradeHandler),
+
+        # ── Assignments & Submissions ──
+        (r"/api/assignment-submissions", AssignmentSubmissionsHandler),
+        (r"/api/assignment-submissions/(\d+)/grade", AssignmentGradeHandler),
+
+        # ── Digital Signatures ──
+        (r"/api/digital-signatures", DigitalSignaturesHandler),
+        (r"/api/digital-signatures/(\d+)/verify", DigitalSignatureVerifyHandler),
+
+        # ── Counseling ──
+        (r"/api/counseling", CounselingHandler),
+
+        # ── User Extended Profile ──
+        (r"/api/users/(\d+)/profile-ext", UserProfileExtHandler),
+
+        # ── OJT Extended ──
+        (r"/api/ojt/tasks/(\d+)/sub-tasks", OJTSubTasksHandler),
+        (r"/api/ojt/sub-tasks/(\d+)", OJTSubTaskDetailHandler),
+        (r"/api/ojt/programs/(\d+)/leaders", OJTLeadersHandler),
+        (r"/api/ojt/leaders/(\d+)", OJTLeaderDetailHandler),
+        (r"/api/ojt/training-specs", OJTTrainingSpecsHandler),
+        (r"/api/ojt/training-specs/(\d+)", OJTTrainingSpecDetailHandler),
+        (r"/api/ojt/eval-specs", OJTEvalSpecsHandler),
+        (r"/api/ojt/eval-specs/(\d+)", OJTEvalSpecDetailHandler),
+        (r"/api/ojt/pre-assignments", OJTPreAssignmentsHandler),
+        (r"/api/ojt/venues", OJTVenuesHandler),
+        (r"/api/ojt/venues/(\d+)", OJTVenueDetailHandler),
+        (r"/api/ojt/announcements", OJTAnnouncementsHandler),
+        (r"/api/ojt/announcements/(\d+)", OJTAnnouncementDetailHandler),
+        (r"/api/ojt/survey-templates", OJTSurveyTemplatesHandler),
+        (r"/api/ojt/survey-templates/(\d+)", OJTSurveyTemplateDetailHandler),
+        (r"/api/ojt/survey-templates/(\d+)/items", OJTSurveyItemsHandler),
+        (r"/api/ojt/survey-responses", OJTSurveyResponsesHandler),
+        (r"/api/ojt/survey-results/(\d+)", OJTSurveyResultsHandler),
+        (r"/api/ojt/schedules", OJTSchedulesHandler),
+        (r"/api/ojt/schedules/(\d+)", OJTScheduleDetailHandler),
+        (r"/api/ojt/training-results", OJTTrainingResultsHandler),
+
+        # ── Career Roadmap ──
+        (r"/api/career-roadmap", CareerRoadmapHandler),
+        (r"/api/career-roadmap/(\d+)", CareerRoadmapDetailHandler),
+        (r"/api/career-roadmap/(\d+)/tasks", CareerRoadmapTasksHandler),
+        (r"/api/career-roadmap-tasks/(\d+)/sub-tasks", CareerRoadmapSubTasksHandler),
+        (r"/api/career-roadmap/progress", CareerRoadmapProgressHandler),
+
         # ── Audit Log ──
         (r"/api/audit-log", AuditLogHandler),
 

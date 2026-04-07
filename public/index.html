@@ -2582,9 +2582,15 @@ function SchedulePage() {
   const [enrolledStudents, setEnrolledStudents] = useState([]);
   const [attendanceMap, setAttendanceMap] = useState({});
   const { user, showToast } = useApp();
+  const [viewMode, setViewMode] = useState('all');
   const load = function() { let q='/schedules?'; if(dateFrom)q+=`&date_from=${dateFrom}`; if(dateTo)q+=`&date_to=${dateTo}`;
     api(q).then(function(d){setSchedules(d.data);}).catch(function(e){showToast(e.message,'error');}); };
   useEffect(function(){load();},[dateFrom,dateTo]);
+  var filteredSchedules = schedules.filter(function(s){
+    if(viewMode==='all') return true;
+    if(viewMode==='my' && user) return s.instructor_id === user.id;
+    return true;
+  });
   const handleDelete = async function() {
     if(!deleteTarget) return;
     try { await api(`/schedules/${deleteTarget.id}`,{method:'DELETE'}); showToast('일정 삭제 완료','success'); setDeleteTarget(null); load();
@@ -2640,7 +2646,7 @@ function SchedulePage() {
   const canManage = ['admin','ojt_admin'].includes(user.role);
   const tc = {lecture:'#2563eb',practical:'#059669',assessment:'#d97706',ojt:'#7c3aed',meeting:'#6b7280',other:'#9ca3af'};
   const downloadSchedules = function() {
-    const wsData = schedules.map(function(s) {
+    const wsData = filteredSchedules.map(function(s) {
       return {날짜: s.schedule_date, 시간: s.start_time + '-' + s.end_time, 제목: s.title, 유형: s.schedule_type, 과정: s.course_name || '-', 교관: s.instructor_name || '-', 장소: s.room || '-'};
     });
     const ws = XLSX.utils.json_to_sheet(wsData);
@@ -2650,20 +2656,25 @@ function SchedulePage() {
   };
   return (
     <div className="page-content">
+      <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
+        <button className={'btn '+(viewMode==='all'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('all');}}>전체 일정</button>
+        {user && (user.role==='instructor'||user.role==='admin') && <button className={'btn '+(viewMode==='my'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('my');}}>나의 강의</button>}
+        <div style={{flex:1}}></div>
+        {canManage && <button className="btn btn-outline btn-sm" onClick={downloadSchedules}>📥 엑셀</button>}
+      </div>
       <div className="filters"><label style={{fontSize:14}}>기간:</label>
         <input type="date" value={dateFrom} onChange={function(e){setDateFrom(e.target.value);}}/><span>~</span>
         <input type="date" value={dateTo} onChange={function(e){setDateTo(e.target.value);}}/></div>
-      {canManage && <div style={{marginBottom: 16}}><button className="btn btn-primary btn-sm" onClick={downloadSchedules}>📥 엑셀 다운로드</button></div>}
       <div className="card"><div className="card-body"><div className="table-wrapper"><table>
         <thead><tr><th>날짜</th><th>시간</th><th>제목</th><th>유형</th><th>과정</th><th>교관</th><th>장소</th>{canManage&&<th style={{width:140}}></th>}</tr></thead>
-        <tbody>{schedules.map(function(s){return (
+        <tbody>{filteredSchedules.map(function(s){return (
           <tr key={s.id}><td><strong>{s.schedule_date}</strong></td><td>{s.start_time}-{s.end_time}</td><td>{s.title}</td>
             <td><span className="badge" style={{background:tc[s.schedule_type]+'18',color:tc[s.schedule_type]}}>{s.schedule_type}</span></td>
             <td>{s.course_name||'-'}</td><td>{s.instructor_name||'-'}</td><td>{s.room||'-'}</td>
             {canManage&&<td><button className="btn btn-primary btn-sm" style={{padding:'4px 10px',fontSize:11,marginRight:4}}
               onClick={function(){openAttendance(s);}}>빠른 출석</button><button className="btn btn-danger btn-sm" style={{padding:'4px 10px',fontSize:11}}
               onClick={function(){setDeleteTarget(s);}}>삭제</button></td>}</tr>
-        );})}{schedules.length===0&&<tr><td colSpan={canManage?8:7} className="text-center" style={{padding:40,color:'var(--gray-400)'}}>일정이 없습니다</td></tr>}</tbody>
+        );})}{filteredSchedules.length===0&&<tr><td colSpan={canManage?8:7} className="text-center" style={{padding:40,color:'var(--gray-400)'}}>{viewMode==='my'?'나의 강의 일정이 없습니다':'일정이 없습니다'}</td></tr>}</tbody>
       </table></div></div></div>
       {attendanceTarget&&<Modal title={'빠른 출석 - ' + attendanceTarget.title} onClose={function(){setAttendanceTarget(null);setEnrolledStudents([]);setAttendanceMap({});}}
         footer={<><button className="btn btn-outline" onClick={function(){setAttendanceTarget(null);setEnrolledStudents([]);setAttendanceMap({});}}>취소</button>
@@ -2764,138 +2775,944 @@ function EvaluationsPage() {
 
 // ━━━━━━━━━━━━ OJT ━━━━━━━━━━━━
 function OJTPage() {
-  const [tab, setTab] = useState('programs');
-  const [programs, setPrograms] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [detail, setDetail] = useState(null);
-  const [ojtEvaluations, setOjtEvaluations] = useState([]);
-  const { showToast } = useApp();
+  var [tab, setTab] = useState('programs');
+  var [programs, setPrograms] = useState([]);
+  var [selected, setSelected] = useState(null);
+  var [detail, setDetail] = useState(null);
+  var [ojtEvaluations, setOjtEvaluations] = useState([]);
+  var [venues, setVenues] = useState([]);
+  var [announcements, setAnnouncements] = useState([]);
+  var [surveyTemplates, setSurveyTemplates] = useState([]);
+  var [roadmaps, setRoadmaps] = useState([]);
+  var [trainingSpecs, setTrainingSpecs] = useState([]);
+  var [evalSpecs, setEvalSpecs] = useState([]);
+  var [ojtSchedules, setOjtSchedules] = useState([]);
+  var [trainingResults, setTrainingResults] = useState([]);
+  var [preAssignments, setPreAssignments] = useState([]);
+  var [leaders, setLeaders] = useState([]);
+  var [programFilter, setProgramFilter] = useState('all');
+  var [reportSearch, setReportSearch] = useState('');
+  var [loading, setLoading] = useState(false);
+  var [showForm, setShowForm] = useState(false);
+  var [showModal, setShowModal] = useState(null);
+  var [formData, setFormData] = useState({});
+  var ctx = useApp(); var showToast = ctx.showToast; var user = ctx.user;
+
+  var loadAll = function() {
+    setLoading(true);
+    api('/ojt/programs').then(function(d){setPrograms(d.data);setLoading(false);}).catch(function(e){showToast(e.message,'error');setLoading(false);});
+  };
+  useEffect(function(){ loadAll(); },[]);
   useEffect(function(){
-    api('/ojt/programs').then(function(d){setPrograms(d.data);}).catch(function(e){showToast(e.message,'error');});
-    if(tab === 'evaluations') {
-      api('/ojt/evaluations').then(function(d){setOjtEvaluations(d.data);}).catch(function(e){showToast(e.message,'error');});
-    }
+    setLoading(true);
+    if(tab === 'evaluations') api('/ojt/evaluations').then(function(d){setOjtEvaluations(d.data);setLoading(false);}).catch(function(){setLoading(false);});
+    else if(tab === 'venues') api('/ojt/venues').then(function(d){setVenues(d.data);setLoading(false);}).catch(function(){setLoading(false);});
+    else if(tab === 'announcements') api('/ojt/announcements').then(function(d){setAnnouncements(d.data);setLoading(false);}).catch(function(){setLoading(false);});
+    else if(tab === 'surveys') api('/ojt/survey-templates').then(function(d){setSurveyTemplates(d.data);setLoading(false);}).catch(function(){setLoading(false);});
+    else if(tab === 'roadmap') api('/career-roadmap').then(function(d){setRoadmaps(d.data);setLoading(false);}).catch(function(){setLoading(false);});
+    else if(tab === 'specs') { Promise.all([api('/ojt/training-specs'),api('/ojt/eval-specs')]).then(function(res){setTrainingSpecs(res[0].data);setEvalSpecs(res[1].data);setLoading(false);}).catch(function(){setLoading(false);}); }
+    else if(tab === 'schedules') api('/ojt/schedules').then(function(d){setOjtSchedules(d.data);setLoading(false);}).catch(function(){setLoading(false);});
+    else if(tab === 'results') api('/ojt/training-results').then(function(d){setTrainingResults(d.data);setLoading(false);}).catch(function(){setLoading(false);});
+    else if(tab === 'management') { setLoading(false); }
+    else if(tab === 'preassign') api('/ojt/pre-assignments').then(function(d){setPreAssignments(d.data);setLoading(false);}).catch(function(){setLoading(false);});
+    else if(tab === 'leaders') { var promises = programs.map(function(p){return api('/ojt/programs/'+p.id+'/leaders').then(function(d){return {program_id:p.id,program_name:p.name,leaders:d.data};}).catch(function(){return {program_id:p.id,program_name:p.name,leaders:[]};});}); Promise.all(promises).then(function(res){setLeaders(res);setLoading(false);}).catch(function(){setLoading(false);}); }
+    else setLoading(false);
   },[tab]);
-  const loadDetail = function(id) {
-    api(`/ojt/programs/${id}`).then(function(d){setDetail(d.data);setSelected(id);}).catch(function(e){showToast(e.message,'error');});
+
+  var loadDetail = function(id) {
+    api('/ojt/programs/' + id).then(function(d){setDetail(d.data);setSelected(id);}).catch(function(e){showToast(e.message,'error');});
   };
-  const downloadOJTEvals = function() {
-    const wsData = ojtEvaluations.map(function(ev) {
-      return {훈련생: ev.trainee_name || '-', 과제: ev.task_name || '-', 점수: ev.score || '-', 상태: ev.status || '-', 평가자: ev.evaluator_name || '-', 날짜: ev.eval_date || '-', 피드백: ev.feedback || '-'};
+  var downloadOJTEvals = function() {
+    var wsData = ojtEvaluations.map(function(ev) {
+      return {'\uD6C8\uB828\uC0DD': ev.trainee_name||'-', '\uACFC\uC81C': ev.task_name||'-', '\uC810\uC218': ev.score||'-', '\uC0C1\uD0DC': ev.status||'-', '\uD3C9\uAC00\uC790': ev.evaluator_name||'-', '\uB0A0\uC9DC': ev.eval_date||'-', '\uD53C\uB4DC\uBC31': ev.feedback||'-'};
     });
-    const ws = XLSX.utils.json_to_sheet(wsData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'OJT평가');
-    XLSX.writeFile(wb, 'OJT평가_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    var ws = XLSX.utils.json_to_sheet(wsData);
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'OJT\uD3C9\uAC00');
+    XLSX.writeFile(wb, 'OJT\uD3C9\uAC00_' + new Date().toISOString().slice(0, 10) + '.xlsx');
   };
+
+  var handleAddVenue = function() {
+    if(!formData.name) return showToast('\uC7A5\uC18C\uBA85 \uD544\uC218','error');
+    api('/ojt/venues',{method:'POST',body:JSON.stringify(formData)}).then(function(){
+      showToast('\uD6C8\uB828\uC7A5\uC18C \uB4F1\uB85D'); setShowForm(false); setFormData({});
+      api('/ojt/venues').then(function(d){setVenues(d.data);});
+    }).catch(function(e){showToast(e.message,'error');});
+  };
+  var handleAddAnnouncement = function() {
+    if(!formData.title) return showToast('\uC81C\uBAA9 \uD544\uC218','error');
+    api('/ojt/announcements',{method:'POST',body:JSON.stringify(formData)}).then(function(){
+      showToast('\uACF5\uC9C0\uC0AC\uD56D \uB4F1\uB85D'); setShowForm(false); setFormData({});
+      api('/ojt/announcements').then(function(d){setAnnouncements(d.data);});
+    }).catch(function(e){showToast(e.message,'error');});
+  };
+  var handleAddProgram = function() {
+    if(!formData.name) return showToast('\uD504\uB85C\uADF8\uB7A8\uBA85 \uD544\uC218','error');
+    api('/ojt/programs',{method:'POST',body:JSON.stringify(formData)}).then(function(){
+      showToast('\uD504\uB85C\uADF8\uB7A8 \uB4F1\uB85D'); setShowModal(null); setFormData({}); loadAll();
+    }).catch(function(e){showToast(e.message,'error');});
+  };
+  var handleAddSpec = function(type) {
+    if(!formData.title) return showToast('\uC81C\uBAA9 \uD544\uC218','error');
+    var url = type === 'ts' ? '/ojt/training-specs' : '/ojt/eval-specs';
+    api(url,{method:'POST',body:JSON.stringify(formData)}).then(function(){
+      showToast((type==='ts'?'TS':'ES')+' \uB4F1\uB85D'); setShowModal(null); setFormData({});
+      api('/ojt/training-specs').then(function(d){setTrainingSpecs(d.data);});
+      api('/ojt/eval-specs').then(function(d){setEvalSpecs(d.data);});
+    }).catch(function(e){showToast(e.message,'error');});
+  };
+  var handleAddSchedule = function() {
+    if(!formData.title) return showToast('\uC81C\uBAA9 \uD544\uC218','error');
+    api('/ojt/schedules',{method:'POST',body:JSON.stringify(formData)}).then(function(){
+      showToast('\uC77C\uC815 \uB4F1\uB85D'); setShowModal(null); setFormData({});
+      api('/ojt/schedules').then(function(d){setOjtSchedules(d.data);});
+    }).catch(function(e){showToast(e.message,'error');});
+  };
+  var handleAddSurvey = function() {
+    if(!formData.title) return showToast('\uC81C\uBAA9 \uD544\uC218','error');
+    api('/ojt/survey-templates',{method:'POST',body:JSON.stringify(formData)}).then(function(){
+      showToast('\uC11C\uBCA0\uC774 \uB4F1\uB85D'); setShowModal(null); setFormData({});
+      api('/ojt/survey-templates').then(function(d){setSurveyTemplates(d.data);});
+    }).catch(function(e){showToast(e.message,'error');});
+  };
+  var handleAddRoadmap = function() {
+    if(!formData.title || !formData.level) return showToast('\uC81C\uBAA9\uACFC \uB808\uBCA8 \uD544\uC218','error');
+    api('/career-roadmap',{method:'POST',body:JSON.stringify(formData)}).then(function(){
+      showToast('\uB85C\uB4DC\uB9F5 \uB4F1\uB85D'); setShowModal(null); setFormData({});
+      api('/career-roadmap').then(function(d){setRoadmaps(d.data);});
+    }).catch(function(e){showToast(e.message,'error');});
+  };
+
+  var handleAddPreAssignment = function() {
+    if(!formData.title || !formData.program_id) return showToast('\uC81C\uBAA9\uACFC \uD504\uB85C\uADF8\uB7A8 \uD544\uC218','error');
+    api('/ojt/pre-assignments',{method:'POST',body:JSON.stringify(formData)}).then(function(){
+      showToast('\uC0AC\uC804\uACFC\uC81C \uB4F1\uB85D'); setShowModal(null); setFormData({});
+      api('/ojt/pre-assignments').then(function(d){setPreAssignments(d.data);});
+    }).catch(function(e){showToast(e.message,'error');});
+  };
+  var handleAddLeader = function() {
+    if(!formData.program_id || !formData.user_id) return showToast('\uD504\uB85C\uADF8\uB7A8\uACFC \uC0AC\uC6A9\uC790 \uD544\uC218','error');
+    api('/ojt/programs/'+formData.program_id+'/leaders',{method:'POST',body:JSON.stringify({user_id:formData.user_id,role:formData.leader_role||'leader'})}).then(function(){
+      showToast('\uB9AC\uB354/Admin \uB4F1\uB85D'); setShowModal(null); setFormData({});
+      setTab('leaders');
+    }).catch(function(e){showToast(e.message,'error');});
+  };
+
+  var isAdmin = user && (user.role === 'admin' || user.role === 'ojt_admin' || user.role === 'instructor');
+  var isTrainee = user && user.role === 'trainee';
+
+  var filteredPrograms = programs.filter(function(p){
+    if(programFilter === 'all') return true;
+    return p.status === programFilter;
+  });
+
+  var filteredResults = trainingResults.filter(function(r){
+    if(!reportSearch) return true;
+    var s = reportSearch.toLowerCase();
+    return (r.trainee_name && r.trainee_name.toLowerCase().indexOf(s) >= 0) ||
+           (r.program_name && r.program_name.toLowerCase().indexOf(s) >= 0) ||
+           (r.task_name && r.task_name.toLowerCase().indexOf(s) >= 0);
+  });
+
+  var allTabs = [
+    ['programs','\uD83D\uDCCB','\uD504\uB85C\uADF8\uB7A8'],['management','\uD83D\uDEE0\uFE0F','\uD6C8\uB828\uAD00\uB9AC'],['evaluations','\uD83D\uDCDD','\uD3C9\uAC00'],['specs','\uD83D\uDCC4','TS/ES'],
+    ['preassign','\uD83D\uDCE6','\uC0AC\uC804\uACFC\uC81C'],['leaders','\uD83D\uDC65','\uB9AC\uB354/Admin'],['venues','\uD83C\uDFE2','\uD6C8\uB828\uC7A5\uC18C'],['schedules','\uD83D\uDCC5','\uD6C8\uB828\uC77C\uC815'],
+    ['announcements','\uD83D\uDCE2','\uACF5\uC9C0\uC0AC\uD56D'],['surveys','\uD83D\uDCCA','\uC11C\uBCA0\uC774'],['roadmap','\uD83D\uDEE4\uFE0F','\uACBD\uB825\uAC1C\uBC1C'],['results','\uD83C\uDFC6','\uD6C8\uB828\uACB0\uACFC']
+  ];
+  if(isTrainee) allTabs = [['programs','\uD83D\uDCCB','\uD504\uB85C\uADF8\uB7A8'],['mytraining','\uD83C\uDF93','\uB098\uC758 \uD6C8\uB828'],['preassign','\uD83D\uDCE6','\uC0AC\uC804\uACFC\uC81C'],['specs','\uD83D\uDCC4','TS/ES'],['schedules','\uD83D\uDCC5','\uD6C8\uB828\uC77C\uC815'],['announcements','\uD83D\uDCE2','\uACF5\uC9C0\uC0AC\uD56D'],['roadmap','\uD83D\uDEE4\uFE0F','\uACBD\uB825\uAC1C\uBC1C']];
+
+  var renderModal = function() {
+    if(!showModal) return null;
+    var titles = {program:'\uC0C8 OJT \uD504\uB85C\uADF8\uB7A8',ts:'\uC0C8 \uD6C8\uB828\uACC4\uD68D\uC11C (TS)',es:'\uC0C8 \uD6C8\uB828\uD3C9\uAC00 (ES)',schedule:'\uC0C8 \uD6C8\uB828\uC77C\uC815',survey:'\uC0C8 \uC11C\uBCA0\uC774',roadmap:'\uC0C8 \uACBD\uB825\uAC1C\uBC1C \uB85C\uB4DC\uB9F5',preassign:'\uC0C8 \uC0AC\uC804\uACFC\uC81C \uB4F1\uB85D',leader:'\uB9AC\uB354/Admin \uBC30\uC815'};
+    return React.createElement('div',{className:'modal-overlay',onClick:function(e){if(e.target.className==='modal-overlay')setShowModal(null);}},
+      React.createElement('div',{className:'modal',style:{width:560}},
+        React.createElement('div',{className:'modal-header'},React.createElement('h3',{},titles[showModal]||'\uB4F1\uB85D'),React.createElement('button',{className:'close-btn',onClick:function(){setShowModal(null);}},'x')),
+        React.createElement('div',{className:'modal-body'},
+          showModal==='program' && React.createElement(React.Fragment,{},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uD504\uB85C\uADF8\uB7A8\uBA85'),React.createElement('input',{value:formData.name||'',onChange:function(e){setFormData(Object.assign({},formData,{name:e.target.value}));},placeholder:'\uC608: B737 OJT Program'})),
+            React.createElement('div',{className:'grid-2'},
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uAE30\uC885'),React.createElement('input',{value:formData.aircraft_type||'',onChange:function(e){setFormData(Object.assign({},formData,{aircraft_type:e.target.value}));},placeholder:'B737, A320 \uB4F1'})),
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uAE30\uAC04(\uC8FC)'),React.createElement('input',{type:'number',value:formData.duration_weeks||'',onChange:function(e){setFormData(Object.assign({},formData,{duration_weeks:e.target.value}));}}))
+            ),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC124\uBA85'),React.createElement('textarea',{rows:3,value:formData.description||'',onChange:function(e){setFormData(Object.assign({},formData,{description:e.target.value}));}}))
+          ),
+          (showModal==='ts'||showModal==='es') && React.createElement(React.Fragment,{},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uC81C\uBAA9'),React.createElement('input',{value:formData.title||'',onChange:function(e){setFormData(Object.assign({},formData,{title:e.target.value}));}})),
+            React.createElement('div',{className:'grid-2'},
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uD504\uB85C\uADF8\uB7A8'),
+                React.createElement('select',{value:formData.program_id||'',onChange:function(e){setFormData(Object.assign({},formData,{program_id:e.target.value}));}},
+                  React.createElement('option',{value:''},'\uC120\uD0DD'),programs.map(function(p){return React.createElement('option',{key:p.id,value:p.id},p.name);}))),
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uBC84\uC804'),React.createElement('input',{value:formData.version||'1.0',onChange:function(e){setFormData(Object.assign({},formData,{version:e.target.value}));}}))
+            ),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC124\uBA85'),React.createElement('textarea',{rows:3,value:formData.description||'',onChange:function(e){setFormData(Object.assign({},formData,{description:e.target.value}));}}))
+          ),
+          showModal==='schedule' && React.createElement(React.Fragment,{},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uC81C\uBAA9'),React.createElement('input',{value:formData.title||'',onChange:function(e){setFormData(Object.assign({},formData,{title:e.target.value}));}})),
+            React.createElement('div',{className:'grid-2'},
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uD504\uB85C\uADF8\uB7A8'),
+                React.createElement('select',{value:formData.program_id||'',onChange:function(e){setFormData(Object.assign({},formData,{program_id:e.target.value}));}},
+                  React.createElement('option',{value:''},'\uC120\uD0DD'),programs.map(function(p){return React.createElement('option',{key:p.id,value:p.id},p.name);}))),
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uB0A0\uC9DC'),React.createElement('input',{type:'date',value:formData.schedule_date||'',onChange:function(e){setFormData(Object.assign({},formData,{schedule_date:e.target.value}));}}))
+            ),
+            React.createElement('div',{className:'grid-2'},
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC2DC\uC791\uC2DC\uAC04'),React.createElement('input',{type:'time',value:formData.start_time||'',onChange:function(e){setFormData(Object.assign({},formData,{start_time:e.target.value}));}})),
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC885\uB8CC\uC2DC\uAC04'),React.createElement('input',{type:'time',value:formData.end_time||'',onChange:function(e){setFormData(Object.assign({},formData,{end_time:e.target.value}));}}))
+            ),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC7A5\uC18C'),
+              React.createElement('select',{value:formData.venue_id||'',onChange:function(e){setFormData(Object.assign({},formData,{venue_id:e.target.value}));}},
+                React.createElement('option',{value:''},'\uC120\uD0DD'),venues.map(function(v){return React.createElement('option',{key:v.id,value:v.id},v.name);})))
+          ),
+          showModal==='survey' && React.createElement(React.Fragment,{},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uC81C\uBAA9'),React.createElement('input',{value:formData.title||'',onChange:function(e){setFormData(Object.assign({},formData,{title:e.target.value}));}})),
+            React.createElement('div',{className:'grid-2'},
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uD504\uB85C\uADF8\uB7A8'),
+                React.createElement('select',{value:formData.program_id||'',onChange:function(e){setFormData(Object.assign({},formData,{program_id:e.target.value}));}},
+                  React.createElement('option',{value:''},'\uC120\uD0DD'),programs.map(function(p){return React.createElement('option',{key:p.id,value:p.id},p.name);}))),
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC0C1\uD0DC'),
+                React.createElement('select',{value:formData.status||'draft',onChange:function(e){setFormData(Object.assign({},formData,{status:e.target.value}));}},
+                  React.createElement('option',{value:'draft'},'\uCD08\uC548'),React.createElement('option',{value:'active'},'\uD65C\uC131'),React.createElement('option',{value:'closed'},'\uC885\uB8CC')))
+            ),
+            React.createElement('div',{className:'grid-2'},
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC2DC\uC791\uC77C'),React.createElement('input',{type:'date',value:formData.start_date||'',onChange:function(e){setFormData(Object.assign({},formData,{start_date:e.target.value}));}})),
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC885\uB8CC\uC77C'),React.createElement('input',{type:'date',value:formData.end_date||'',onChange:function(e){setFormData(Object.assign({},formData,{end_date:e.target.value}));}}))
+            ),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC124\uBA85'),React.createElement('textarea',{rows:2,value:formData.description||'',onChange:function(e){setFormData(Object.assign({},formData,{description:e.target.value}));}}))
+          ),
+          showModal==='roadmap' && React.createElement(React.Fragment,{},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uC81C\uBAA9'),React.createElement('input',{value:formData.title||'',onChange:function(e){setFormData(Object.assign({},formData,{title:e.target.value}));}})),
+            React.createElement('div',{className:'grid-2'},
+              React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uB808\uBCA8'),
+                React.createElement('select',{value:formData.level||'',onChange:function(e){setFormData(Object.assign({},formData,{level:parseInt(e.target.value)}));}},
+                  React.createElement('option',{value:''},'\uC120\uD0DD'),React.createElement('option',{value:'3'},'Level 3 - Apprentice'),
+                  React.createElement('option',{value:'5'},'Level 5 - Journeyman'),React.createElement('option',{value:'7'},'Level 7 - Craftsman'))),
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uAE30\uC885'),React.createElement('input',{value:formData.aircraft_type||'',onChange:function(e){setFormData(Object.assign({},formData,{aircraft_type:e.target.value}));}}))
+            ),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC124\uBA85'),React.createElement('textarea',{rows:3,value:formData.description||'',onChange:function(e){setFormData(Object.assign({},formData,{description:e.target.value}));}}))
+          ),
+          showModal==='preassign' && React.createElement(React.Fragment,{},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uACFC\uC81C\uBA85'),React.createElement('input',{value:formData.title||'',onChange:function(e){setFormData(Object.assign({},formData,{title:e.target.value}));},placeholder:'\uC0AC\uC804\uACFC\uC81C \uC81C\uBAA9'})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uD504\uB85C\uADF8\uB7A8'),
+              React.createElement('select',{value:formData.program_id||'',onChange:function(e){setFormData(Object.assign({},formData,{program_id:e.target.value}));}},
+                React.createElement('option',{value:''},'\uC120\uD0DD'),programs.map(function(p){return React.createElement('option',{key:p.id,value:p.id},p.name);}))),
+            React.createElement('div',{className:'grid-2'},
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC720\uD615'),
+                React.createElement('select',{value:formData.type||'document',onChange:function(e){setFormData(Object.assign({},formData,{type:e.target.value}));}},
+                  React.createElement('option',{value:'document'},'\uC11C\uB958 \uC81C\uCD9C'),React.createElement('option',{value:'video'},'\uC601\uC0C1 \uC2DC\uCCAD'),React.createElement('option',{value:'quiz'},'\uD000\uC988'),React.createElement('option',{value:'reading'},'\uC790\uB8CC \uC77D\uAE30'))),
+              React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uB9C8\uAC10\uC77C'),React.createElement('input',{type:'date',value:formData.due_date||'',onChange:function(e){setFormData(Object.assign({},formData,{due_date:e.target.value}));}}))
+            ),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC124\uBA85'),React.createElement('textarea',{rows:3,value:formData.description||'',onChange:function(e){setFormData(Object.assign({},formData,{description:e.target.value}));},placeholder:'\uACFC\uC81C \uC0C1\uC138 \uC124\uBA85'}))
+          ),
+          showModal==='leader' && React.createElement(React.Fragment,{},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uD504\uB85C\uADF8\uB7A8'),
+              React.createElement('select',{value:formData.program_id||'',onChange:function(e){setFormData(Object.assign({},formData,{program_id:e.target.value}));}},
+                React.createElement('option',{value:''},'\uC120\uD0DD'),programs.map(function(p){return React.createElement('option',{key:p.id,value:p.id},p.name);}))),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uC0AC\uC6A9\uC790 ID'),React.createElement('input',{type:'number',value:formData.user_id||'',onChange:function(e){setFormData(Object.assign({},formData,{user_id:parseInt(e.target.value)}));},placeholder:'\uC0AC\uC6A9\uC790 ID \uC785\uB825'})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC5ED\uD560'),
+              React.createElement('select',{value:formData.leader_role||'leader',onChange:function(e){setFormData(Object.assign({},formData,{leader_role:e.target.value}));}},
+                React.createElement('option',{value:'leader'},'\uD6C8\uB828 \uB9AC\uB354'),React.createElement('option',{value:'admin'},'\uD6C8\uB828 \uAD00\uB9AC\uC790'),React.createElement('option',{value:'mentor'},'\uBA58\uD1A0')))
+          )
+        ),
+        React.createElement('div',{className:'modal-footer'},
+          React.createElement('button',{className:'btn btn-outline',onClick:function(){setShowModal(null);}},'\uCDE8\uC18C'),
+          React.createElement('button',{className:'btn btn-primary',onClick:function(){
+            if(showModal==='program') handleAddProgram();
+            else if(showModal==='ts') handleAddSpec('ts');
+            else if(showModal==='es') handleAddSpec('es');
+            else if(showModal==='schedule') handleAddSchedule();
+            else if(showModal==='survey') handleAddSurvey();
+            else if(showModal==='roadmap') handleAddRoadmap();
+            else if(showModal==='preassign') handleAddPreAssignment();
+            else if(showModal==='leader') handleAddLeader();
+          }},'\uB4F1\uB85D')
+        )
+      )
+    );
+  };
+
+  var EmptyIcon = function(props) {
+    return React.createElement('div',{style:{textAlign:'center',padding:'48px 20px',animation:'fadeInUp 0.4s ease'}},
+      React.createElement('div',{style:{fontSize:56,marginBottom:12,opacity:0.3}},props.icon||'\uD83D\uDCED'),
+      React.createElement('div',{style:{fontSize:15,fontWeight:600,color:'var(--gray-500)',marginBottom:4}},props.title),
+      props.sub && React.createElement('div',{style:{fontSize:13,color:'var(--gray-400)'}},props.sub)
+    );
+  };
+
   return (
-    <div className="page-content">
-      <div className="tabs">
-        <div className={`tab ${tab==='programs'?'active':''}`} onClick={function(){setTab('programs');}}>프로그램</div>
-        <div className={`tab ${tab==='evaluations'?'active':''}`} onClick={function(){setTab('evaluations');}}>평가</div>
-      </div>
-      {tab==='programs' && (
-        <div className="grid-2">
-          <div className="card"><div className="card-header"><h3>OJT 프로그램</h3></div><div className="card-body">
-            {programs.map(function(p){return (
-              <div key={p.id} onClick={function(){loadDetail(p.id);}} style={{padding:'14px 16px',borderBottom:'1px solid var(--gray-50)',cursor:'pointer',
-                background:selected===p.id?'var(--primary-light)':'transparent',borderRadius:8,marginBottom:4,transition:'all 0.2s'}}>
-                <div style={{fontWeight:600}}>{p.name}</div>
-                <div style={{fontSize:12,color:'var(--gray-500)',marginTop:4}}>{p.aircraft_type} | {p.duration_weeks}주 | <StatusBadge status={p.status}/></div>
-              </div>
-            );})}
-            {programs.length===0&&<div className="empty-state">OJT 프로그램 없음</div>}
-          </div></div>
-          <div className="card"><div className="card-header"><h3>{detail?detail.name:'상세'}</h3></div><div className="card-body">
-            {detail?(<>
-              <p style={{color:'var(--gray-600)',marginBottom:16}}>{detail.description}</p>
-              <h4 style={{marginBottom:10}}>과제 ({(detail.tasks||[]).length})</h4>
-              {(detail.tasks||[]).map(function(t){return (
-                <div key={t.id} style={{padding:'10px 0',borderBottom:'1px solid var(--gray-50)'}}>
-                  <strong>{t.order_num}. {t.name}</strong>
-                  <div style={{fontSize:12,color:'var(--gray-500)'}}>{t.description} | {t.required_hours}h</div></div>
-              );})}
-              <h4 style={{marginTop:20,marginBottom:10}}>참여자 ({(detail.enrollments||[]).length})</h4>
-              {(detail.enrollments||[]).map(function(e){return (
-                <div key={e.id} style={{padding:'8px 0',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid var(--gray-50)'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}><Avatar name={e.trainee_name} size="xs"/>{e.trainee_name}</div>
-                  <span><StatusBadge status={e.status}/> {e.progress}%</span></div>
-              );})}
-            </>):<div className="empty-state">프로그램 선택</div>}
-          </div></div>
-        </div>
-      )}
-      {tab==='evaluations' && (
-        <div>
-          <div style={{marginBottom: 16}}><button className="btn btn-primary btn-sm" onClick={downloadOJTEvals}>📥 엑셀 다운로드</button></div>
-          <div className="card"><div className="card-body"><div className="table-wrapper"><table>
-            <thead><tr><th>훈련생</th><th>과제</th><th>점수</th><th>상태</th><th>평가자</th><th>날짜</th><th>피드백</th></tr></thead>
-            <tbody>{ojtEvaluations.map(function(ev){return (
-              <tr key={ev.id}><td><strong>{ev.trainee_name || '-'}</strong></td><td>{ev.task_name || '-'}</td>
-                <td>{ev.score || '-'}</td><td><StatusBadge status={ev.status} /></td><td>{ev.evaluator_name || '-'}</td>
-                <td>{ev.eval_date || '-'}</td><td style={{fontSize: 12, color: 'var(--gray-600)'}}>{ev.feedback || '-'}</td></tr>
-            );})}{ojtEvaluations.length===0&&<tr><td colSpan="7" className="text-center" style={{padding:40,color:'var(--gray-400)'}}>OJT 평가 없음</td></tr>}</tbody>
-          </table></div></div></div>
-        </div>
-      )}
-    </div>
+    React.createElement('div',{className:'page-content'},
+      renderModal(),
+      React.createElement('div',{style:{display:'flex',gap:6,marginBottom:20,flexWrap:'wrap',background:'rgba(255,255,255,0.6)',backdropFilter:'blur(10px)',padding:'8px 10px',borderRadius:14,border:'1px solid var(--gray-200)'}},
+        allTabs.map(function(t){
+          var isActive = tab===t[0];
+          return React.createElement('div',{key:t[0],onClick:function(){setTab(t[0]);setShowForm(false);setFormData({});},
+            style:{padding:'7px 14px',cursor:'pointer',fontSize:12,fontWeight:isActive?700:500,color:isActive?'#fff':'var(--gray-600)',
+              background:isActive?'linear-gradient(135deg,#2563eb,#4f46e5)':'transparent',borderRadius:10,transition:'all 0.3s',
+              display:'flex',alignItems:'center',gap:5,whiteSpace:'nowrap',
+              boxShadow:isActive?'0 4px 12px rgba(37,99,235,0.3)':'none'}},
+            React.createElement('span',{style:{fontSize:14}},t[1]),t[2]
+          );
+        })
+      ),
+
+      loading && React.createElement(ATMSLoader,{label:'\uB370\uC774\uD130 \uB85C\uB529 \uC911...',sub:'OJT Data'}),
+
+      !loading && tab==='programs' && React.createElement(React.Fragment,{},
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:8}},
+          React.createElement('div',{style:{display:'flex',gap:6}},
+            ['all','\uC804\uCCB4'],['active','\uC9C4\uD589\uC911'],['pending','\uC608\uC815'],['completed','\uC885\uB8CC']].map(function(f){
+              return React.createElement('button',{key:f[0],className:'btn btn-sm '+(programFilter===f[0]?'btn-primary':'btn-outline'),
+                onClick:function(){setProgramFilter(f[0]);}},f[1]);
+            })
+          ),
+          isAdmin && React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowModal('program');setFormData({});}},'\u2795 \uD504\uB85C\uADF8\uB7A8 \uB4F1\uB85D')
+        ),
+        React.createElement('div',{className:'grid-2'},
+          React.createElement('div',{className:'card'},
+            React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83D\uDCCB \uD504\uB85C\uADF8\uB7A8 \uBAA9\uB85D'),React.createElement('span',{className:'badge badge-blue'},filteredPrograms.length)),
+            React.createElement('div',{className:'card-body'},
+              filteredPrograms.map(function(p){return React.createElement('div',{key:p.id,onClick:function(){loadDetail(p.id);},style:{padding:'14px 16px',borderBottom:'1px solid var(--gray-50)',cursor:'pointer',background:selected===p.id?'var(--primary-light)':'transparent',borderRadius:8,marginBottom:4,transition:'all 0.2s'}},
+                React.createElement('div',{style:{fontWeight:600,display:'flex',alignItems:'center',gap:8}},
+                  React.createElement('div',{style:{width:8,height:8,borderRadius:'50%',background:p.status==='active'?'var(--success)':p.status==='completed'?'var(--primary)':'var(--gray-400)'}}),
+                  p.name),
+                React.createElement('div',{style:{fontSize:12,color:'var(--gray-500)',marginTop:4,paddingLeft:16}},p.aircraft_type,' | ',p.duration_weeks,'\uC8FC | ',React.createElement(StatusBadge,{status:p.status}))
+              );}),
+              filteredPrograms.length===0 && React.createElement(EmptyIcon,{icon:'\uD83D\uDCCB',title:programFilter==='all'?'OJT \uD504\uB85C\uADF8\uB7A8 \uC5C6\uC74C':'\uD574\uB2F9 \uC0C1\uD0DC\uC758 \uD504\uB85C\uADF8\uB7A8 \uC5C6\uC74C',sub:'\uC0C8 \uD504\uB85C\uADF8\uB7A8\uC744 \uB4F1\uB85D\uD574 \uBCF4\uC138\uC694'})
+            )
+          ),
+          React.createElement('div',{className:'card'},
+            React.createElement('div',{className:'card-header'},React.createElement('h3',{},detail?('\u2708\uFE0F '+detail.name):'\uC0C1\uC138 \uC815\uBCF4')),
+            React.createElement('div',{className:'card-body'},
+              detail?React.createElement(React.Fragment,{},
+                detail.description && React.createElement('div',{style:{padding:'12px 16px',background:'var(--gray-50)',borderRadius:8,marginBottom:16,fontSize:14,color:'var(--gray-600)',lineHeight:1.6}},detail.description),
+                React.createElement('div',{style:{display:'flex',gap:12,marginBottom:16,flexWrap:'wrap'}},
+                  React.createElement('div',{style:{padding:'8px 16px',background:'var(--primary-light)',borderRadius:8,fontSize:13}},'\uD83D\uDCDA \uACFC\uC81C: ',(detail.tasks||[]).length),
+                  React.createElement('div',{style:{padding:'8px 16px',background:'var(--success-light)',borderRadius:8,fontSize:13}},'\uD83D\uDC65 \uCC38\uC5EC\uC790: ',(detail.enrollments||[]).length)
+                ),
+                React.createElement('h4',{style:{marginBottom:10,fontSize:14,color:'var(--gray-700)'}},'\uD83D\uDCDD \uACFC\uC81C \uBAA9\uB85D'),
+                (detail.tasks||[]).map(function(t){return React.createElement('div',{key:t.id,style:{padding:'10px 16px',borderLeft:'3px solid var(--primary)',background:'var(--gray-50)',borderRadius:'0 8px 8px 0',marginBottom:6}},
+                  React.createElement('strong',{style:{fontSize:14}},t.order_num,'. ',t.name),
+                  React.createElement('div',{style:{fontSize:12,color:'var(--gray-500)',marginTop:2}},t.description,' | ',t.required_hours,'h')
+                );}),
+                React.createElement('h4',{style:{marginTop:20,marginBottom:10,fontSize:14,color:'var(--gray-700)'}},'\uD83D\uDC65 \uCC38\uC5EC\uC790'),
+                (detail.enrollments||[]).map(function(e){return React.createElement('div',{key:e.id,style:{padding:'8px 12px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid var(--gray-50)'}},
+                  React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8}},React.createElement(Avatar,{name:e.trainee_name,size:'xs'}),React.createElement('span',{style:{fontWeight:500}},e.trainee_name)),
+                  React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8}},React.createElement(StatusBadge,{status:e.status}),
+                    React.createElement('div',{style:{width:60}},React.createElement('div',{className:'progress-bar',style:{height:6}},React.createElement('div',{className:'progress-fill',style:{width:(e.progress||0)+'%'}})),
+                    React.createElement('div',{style:{fontSize:10,textAlign:'right',color:'var(--gray-500)',marginTop:2}},e.progress||0,'%'))
+                  )
+                );})
+              ):React.createElement(EmptyIcon,{icon:'\uD83D\uDC48',title:'\uD504\uB85C\uADF8\uB7A8\uC744 \uC120\uD0DD\uD558\uC138\uC694',sub:'\uC88C\uCE21 \uBAA9\uB85D\uC5D0\uC11C \uC120\uD0DD'})
+            )
+          )
+        )
+      ),
+
+      !loading && tab==='evaluations' && React.createElement('div',{},
+        React.createElement('div',{style:{marginBottom:16}},React.createElement('button',{className:'btn btn-primary btn-sm',onClick:downloadOJTEvals},'\uD83D\uDCE5 \uC5D1\uC140 \uB2E4\uC6B4\uB85C\uB4DC')),
+        React.createElement('div',{className:'card'},React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+          React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uD6C8\uB828\uC0DD'),React.createElement('th',{},'\uACFC\uC81C'),React.createElement('th',{},'\uC810\uC218'),React.createElement('th',{},'\uC0C1\uD0DC'),React.createElement('th',{},'\uD3C9\uAC00\uC790'),React.createElement('th',{},'\uB0A0\uC9DC'),React.createElement('th',{},'\uD53C\uB4DC\uBC31'))),
+          React.createElement('tbody',{},
+            ojtEvaluations.map(function(ev){return React.createElement('tr',{key:ev.id},
+              React.createElement('td',{},React.createElement('strong',{},ev.trainee_name||'-')),
+              React.createElement('td',{},ev.task_name||'-'),React.createElement('td',{},ev.score||'-'),
+              React.createElement('td',{},React.createElement(StatusBadge,{status:ev.status})),
+              React.createElement('td',{},ev.evaluator_name||'-'),React.createElement('td',{},ev.eval_date||'-'),
+              React.createElement('td',{style:{fontSize:12,color:'var(--gray-600)'}},ev.feedback||'-')
+            );}),
+            ojtEvaluations.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:7},React.createElement(EmptyIcon,{icon:'\uD83D\uDCDD',title:'\uD3C9\uAC00 \uB370\uC774\uD130 \uC5C6\uC74C'})))
+          )
+        ))))
+      ),
+
+      !loading && tab==='specs' && React.createElement('div',{},
+        isAdmin && React.createElement('div',{style:{marginBottom:16,display:'flex',gap:8}},
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowModal('ts');setFormData({version:'1.0'});}},'\u2795 TS \uB4F1\uB85D'),
+          React.createElement('button',{className:'btn btn-success btn-sm',onClick:function(){setShowModal('es');setFormData({version:'1.0'});}},'\u2795 ES \uB4F1\uB85D')
+        ),
+        React.createElement('div',{className:'grid-2'},
+          React.createElement('div',{className:'card'},
+            React.createElement('div',{className:'card-header',style:{borderLeft:'4px solid var(--primary)'}},React.createElement('h3',{},'\uD83D\uDCC4 \uD6C8\uB828\uACC4\uD68D\uC11C (TS)')),
+            React.createElement('div',{className:'card-body'},
+              trainingSpecs.map(function(ts){return React.createElement('div',{key:ts.id,style:{padding:14,borderBottom:'1px solid var(--gray-100)',marginBottom:4,borderRadius:8,transition:'all 0.2s'}},
+                React.createElement('div',{style:{fontWeight:600,marginBottom:4}},ts.title),
+                React.createElement('div',{style:{fontSize:12,color:'var(--gray-500)',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}},
+                  React.createElement('span',{},ts.program_name||'-'),React.createElement('span',{style:{color:'var(--gray-300)'}},'\u2022'),
+                  React.createElement('span',{},'v',ts.version),React.createElement('span',{style:{color:'var(--gray-300)'}},'\u2022'),
+                  React.createElement(StatusBadge,{status:ts.status})),
+                ts.description && React.createElement('div',{style:{fontSize:13,color:'var(--gray-600)',marginTop:6,lineHeight:1.5}},ts.description)
+              );}),
+              trainingSpecs.length===0 && React.createElement(EmptyIcon,{icon:'\uD83D\uDCC4',title:'\uD6C8\uB828\uACC4\uD68D\uC11C \uC5C6\uC74C',sub:'TS \uBB38\uC11C\uB97C \uB4F1\uB85D\uD574 \uBCF4\uC138\uC694'})
+            )
+          ),
+          React.createElement('div',{className:'card'},
+            React.createElement('div',{className:'card-header',style:{borderLeft:'4px solid var(--success)'}},React.createElement('h3',{},'\uD83D\uDCDD \uD6C8\uB828\uD3C9\uAC00 (ES)')),
+            React.createElement('div',{className:'card-body'},
+              evalSpecs.map(function(es){return React.createElement('div',{key:es.id,style:{padding:14,borderBottom:'1px solid var(--gray-100)',marginBottom:4}},
+                React.createElement('div',{style:{fontWeight:600,marginBottom:4}},es.title),
+                React.createElement('div',{style:{fontSize:12,color:'var(--gray-500)',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}},
+                  React.createElement('span',{},es.program_name||'-'),React.createElement('span',{style:{color:'var(--gray-300)'}},'\u2022'),
+                  React.createElement('span',{},'v',es.version),React.createElement('span',{style:{color:'var(--gray-300)'}},'\u2022'),
+                  React.createElement(StatusBadge,{status:es.status})),
+                es.description && React.createElement('div',{style:{fontSize:13,color:'var(--gray-600)',marginTop:6,lineHeight:1.5}},es.description)
+              );}),
+              evalSpecs.length===0 && React.createElement(EmptyIcon,{icon:'\uD83D\uDCDD',title:'\uD6C8\uB828\uD3C9\uAC00 \uC5C6\uC74C',sub:'ES \uBB38\uC11C\uB97C \uB4F1\uB85D\uD574 \uBCF4\uC138\uC694'})
+            )
+          )
+        )
+      ),
+
+      !loading && tab==='venues' && React.createElement('div',{},
+        isAdmin && React.createElement('div',{style:{marginBottom:16,display:'flex',gap:8}},
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowForm(!showForm);setFormData({});}},showForm?'\uCDE8\uC18C':'\u2795 \uC7A5\uC18C \uB4F1\uB85D')
+        ),
+        showForm && React.createElement('div',{className:'card',style:{marginBottom:16}},React.createElement('div',{className:'card-body'},
+          React.createElement('div',{className:'grid-2'},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uC7A5\uC18C\uBA85'),React.createElement('input',{value:formData.name||'',onChange:function(e){setFormData(Object.assign({},formData,{name:e.target.value}));}})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC704\uCE58'),React.createElement('input',{value:formData.location||'',onChange:function(e){setFormData(Object.assign({},formData,{location:e.target.value}));}})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC218\uC6A9\uC778\uC6D0'),React.createElement('input',{type:'number',value:formData.capacity||'',onChange:function(e){setFormData(Object.assign({},formData,{capacity:e.target.value}));}})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC7A5\uBE44'),React.createElement('input',{value:formData.equipment||'',onChange:function(e){setFormData(Object.assign({},formData,{equipment:e.target.value}));}}))
+          ),
+          React.createElement('button',{className:'btn btn-success btn-sm',onClick:handleAddVenue},'\uC800\uC7A5')
+        )),
+        React.createElement('div',{className:'card'},React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+          React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uC7A5\uC18C\uBA85'),React.createElement('th',{},'\uC704\uCE58'),React.createElement('th',{},'\uC218\uC6A9\uC778\uC6D0'),React.createElement('th',{},'\uC7A5\uBE44'),React.createElement('th',{},'\uC0C1\uD0DC'))),
+          React.createElement('tbody',{},
+            venues.map(function(v){return React.createElement('tr',{key:v.id},
+              React.createElement('td',{},React.createElement('strong',{},v.name)),React.createElement('td',{},v.location||'-'),
+              React.createElement('td',{},v.capacity||'-'),React.createElement('td',{},v.equipment||'-'),
+              React.createElement('td',{},React.createElement(StatusBadge,{status:v.status}))
+            );}),
+            venues.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:5},React.createElement(EmptyIcon,{icon:'\uD83C\uDFE2',title:'\uD6C8\uB828\uC7A5\uC18C \uC5C6\uC74C'})))
+          )
+        ))))
+      ),
+
+      !loading && tab==='schedules' && React.createElement('div',{},
+        isAdmin && React.createElement('div',{style:{marginBottom:16}},
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowModal('schedule');setFormData({});if(venues.length===0)api('/ojt/venues').then(function(d){setVenues(d.data);});}},'\u2795 \uC77C\uC815 \uB4F1\uB85D')
+        ),
+        React.createElement('div',{className:'card'},React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+          React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uC81C\uBAA9'),React.createElement('th',{},'\uD504\uB85C\uADF8\uB7A8'),React.createElement('th',{},'\uB0A0\uC9DC'),React.createElement('th',{},'\uC2DC\uAC04'),React.createElement('th',{},'\uC7A5\uC18C'),React.createElement('th',{},'\uAC15\uC0AC'))),
+          React.createElement('tbody',{},
+            ojtSchedules.map(function(s){return React.createElement('tr',{key:s.id},
+              React.createElement('td',{},React.createElement('strong',{},s.title)),React.createElement('td',{},s.program_name||'-'),
+              React.createElement('td',{},s.schedule_date||'-'),React.createElement('td',{},(s.start_time||'')+' ~ '+(s.end_time||'')),
+              React.createElement('td',{},s.venue_name||'-'),React.createElement('td',{},s.instructor_name||'-')
+            );}),
+            ojtSchedules.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:6},React.createElement(EmptyIcon,{icon:'\uD83D\uDCC5',title:'\uD6C8\uB828\uC77C\uC815 \uC5C6\uC74C'})))
+          )
+        ))))
+      ),
+
+      !loading && tab==='announcements' && React.createElement('div',{},
+        isAdmin && React.createElement('div',{style:{marginBottom:16}},
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowForm(!showForm);setFormData({});}},showForm?'\uCDE8\uC18C':'\u2795 \uACF5\uC9C0 \uC791\uC131')
+        ),
+        showForm && React.createElement('div',{className:'card',style:{marginBottom:16}},React.createElement('div',{className:'card-body'},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uC81C\uBAA9'),React.createElement('input',{value:formData.title||'',onChange:function(e){setFormData(Object.assign({},formData,{title:e.target.value}));}})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uB0B4\uC6A9'),React.createElement('textarea',{rows:4,value:formData.content||'',onChange:function(e){setFormData(Object.assign({},formData,{content:e.target.value}));}})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC6B0\uC120\uC21C\uC704'),
+            React.createElement('select',{value:formData.priority||'normal',onChange:function(e){setFormData(Object.assign({},formData,{priority:e.target.value}));}},
+              React.createElement('option',{value:'low'},'Low'),React.createElement('option',{value:'normal'},'Normal'),
+              React.createElement('option',{value:'high'},'High'),React.createElement('option',{value:'urgent'},'Urgent')
+          )),
+          React.createElement('button',{className:'btn btn-success btn-sm',onClick:handleAddAnnouncement},'\uB4F1\uB85D')
+        )),
+        announcements.length > 0 ? announcements.map(function(a){return React.createElement('div',{key:a.id,className:'card',style:{marginBottom:12}},
+          React.createElement('div',{className:'card-body'},
+            React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}},
+              React.createElement('h4',{style:{display:'flex',alignItems:'center',gap:6}},
+                a.priority==='urgent'?React.createElement('span',{style:{background:'var(--danger)',color:'#fff',padding:'2px 8px',borderRadius:12,fontSize:11}},'URGENT'):
+                a.priority==='high'?React.createElement('span',{style:{background:'var(--warning)',color:'#fff',padding:'2px 8px',borderRadius:12,fontSize:11}},'HIGH'):null,
+                a.title),
+              React.createElement('span',{style:{fontSize:12,color:'var(--gray-400)'}},a.created_at ? a.created_at.slice(0,10) : '')
+            ),
+            React.createElement('p',{style:{color:'var(--gray-600)',fontSize:14,lineHeight:1.6}},a.content||''),
+            React.createElement('div',{style:{fontSize:12,color:'var(--gray-400)',marginTop:8}},'\uC791\uC131\uC790: ',a.created_by_name||'-')
+          )
+        );}) : React.createElement(EmptyIcon,{icon:'\uD83D\uDCE2',title:'\uACF5\uC9C0\uC0AC\uD56D \uC5C6\uC74C',sub:'\uC0C8 \uACF5\uC9C0\uB97C \uC791\uC131\uD574 \uBCF4\uC138\uC694'})
+      ),
+
+      !loading && tab==='surveys' && React.createElement('div',{},
+        isAdmin && React.createElement('div',{style:{marginBottom:16}},
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowModal('survey');setFormData({status:'draft'});}},'\u2795 \uC11C\uBCA0\uC774 \uB4F1\uB85D')
+        ),
+        React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83D\uDCCA \uC11C\uBCA0\uC774 \uD15C\uD50C\uB9BF')),
+          React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+            React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uC81C\uBAA9'),React.createElement('th',{},'\uD504\uB85C\uADF8\uB7A8'),React.createElement('th',{},'\uD56D\uBAA9\uC218'),React.createElement('th',{},'\uC2DC\uC791\uC77C'),React.createElement('th',{},'\uC885\uB8CC\uC77C'),React.createElement('th',{},'\uC0C1\uD0DC'))),
+            React.createElement('tbody',{},
+              surveyTemplates.map(function(st){return React.createElement('tr',{key:st.id},
+                React.createElement('td',{},React.createElement('strong',{},st.title)),React.createElement('td',{},st.program_name||'-'),
+                React.createElement('td',{},st.item_count||0),React.createElement('td',{},st.start_date||'-'),React.createElement('td',{},st.end_date||'-'),
+                React.createElement('td',{},React.createElement(StatusBadge,{status:st.status}))
+              );}),
+              surveyTemplates.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:6},React.createElement(EmptyIcon,{icon:'\uD83D\uDCCA',title:'\uC11C\uBCA0\uC774 \uC5C6\uC74C',sub:'\uC0C8 \uC11C\uBCA0\uC774\uB97C \uB4F1\uB85D\uD574 \uBCF4\uC138\uC694'})))
+            )
+          )))
+        )
+      ),
+
+      !loading && tab==='roadmap' && React.createElement('div',{},
+        isAdmin && React.createElement('div',{style:{marginBottom:16}},
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowModal('roadmap');setFormData({});}},'\u2795 \uB85C\uB4DC\uB9F5 \uB4F1\uB85D')
+        ),
+        [3,5,7].map(function(lvl){
+          var items = roadmaps.filter(function(r){return r.level === lvl;});
+          var levelNames = {3:'Level 3 \u2014 Apprentice', 5:'Level 5 \u2014 Journeyman', 7:'Level 7 \u2014 Craftsman'};
+          var levelColors = {3:'#2563eb', 5:'#7c3aed', 7:'#059669'};
+          var levelIcons = {3:'\uD83D\uDFE6', 5:'\uD83D\uDFEA', 7:'\uD83D\uDFE9'};
+          return React.createElement('div',{key:lvl,className:'card',style:{marginBottom:16,borderLeft:'4px solid '+levelColors[lvl]}},
+            React.createElement('div',{className:'card-header'},
+              React.createElement('h3',{style:{display:'flex',alignItems:'center',gap:8}},levelIcons[lvl],' ',levelNames[lvl]),
+              React.createElement('span',{className:'badge',style:{background:levelColors[lvl]+'20',color:levelColors[lvl]}},items.length,' \uD56D\uBAA9')
+            ),
+            React.createElement('div',{className:'card-body'},
+              items.length > 0 ? items.map(function(rm){return React.createElement('div',{key:rm.id,style:{marginBottom:20,padding:16,background:'var(--gray-50)',borderRadius:12}},
+                React.createElement('h4',{style:{marginBottom:6,display:'flex',alignItems:'center',gap:8}},rm.title),
+                rm.description && React.createElement('p',{style:{fontSize:13,color:'var(--gray-600)',marginBottom:12,lineHeight:1.5}},rm.description),
+                (rm.tasks||[]).map(function(task){return React.createElement('div',{key:task.id,style:{padding:'10px 0 10px 16px',borderLeft:'3px solid '+levelColors[lvl],marginBottom:6,marginLeft:8}},
+                  React.createElement('div',{style:{fontWeight:600,fontSize:14}},task.name),
+                  task.description && React.createElement('div',{style:{fontSize:12,color:'var(--gray-500)',marginTop:2}},task.description),
+                  (task.sub_tasks||[]).map(function(st){return React.createElement('div',{key:st.id,style:{padding:'4px 0 4px 12px',fontSize:13,color:'var(--gray-600)',display:'flex',alignItems:'center',gap:6}},
+                    React.createElement('span',{style:{width:5,height:5,borderRadius:'50%',background:levelColors[lvl],flexShrink:0}}),st.name);})
+                );})
+              );}) : React.createElement('div',{style:{color:'var(--gray-400)',textAlign:'center',padding:24,fontSize:14}},'\uB4F1\uB85D\uB41C \uB85C\uB4DC\uB9F5 \uC5C6\uC74C')
+            )
+          );
+        })
+      ),
+
+      !loading && tab==='results' && React.createElement('div',{},
+        React.createElement('div',{style:{marginBottom:16,display:'flex',gap:12,alignItems:'center'}},
+          React.createElement('input',{placeholder:'\uD6C8\uB828\uC0DD/\uD504\uB85C\uADF8\uB7A8/\uACFC\uC81C \uAC80\uC0C9...',value:reportSearch,onChange:function(e){setReportSearch(e.target.value);},
+            style:{padding:'9px 14px',border:'1.5px solid var(--gray-200)',borderRadius:10,fontSize:14,width:300}}),
+          React.createElement('span',{style:{fontSize:13,color:'var(--gray-500)'}},filteredResults.length,' / ',trainingResults.length,' \uAC74')
+        ),
+        React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83C\uDFC6 \uD6C8\uB828 \uACB0\uACFC')),
+          React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+            React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uD6C8\uB828\uC0DD'),React.createElement('th',{},'\uD504\uB85C\uADF8\uB7A8'),React.createElement('th',{},'\uACFC\uC81C'),React.createElement('th',{},'\uCD9C\uC11D'),React.createElement('th',{},'\uC644\uB8CC'),React.createElement('th',{},'\uC810\uC218'),React.createElement('th',{},'\uB0A0\uC9DC'))),
+            React.createElement('tbody',{},
+              filteredResults.map(function(r){return React.createElement('tr',{key:r.id},
+                React.createElement('td',{},React.createElement('strong',{},r.trainee_name||'-')),React.createElement('td',{},r.program_name||'-'),
+                React.createElement('td',{},r.task_name||'-'),React.createElement('td',{},React.createElement(StatusBadge,{status:r.attendance_status})),
+                React.createElement('td',{},React.createElement(StatusBadge,{status:r.completion_status})),
+                React.createElement('td',{},r.score||'-'),React.createElement('td',{},r.result_date||'-')
+              );}),
+              filteredResults.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:7},React.createElement(EmptyIcon,{icon:'\uD83C\uDFC6',title:reportSearch?'\uAC80\uC0C9 \uACB0\uACFC \uC5C6\uC74C':'\uD6C8\uB828\uACB0\uACFC \uC5C6\uC74C'})))
+            )
+          )))
+        )
+      ),
+
+      !loading && tab==='management' && React.createElement('div',{},
+        React.createElement('div',{className:'stats-grid',style:{marginBottom:20}},
+          React.createElement('div',{className:'stat-card',style:{cursor:'pointer',border:programFilter==='active'?'2px solid var(--success)':''},onClick:function(){setProgramFilter('active');setTab('programs');}},
+            React.createElement('div',{className:'stat-icon',style:{background:'var(--success-light)',color:'var(--success)'}},'\u25B6\uFE0F'),
+            React.createElement('div',{className:'stat-value'},programs.filter(function(p){return p.status==='active';}).length),
+            React.createElement('div',{className:'stat-label'},'\uC9C4\uD589 \uC911 \uD6C8\uB828')),
+          React.createElement('div',{className:'stat-card',style:{cursor:'pointer',border:programFilter==='pending'?'2px solid var(--warning)':''},onClick:function(){setProgramFilter('pending');setTab('programs');}},
+            React.createElement('div',{className:'stat-icon',style:{background:'var(--warning-light)',color:'var(--warning)'}},'\uD83D\uDCC5'),
+            React.createElement('div',{className:'stat-value'},programs.filter(function(p){return p.status==='pending';}).length),
+            React.createElement('div',{className:'stat-label'},'\uC608\uC815 \uD6C8\uB828')),
+          React.createElement('div',{className:'stat-card',style:{cursor:'pointer',border:programFilter==='completed'?'2px solid var(--primary)':''},onClick:function(){setProgramFilter('completed');setTab('programs');}},
+            React.createElement('div',{className:'stat-icon',style:{background:'var(--primary-light)',color:'var(--primary)'}},'\u2705'),
+            React.createElement('div',{className:'stat-value'},programs.filter(function(p){return p.status==='completed';}).length),
+            React.createElement('div',{className:'stat-label'},'\uC885\uB8CC \uD6C8\uB828')),
+          React.createElement('div',{className:'stat-card'},
+            React.createElement('div',{className:'stat-icon',style:{background:'var(--info-light)',color:'var(--info)'}},'\uD83D\uDCCA'),
+            React.createElement('div',{className:'stat-value'},programs.length),
+            React.createElement('div',{className:'stat-label'},'\uC804\uCCB4 \uD504\uB85C\uADF8\uB7A8'))
+        ),
+        React.createElement('div',{className:'grid-3'},
+          ['active','pending','completed'].map(function(status){
+            var labels = {active:'\uC9C4\uD589 \uC911',pending:'\uC608\uC815',completed:'\uC885\uB8CC'};
+            var colors = {active:'var(--success)',pending:'var(--warning)',completed:'var(--primary)'};
+            var icons2 = {active:'\u25B6\uFE0F',pending:'\uD83D\uDCC5',completed:'\u2705'};
+            var filtered = programs.filter(function(p){return p.status===status;});
+            return React.createElement('div',{key:status,className:'card'},
+              React.createElement('div',{className:'card-header',style:{borderLeft:'4px solid '+colors[status]}},
+                React.createElement('h3',{style:{display:'flex',alignItems:'center',gap:6}},icons2[status],' ',labels[status]),
+                React.createElement('span',{className:'badge',style:{background:colors[status]+'20',color:colors[status]}},filtered.length)
+              ),
+              React.createElement('div',{className:'card-body'},
+                filtered.length > 0 ? filtered.map(function(p){return React.createElement('div',{key:p.id,style:{padding:'10px 0',borderBottom:'1px solid var(--gray-50)',cursor:'pointer'},onClick:function(){setSelected(p.id);loadDetail(p.id);setTab('programs');}},
+                  React.createElement('div',{style:{fontWeight:600,fontSize:14}},p.name),
+                  React.createElement('div',{style:{fontSize:12,color:'var(--gray-500)'}},p.aircraft_type||'-',' | ',p.duration_weeks||'-','\uC8FC')
+                );}) : React.createElement('div',{style:{textAlign:'center',padding:20,color:'var(--gray-400)',fontSize:13}},labels[status]+' \uD504\uB85C\uADF8\uB7A8 \uC5C6\uC74C')
+              )
+            );
+          })
+        )
+      ),
+
+      !loading && tab==='preassign' && React.createElement('div',{},
+        isAdmin && React.createElement('div',{style:{marginBottom:16}},
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowModal('preassign');setFormData({});}},'\u2795 \uC0AC\uC804\uACFC\uC81C \uB4F1\uB85D')
+        ),
+        React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83D\uDCE6 \uC0AC\uC804\uACFC\uC81C \uBAA9\uB85D')),
+          React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+            React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uC81C\uBAA9'),React.createElement('th',{},'\uD504\uB85C\uADF8\uB7A8'),React.createElement('th',{},'\uC720\uD615'),React.createElement('th',{},'\uB9C8\uAC10\uC77C'),React.createElement('th',{},'\uC0C1\uD0DC'))),
+            React.createElement('tbody',{},
+              preAssignments.map(function(pa){return React.createElement('tr',{key:pa.id},
+                React.createElement('td',{},React.createElement('strong',{},pa.title)),React.createElement('td',{},pa.program_name||'-'),
+                React.createElement('td',{},React.createElement('span',{className:'badge badge-gray'},pa.assignment_type||'document')),
+                React.createElement('td',{},pa.due_date||'-'),
+                React.createElement('td',{},React.createElement(StatusBadge,{status:pa.status}))
+              );}),
+              preAssignments.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:5},React.createElement(EmptyIcon,{icon:'\uD83D\uDCE6',title:'\uC0AC\uC804\uACFC\uC81C \uC5C6\uC74C'})))
+            )
+          )))
+        )
+      ),
+
+      !loading && tab==='leaders' && React.createElement('div',{},
+        isAdmin && React.createElement('div',{style:{marginBottom:16}},
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowModal('leader');setFormData({});}},'\u2795 \uB9AC\uB354/Admin \uBC30\uC815')
+        ),
+        leaders.map(function(pg){
+          if(!pg.leaders || pg.leaders.length === 0) return null;
+          return React.createElement('div',{key:pg.program_id,className:'card',style:{marginBottom:12}},
+            React.createElement('div',{className:'card-header'},React.createElement('h3',{},pg.program_name)),
+            React.createElement('div',{className:'card-body'},
+              pg.leaders.map(function(l){return React.createElement('div',{key:l.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid var(--gray-50)'}},
+                React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10}},
+                  React.createElement(Avatar,{name:l.user_name,size:'sm'}),
+                  React.createElement('div',{},
+                    React.createElement('div',{style:{fontWeight:600}},l.user_name),
+                    React.createElement('div',{style:{fontSize:12,color:'var(--gray-500)'}},l.user_email||'-')
+                  )
+                ),
+                React.createElement('span',{className:'badge '+(l.role==='dedicated_admin'?'badge-red':'badge-blue')},l.role==='dedicated_admin'?'\uC804\uB2F4 Admin':'Leader')
+              );})
+            )
+          );
+        }),
+        leaders.every(function(pg){return !pg.leaders || pg.leaders.length===0;}) && React.createElement(EmptyIcon,{icon:'\uD83D\uDC65',title:'\uBC30\uC815\uB41C \uB9AC\uB354/Admin \uC5C6\uC74C',sub:'\uD504\uB85C\uADF8\uB7A8\uBCC4 \uB9AC\uB354\uB97C \uBC30\uC815\uD574 \uBCF4\uC138\uC694'})
+      ),
+
+      !loading && tab==='mytraining' && isTrainee && React.createElement('div',{},
+        React.createElement('div',{className:'stats-grid'},
+          React.createElement('div',{className:'stat-card'},
+            React.createElement('div',{className:'stat-icon',style:{background:'var(--primary-light)',color:'var(--primary)'}},'\uD83D\uDCDA'),
+            React.createElement('div',{className:'stat-value'},programs.filter(function(p){return p.status==='active';}).length),
+            React.createElement('div',{className:'stat-label'},'\uC9C4\uD589 \uC911 \uD6C8\uB828')),
+          React.createElement('div',{className:'stat-card'},
+            React.createElement('div',{className:'stat-icon',style:{background:'var(--success-light)',color:'var(--success)'}},'\u2705'),
+            React.createElement('div',{className:'stat-value'},programs.filter(function(p){return p.status==='completed';}).length),
+            React.createElement('div',{className:'stat-label'},'\uC644\uB8CC \uD6C8\uB828')),
+          React.createElement('div',{className:'stat-card'},
+            React.createElement('div',{className:'stat-icon',style:{background:'var(--warning-light)',color:'var(--warning)'}},'\uD83D\uDCC5'),
+            React.createElement('div',{className:'stat-value'},ojtSchedules.length||0),
+            React.createElement('div',{className:'stat-label'},'\uD6C8\uB828 \uC77C\uC815')),
+          React.createElement('div',{className:'stat-card'},
+            React.createElement('div',{className:'stat-icon',style:{background:'var(--danger-light)',color:'var(--danger)'}},'\uD83D\uDCDD'),
+            React.createElement('div',{className:'stat-value'},ojtEvaluations.length||0),
+            React.createElement('div',{className:'stat-label'},'\uD3C9\uAC00 \uACB0\uACFC'))
+        ),
+        React.createElement('div',{className:'grid-2'},
+          React.createElement('div',{className:'card'},
+            React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83C\uDF93 \uB098\uC758 \uD6C8\uB828 \uD504\uB85C\uADF8\uB7A8')),
+            React.createElement('div',{className:'card-body'},
+              [['active','\uD83D\uDD35','\uC9C4\uD589 \uC911'],['scheduled','\uD83D\uDFE1','\uC608\uC815'],['completed','\u2705','\uC885\uB8CC']].map(function(g){
+                var grouped = programs.filter(function(p){return p.status===g[0];});
+                return grouped.length > 0 ? React.createElement('div',{key:g[0],style:{marginBottom:16}},
+                  React.createElement('div',{style:{fontSize:12,fontWeight:700,color:'var(--gray-500)',marginBottom:8,display:'flex',alignItems:'center',gap:6}},g[1],' ',g[2],' (',grouped.length,')'),
+                  grouped.map(function(p){return React.createElement('div',{key:p.id,style:{padding:'10px 12px',marginBottom:6,background:'var(--gray-50)',borderRadius:8,cursor:'pointer',transition:'all 0.2s'},
+                    onClick:function(){setSelected(p.id===selected?null:p.id);if(p.id!==selected){api('/ojt/programs/'+p.id).then(function(d){setDetail(d.data);}).catch(function(){});}}},
+                    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+                      React.createElement('div',{},
+                        React.createElement('div',{style:{fontWeight:600,fontSize:14}},p.name),
+                        React.createElement('div',{style:{fontSize:11,color:'var(--gray-400)'}},p.aircraft_type||'-',' | ',p.duration_weeks||'-','\uC8FC')
+                      ),
+                      React.createElement(StatusBadge,{status:p.status})
+                    ),
+                    selected===p.id && detail && React.createElement('div',{style:{marginTop:10,paddingTop:10,borderTop:'1px solid var(--gray-200)',fontSize:13}},
+                      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
+                        React.createElement('div',{},'\uD83D\uDCCB Sub-tasks: ',(detail.tasks?detail.tasks.length:0)),
+                        React.createElement('div',{},'\uD83D\uDC65 Leaders: ',(detail.leaders?detail.leaders.length:0)),
+                        React.createElement('div',{},'\uD83D\uDCC4 TS: ',(detail.training_specs?detail.training_specs.length:0)),
+                        React.createElement('div',{},'\uD83D\uDCDD ES: ',(detail.eval_specs?detail.eval_specs.length:0))
+                      ),
+                      detail.tasks && detail.tasks.length>0 && React.createElement('div',{style:{marginTop:8}},
+                        React.createElement('div',{style:{fontSize:11,fontWeight:700,color:'var(--gray-500)',marginBottom:4}},'\uD6C8\uB828 TASK \uBAA9\uB85D:'),
+                        detail.tasks.map(function(t,i){return React.createElement('div',{key:i,style:{padding:'4px 0',fontSize:12,color:'var(--gray-600)'}},
+                          (i+1)+'. '+t.name+(t.required_hours?' ('+t.required_hours+'h)':''));})
+                      )
+                    )
+                  );})
+                ) : null;
+              }),
+              programs.length===0 && React.createElement(EmptyIcon,{icon:'\uD83C\uDF93',title:'\uBC30\uC815\uB41C \uD6C8\uB828 \uC5C6\uC74C'})
+            )
+          ),
+          React.createElement('div',{className:'card'},
+            React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83D\uDCCB \uB098\uC758 \uC815\uBCF4')),
+            React.createElement('div',{className:'card-body'},
+              React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+                React.createElement('div',{style:{padding:12,background:'var(--gray-50)',borderRadius:8,textAlign:'center'}},
+                  React.createElement('div',{style:{fontSize:11,color:'var(--gray-500)',marginBottom:4}},'\uCD9C\uC11D\uB960'),
+                  React.createElement('div',{style:{fontSize:24,fontWeight:800,color:'var(--success)'}},'--%')),
+                React.createElement('div',{style:{padding:12,background:'var(--gray-50)',borderRadius:8,textAlign:'center'}},
+                  React.createElement('div',{style:{fontSize:11,color:'var(--gray-500)',marginBottom:4}},'\uD3C9\uAC00 \uD3C9\uADE0'),
+                  React.createElement('div',{style:{fontSize:24,fontWeight:800,color:'var(--primary)'}},'--%')),
+                React.createElement('div',{style:{padding:12,background:'var(--gray-50)',borderRadius:8,textAlign:'center'}},
+                  React.createElement('div',{style:{fontSize:11,color:'var(--gray-500)',marginBottom:4}},'\uC218\uB8CC \uC5EC\uBD80'),
+                  React.createElement('div',{style:{fontSize:24,fontWeight:800,color:'var(--warning)'}},'\uC9C4\uD589\uC911')),
+                React.createElement('div',{style:{padding:12,background:'var(--gray-50)',borderRadius:8,textAlign:'center'}},
+                  React.createElement('div',{style:{fontSize:11,color:'var(--gray-500)',marginBottom:4}},'\uC0AC\uC804\uACFC\uC81C'),
+                  React.createElement('div',{style:{fontSize:24,fontWeight:800,color:'var(--gray-700)'}},preAssignments.length||0))
+              ),
+              preAssignments.length > 0 && React.createElement('div',{style:{marginTop:16}},
+                React.createElement('div',{style:{fontSize:13,fontWeight:700,marginBottom:8}},'\uD83D\uDCE6 \uC0AC\uC804\uACFC\uC81C \uBAA9\uB85D'),
+                preAssignments.map(function(pa){return React.createElement('div',{key:pa.id,style:{padding:'8px 12px',marginBottom:4,background:'var(--gray-50)',borderRadius:6,fontSize:13,display:'flex',justifyContent:'space-between'}},
+                  React.createElement('span',{},pa.title),React.createElement(StatusBadge,{status:pa.status||'pending'}));})
+              )
+            )
+          )
+        )
+      )
+    )
   );
 }
 
-// ━━━━━━━━━━━━ CONTENT ━━━━━━━━━━━━
+// ━━━━━━━━━━━━ CONTENT (Enhanced - ebook, lesson plan, assignment, supplementary, wrap-up test) ━━━━━━━━━━━━
 function ContentPage() {
-  const [items, setItems] = useState([]); const { showToast } = useApp();
-  useEffect(()=>{api('/content').then(d=>setItems(d.data)).catch(e=>showToast(e.message,'error'));},[]);
-  const icons = {ebook:'📕',assessment:'📝',assignment:'📋',lesson_plan:'📖',supplementary:'📎',video:'🎬',document:'📄'};
-  return (
-    <div className="page-content"><div className="card"><div className="card-body"><div className="table-wrapper"><table>
-      <thead><tr><th>제목</th><th>유형</th><th>과정</th><th>모듈</th><th>작성자</th><th>상태</th></tr></thead>
-      <tbody>{items.map(c=>(
-        <tr key={c.id}><td><strong>{icons[c.content_type]||'📄'} {c.title}</strong></td>
-          <td><span className="badge badge-gray">{c.content_type}</span></td>
-          <td>{c.course_name||'-'}</td><td>{c.module_name||'-'}</td><td>{c.uploader_name||'-'}</td><td><StatusBadge status={c.status}/></td></tr>
-      ))}{items.length===0&&<tr><td colSpan="6" className="text-center" style={{padding:40,color:'var(--gray-400)'}}>자료 없음</td></tr>}</tbody>
-    </table></div></div></div></div>
+  var [tab, setTab] = useState('all');
+  var [items, setItems] = useState([]);
+  var [wrapUpTests, setWrapUpTests] = useState([]);
+  var [submissions, setSubmissions] = useState([]);
+  var [showForm, setShowForm] = useState(false);
+  var [showTestModal, setShowTestModal] = useState(false);
+  var [formData, setFormData] = useState({});
+  var [testForm, setTestForm] = useState({time_limit_minutes:30,status:'draft'});
+  var [courses, setCourses] = useState([]);
+  var [loading, setLoading] = useState(false);
+  var ctx = useApp(); var showToast = ctx.showToast; var user = ctx.user;
+  var isInstructor = user && (user.role === 'admin' || user.role === 'instructor' || user.role === 'ojt_admin');
+
+  var loadContent = function(type) {
+    setLoading(true);
+    var url = '/content';
+    if(type && type !== 'all') url += '?content_type=' + type;
+    api(url).then(function(d){setItems(d.data);setLoading(false);}).catch(function(e){showToast(e.message,'error');setLoading(false);});
+  };
+
+  useEffect(function(){
+    if(tab !== 'wrapup' && tab !== 'submissions') loadContent(tab);
+    api('/courses').then(function(d){setCourses(d.data);}).catch(function(){});
+    if(tab === 'wrapup') { setLoading(true); api('/wrapup-tests').then(function(d){setWrapUpTests(d.data);setLoading(false);}).catch(function(){setLoading(false);}); }
+    if(tab === 'submissions') { setLoading(true); api('/assignment-submissions').then(function(d){setSubmissions(d.data);setLoading(false);}).catch(function(){setLoading(false);}); }
+  },[tab]);
+
+  var icons = {ebook:'\uD83D\uDCD5',assessment:'\uD83D\uDCDD',assignment:'\uD83D\uDCCB',lesson_plan:'\uD83D\uDCD6',supplementary:'\uD83D\uDCCE',video:'\uD83C\uDFAC',document:'\uD83D\uDCC4'};
+
+  var handleAddContent = function() {
+    if(!formData.title || !formData.content_type) return showToast('\uC81C\uBAA9\uACFC \uC720\uD615 \uD544\uC218','error');
+    api('/content',{method:'POST',body:JSON.stringify(formData)}).then(function(){
+      showToast('\uD559\uC2B5\uC790\uB8CC \uB4F1\uB85D'); setShowForm(false); setFormData({}); loadContent(tab);
+    }).catch(function(e){showToast(e.message,'error');});
+  };
+
+  var handleCreateTest = function() {
+    if(!testForm.title || !testForm.course_id) return showToast('\uC81C\uBAA9\uACFC \uACFC\uC815 \uD544\uC218','error');
+    api('/wrapup-tests',{method:'POST',body:JSON.stringify(testForm)}).then(function(){
+      showToast('Wrap-up Test \uC0DD\uC131'); setShowTestModal(false); setTestForm({time_limit_minutes:30,status:'draft'});
+      api('/wrapup-tests').then(function(d){setWrapUpTests(d.data);});
+    }).catch(function(e){showToast(e.message,'error');});
+  };
+
+  var EmptyIcon = function(props) {
+    return React.createElement('div',{style:{textAlign:'center',padding:'48px 20px',animation:'fadeInUp 0.4s ease'}},
+      React.createElement('div',{style:{fontSize:56,marginBottom:12,opacity:0.3}},props.icon||'\uD83D\uDCED'),
+      React.createElement('div',{style:{fontSize:15,fontWeight:600,color:'var(--gray-500)',marginBottom:4}},props.title),
+      props.sub && React.createElement('div',{style:{fontSize:13,color:'var(--gray-400)'}},props.sub)
+    );
+  };
+
+  return React.createElement('div',{className:'page-content'},
+    showTestModal && React.createElement('div',{className:'modal-overlay',onClick:function(e){if(e.target.className==='modal-overlay')setShowTestModal(false);}},
+      React.createElement('div',{className:'modal',style:{width:560}},
+        React.createElement('div',{className:'modal-header'},React.createElement('h3',{},'\uD83D\uDCA1 \uC0C8 Wrap-up Test'),React.createElement('button',{className:'close-btn',onClick:function(){setShowTestModal(false);}},'x')),
+        React.createElement('div',{className:'modal-body'},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uD14C\uC2A4\uD2B8\uBA85'),React.createElement('input',{value:testForm.title||'',onChange:function(e){setTestForm(Object.assign({},testForm,{title:e.target.value}));},placeholder:'\uC608: Day 3 - \uAE30\uCCB4\uC5ED\uD559 Wrap-up'})),
+          React.createElement('div',{className:'grid-2'},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uACFC\uC815'),
+              React.createElement('select',{value:testForm.course_id||'',onChange:function(e){setTestForm(Object.assign({},testForm,{course_id:e.target.value}));}},
+                React.createElement('option',{value:''},'\uC120\uD0DD'),courses.map(function(c){return React.createElement('option',{key:c.id,value:c.id},c.name);}))),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC2DC\uD5D8\uC77C'),React.createElement('input',{type:'date',value:testForm.test_date||'',onChange:function(e){setTestForm(Object.assign({},testForm,{test_date:e.target.value}));}}))
+          ),
+          React.createElement('div',{className:'grid-2'},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC81C\uD55C\uC2DC\uAC04(\uBD84)'),React.createElement('input',{type:'number',value:testForm.time_limit_minutes||30,onChange:function(e){setTestForm(Object.assign({},testForm,{time_limit_minutes:parseInt(e.target.value)}));}})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC0C1\uD0DC'),
+              React.createElement('select',{value:testForm.status||'draft',onChange:function(e){setTestForm(Object.assign({},testForm,{status:e.target.value}));}},
+                React.createElement('option',{value:'draft'},'\uCD08\uC548'),React.createElement('option',{value:'published'},'\uBC1C\uD589'),React.createElement('option',{value:'closed'},'\uC885\uB8CC')))
+          ),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC124\uBA85'),React.createElement('textarea',{rows:2,value:testForm.description||'',onChange:function(e){setTestForm(Object.assign({},testForm,{description:e.target.value}));}}))
+        ),
+        React.createElement('div',{className:'modal-footer'},
+          React.createElement('button',{className:'btn btn-outline',onClick:function(){setShowTestModal(false);}},'\uCDE8\uC18C'),
+          React.createElement('button',{className:'btn btn-primary',onClick:handleCreateTest},'\uC0DD\uC131')
+        )
+      )
+    ),
+
+    React.createElement('div',{style:{display:'flex',gap:8,marginBottom:20,flexWrap:'wrap',background:'rgba(255,255,255,0.6)',backdropFilter:'blur(10px)',padding:'8px 12px',borderRadius:14,border:'1px solid var(--gray-200)'}},
+      [['all','\uD83D\uDCDA','\uC804\uCCB4'],['ebook','\uD83D\uDCD5','\uAD50\uC7AC\uC774\uBD81'],['lesson_plan','\uD83D\uDCD6','\uAD50\uC548'],['assignment','\uD83D\uDCCB','\uACFC\uC81C'],['assessment','\uD83D\uDCDD','\uD3C9\uAC00\uC9C0'],['supplementary','\uD83D\uDCCE','\uCD94\uAC00\uD559\uC2B5'],['wrapup','\uD83D\uDCA1','Wrap-up'],['submissions','\uD83D\uDCE4','\uACFC\uC81C\uC81C\uCD9C']].map(function(t){
+        var isActive = tab===t[0];
+        return React.createElement('div',{key:t[0],onClick:function(){setTab(t[0]);setShowForm(false);},
+          style:{padding:'8px 16px',cursor:'pointer',fontSize:13,fontWeight:isActive?700:500,color:isActive?'#fff':'var(--gray-600)',
+            background:isActive?'linear-gradient(135deg,#2563eb,#4f46e5)':'transparent',borderRadius:10,transition:'all 0.3s',
+            display:'flex',alignItems:'center',gap:6,whiteSpace:'nowrap',
+            boxShadow:isActive?'0 4px 12px rgba(37,99,235,0.3)':'none'}},
+          React.createElement('span',{style:{fontSize:15}},t[1]),t[2]
+        );
+      })
+    ),
+
+    loading && React.createElement(ATMSLoader,{label:'\uB370\uC774\uD130 \uB85C\uB529 \uC911...',sub:'Content Data'}),
+
+    !loading && isInstructor && tab !== 'wrapup' && tab !== 'submissions' && React.createElement('div',{style:{marginBottom:16}},
+      React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowForm(!showForm);setFormData({content_type:tab==='all'?'ebook':tab});}},showForm?'\uCDE8\uC18C':'\u2795 \uC790\uB8CC \uB4F1\uB85D')
+    ),
+    showForm && React.createElement('div',{className:'card',style:{marginBottom:16}},React.createElement('div',{className:'card-body'},
+      React.createElement('div',{className:'grid-2'},
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uC81C\uBAA9'),React.createElement('input',{value:formData.title||'',onChange:function(e){setFormData(Object.assign({},formData,{title:e.target.value}));}})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},'\uC720\uD615'),
+          React.createElement('select',{value:formData.content_type||'ebook',onChange:function(e){setFormData(Object.assign({},formData,{content_type:e.target.value}));}},
+            React.createElement('option',{value:'ebook'},'\uAD50\uC7AC\uC774\uBD81'),React.createElement('option',{value:'lesson_plan'},'\uAD50\uC548'),
+            React.createElement('option',{value:'assignment'},'\uACFC\uC81C'),React.createElement('option',{value:'assessment'},'\uD3C9\uAC00\uC9C0'),
+            React.createElement('option',{value:'supplementary'},'\uCD94\uAC00\uD559\uC2B5'),React.createElement('option',{value:'video'},'\uBE44\uB514\uC624'),React.createElement('option',{value:'document'},'\uBB38\uC11C')
+        )),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uACFC\uC815'),
+          React.createElement('select',{value:formData.course_id||'',onChange:function(e){setFormData(Object.assign({},formData,{course_id:e.target.value}));}},
+            React.createElement('option',{value:''},'\uC120\uD0DD'),
+            courses.map(function(c){return React.createElement('option',{key:c.id,value:c.id},c.name);})
+        )),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC124\uBA85'),React.createElement('input',{value:formData.description||'',onChange:function(e){setFormData(Object.assign({},formData,{description:e.target.value}));}}))
+      ),
+      React.createElement('button',{className:'btn btn-success btn-sm',onClick:handleAddContent},'\uC800\uC7A5')
+    )),
+
+    !loading && (tab !== 'wrapup' && tab !== 'submissions') && React.createElement('div',{className:'card'},React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+      React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uC81C\uBAA9'),React.createElement('th',{},'\uC720\uD615'),React.createElement('th',{},'\uACFC\uC815'),React.createElement('th',{},'\uBAA8\uB4C8'),React.createElement('th',{},'\uC791\uC131\uC790'),React.createElement('th',{},'\uC0C1\uD0DC'))),
+      React.createElement('tbody',{},
+        items.map(function(c){return React.createElement('tr',{key:c.id},
+          React.createElement('td',{},React.createElement('strong',{},(icons[c.content_type]||'\uD83D\uDCC4'),' ',c.title)),
+          React.createElement('td',{},React.createElement('span',{className:'badge badge-gray'},c.content_type)),
+          React.createElement('td',{},c.course_name||'-'),React.createElement('td',{},c.module_name||'-'),
+          React.createElement('td',{},c.uploader_name||'-'),React.createElement('td',{},React.createElement(StatusBadge,{status:c.status}))
+        );}),
+        items.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:6},React.createElement(EmptyIcon,{icon:'\uD83D\uDCDA',title:'\uD559\uC2B5 \uC790\uB8CC \uC5C6\uC74C',sub:'\uC0C8 \uC790\uB8CC\uB97C \uB4F1\uB85D\uD574 \uBCF4\uC138\uC694'})))
+      )
+    )))),
+
+    !loading && tab === 'wrapup' && React.createElement('div',{},
+      isInstructor && React.createElement('div',{style:{marginBottom:16}},
+        React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowTestModal(true);setTestForm({time_limit_minutes:30,status:'draft'});}},'\u2795 Wrap-up Test \uC0DD\uC131')
+      ),
+      React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83D\uDCA1 Wrap-up Tests')),
+        React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+          React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uC81C\uBAA9'),React.createElement('th',{},'\uACFC\uC815'),React.createElement('th',{},'\uAC15\uC0AC'),React.createElement('th',{},'\uBB38\uD56D\uC218'),React.createElement('th',{},'\uC2DC\uD5D8\uC77C'),React.createElement('th',{},'\uC81C\uD55C\uC2DC\uAC04'),React.createElement('th',{},'\uC0C1\uD0DC'))),
+          React.createElement('tbody',{},
+            wrapUpTests.map(function(t){return React.createElement('tr',{key:t.id},
+              React.createElement('td',{},React.createElement('strong',{},t.title)),React.createElement('td',{},t.course_name||'-'),
+              React.createElement('td',{},t.instructor_name||'-'),React.createElement('td',{},React.createElement('span',{className:'badge badge-blue'},t.question_count||0,' \uBB38\uD56D')),
+              React.createElement('td',{},t.test_date||'-'),React.createElement('td',{},t.time_limit_minutes,'\uBD84'),
+              React.createElement('td',{},React.createElement(StatusBadge,{status:t.status}))
+            );}),
+            wrapUpTests.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:7},React.createElement(EmptyIcon,{icon:'\uD83D\uDCA1',title:'\uD14C\uC2A4\uD2B8 \uC5C6\uC74C',sub:'\uC0C8 Wrap-up Test\uB97C \uC0DD\uC131\uD574 \uBCF4\uC138\uC694'})))
+          )
+        )))
+      )
+    ),
+
+    !loading && tab === 'submissions' && React.createElement('div',{},
+      React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83D\uDCE4 \uACFC\uC81C \uC81C\uCD9C \uD604\uD669')),
+        React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+          React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uACFC\uC81C'),React.createElement('th',{},'\uACFC\uC815'),React.createElement('th',{},'\uD6C8\uB828\uC0DD'),React.createElement('th',{},'\uC810\uC218'),React.createElement('th',{},'\uC0C1\uD0DC'),React.createElement('th',{},'\uC81C\uCD9C\uC77C'))),
+          React.createElement('tbody',{},
+            submissions.map(function(s){return React.createElement('tr',{key:s.id},
+              React.createElement('td',{},React.createElement('strong',{},s.content_title||'-')),React.createElement('td',{},s.course_name||'-'),
+              React.createElement('td',{},s.trainee_name||'-'),React.createElement('td',{},s.score ? (s.score+'/'+s.max_score) : '-'),
+              React.createElement('td',{},React.createElement(StatusBadge,{status:s.status})),
+              React.createElement('td',{},s.submitted_at ? s.submitted_at.slice(0,10) : '-')
+            );}),
+            submissions.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:6},React.createElement(EmptyIcon,{icon:'\uD83D\uDCE4',title:'\uC81C\uCD9C \uC5C6\uC74C',sub:'\uACFC\uC81C \uC81C\uCD9C \uB0B4\uC5ED\uC774 \uC5C6\uC2B5\uB2C8\uB2E4'})))
+          )
+        )))
+      )
+    )
   );
 }
 
 // ━━━━━━━━━━━━ REPORTS ━━━━━━━━━━━━
 function ReportsPage() {
-  const [tab, setTab] = useState('courses'); const [cd, setCd] = useState([]); const [td2, setTd] = useState([]); const [md, setMd] = useState(null);
-  const { showToast } = useApp();
-  useEffect(()=>{
-    if(tab==='courses') api('/reports/courses').then(d=>setCd(d.data)).catch(e=>showToast(e.message,'error'));
-    if(tab==='trainees') api('/reports/trainees').then(d=>setTd(d.data)).catch(e=>showToast(e.message,'error'));
-    if(tab==='trends') api('/reports/monthly').then(d=>setMd(d.data)).catch(e=>showToast(e.message,'error'));
+  var _tab2 = useState('courses'); var tab = _tab2[0]; var setTab = _tab2[1];
+  var _cd2 = useState([]); var cd = _cd2[0]; var setCd = _cd2[1];
+  var _td3 = useState([]); var td2 = _td3[0]; var setTd = _td3[1];
+  var _md2 = useState(null); var md = _md2[0]; var setMd = _md2[1];
+  var _att2 = useState([]); var attData = _att2[0]; var setAttData = _att2[1];
+  var _search2 = useState(''); var searchTerm = _search2[0]; var setSearchTerm = _search2[1];
+  var ctx = useApp(); var showToast = ctx.showToast; var user = ctx.user;
+  useEffect(function(){
+    if(tab==='courses') api('/reports/courses').then(function(d){setCd(d.data);}).catch(function(e){showToast(e.message,'error');});
+    if(tab==='trainees') api('/reports/trainees').then(function(d){setTd(d.data);}).catch(function(e){showToast(e.message,'error');});
+    if(tab==='trends') api('/reports/monthly').then(function(d){setMd(d.data);}).catch(function(e){showToast(e.message,'error');});
+    if(tab==='attendance') api('/reports/attendance').then(function(d){setAttData(d.data);}).catch(function(e){showToast(e.message,'error');});
   },[tab]);
-  return (
-    <div className="page-content">
-      <div className="tabs">
-        <div className={`tab ${tab==='courses'?'active':''}`} onClick={()=>setTab('courses')}>과정별</div>
-        <div className={`tab ${tab==='trainees'?'active':''}`} onClick={()=>setTab('trainees')}>훈련생별</div>
-        <div className={`tab ${tab==='trends'?'active':''}`} onClick={()=>setTab('trends')}>월별 추이</div>
-      </div>
-      {tab==='courses'&&<div className="card"><div className="card-body"><div className="table-wrapper"><table>
-        <thead><tr><th>과정</th><th>유형</th><th>등록</th><th>수료</th><th>평균</th><th>만족도</th><th>상태</th></tr></thead>
-        <tbody>{cd.map(c=>(<tr key={c.id}><td><strong>{c.name}</strong></td><td>{c.type}</td><td>{c.enrolled_count}</td><td>{c.completed_count}</td>
-          <td>{c.avg_score||'-'}</td><td>{c.avg_satisfaction||'-'}</td><td><StatusBadge status={c.status}/></td></tr>))}</tbody>
-      </table></div></div></div>}
-      {tab==='trainees'&&<div className="card"><div className="card-body"><div className="table-wrapper"><table>
-        <thead><tr><th>사번</th><th>이름</th><th>부서</th><th>등록</th><th>수료</th><th>평균</th></tr></thead>
-        <tbody>{td2.map(t=>(<tr key={t.id}><td>{t.employee_id}</td><td><strong>{t.name}</strong></td><td>{t.department||'-'}</td>
-          <td>{t.courses_enrolled}</td><td>{t.courses_completed}</td><td>{t.avg_score||'-'}</td></tr>))}</tbody>
-      </table></div></div></div>}
-      {tab==='trends'&&md&&<div className="grid-2">
-        <div className="card"><div className="card-header"><h3>등록/수료 추이</h3></div><div className="card-body">
-          {md.enrollment_trends.length>0?<SimpleBarChart data={md.enrollment_trends} labelKey="month" valueKey="enrollments"
-            gradient="linear-gradient(180deg,#2563eb,#7c3aed)"/>:<p style={{color:'var(--gray-400)',textAlign:'center'}}>데이터 없음</p>}
-        </div></div>
-        <div className="card"><div className="card-header"><h3>평균 점수 추이</h3></div><div className="card-body">
-          {md.evaluation_trends.length>0?<SimpleBarChart data={md.evaluation_trends} labelKey="month" valueKey="avg_score"
-            gradient="linear-gradient(180deg,#059669,#0891b2)"/>:<p style={{color:'var(--gray-400)',textAlign:'center'}}>데이터 없음</p>}
-        </div></div>
-      </div>}
-    </div>
+  var filteredTrainees = td2.filter(function(t){
+    if(!searchTerm) return true;
+    var s = searchTerm.toLowerCase();
+    return (t.name && t.name.toLowerCase().indexOf(s)>=0) || (t.employee_id && t.employee_id.toLowerCase().indexOf(s)>=0) || (t.department && t.department.toLowerCase().indexOf(s)>=0);
+  });
+  return React.createElement('div',{className:'page-content'},
+    React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:20}},
+      [['courses','\uD83D\uDCCA','\uACFC\uC815\uBCC4'],['trainees','\uD83D\uDC65','\uD6C8\uB828\uC0DD\uBCC4'],['attendance','\uD83D\uDCCB','\uCD9C\uACB0\uD604\uD669'],['trends','\uD83D\uDCC8','\uC6D4\uBCC4 \uCD94\uC774']].map(function(t){
+        return React.createElement('button',{key:t[0],className:'btn '+(tab===t[0]?'btn-primary':'btn-outline')+' btn-sm',
+          style:{borderRadius:20,display:'flex',alignItems:'center',gap:6},onClick:function(){setTab(t[0]);}},t[1]+' '+t[2]);
+      })
+    ),
+    tab==='courses' && React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83D\uDCCA \uACFC\uC815\uBCC4 \uC131\uACFC \uBD84\uC11D')),React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+      React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uACFC\uC815'),React.createElement('th',{},'\uC720\uD615'),React.createElement('th',{},'\uB4F1\uB85D'),React.createElement('th',{},'\uC218\uB8CC'),React.createElement('th',{},'\uD3C9\uADE0'),React.createElement('th',{},'\uB9CC\uC871\uB3C4'),React.createElement('th',{},'\uC0C1\uD0DC'))),
+      React.createElement('tbody',{},cd.map(function(c){return React.createElement('tr',{key:c.id},React.createElement('td',{},React.createElement('strong',{},c.name)),React.createElement('td',{},c.type),React.createElement('td',{},c.enrolled_count),React.createElement('td',{},c.completed_count),
+        React.createElement('td',{},c.avg_score||'-'),React.createElement('td',{},c.avg_satisfaction||'-'),React.createElement('td',{},React.createElement(StatusBadge,{status:c.status})));}),
+        cd.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:7,style:{textAlign:'center',padding:32,color:'var(--gray-400)'}},'\uB370\uC774\uD130 \uC5C6\uC74C'))
+      )
+    )))),
+    tab==='trainees' && React.createElement('div',{},
+      React.createElement('div',{style:{marginBottom:16}},
+        React.createElement('input',{type:'text',placeholder:'\uD6C8\uB828\uC0DD \uAC80\uC0C9 (\uC774\uB984, \uC0AC\uBC88, \uBD80\uC11C)...',value:searchTerm,onChange:function(e){setSearchTerm(e.target.value);},style:{width:'100%',maxWidth:400,padding:'10px 16px',border:'1.5px solid var(--gray-200)',borderRadius:10,fontSize:14}})
+      ),
+      React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83D\uDC65 \uD6C8\uB828\uC0DD\uBCC4 \uC131\uACFC')),React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+        React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uC0AC\uBC88'),React.createElement('th',{},'\uC774\uB984'),React.createElement('th',{},'\uBD80\uC11C'),React.createElement('th',{},'\uB4F1\uB85D'),React.createElement('th',{},'\uC218\uB8CC'),React.createElement('th',{},'\uD3C9\uADE0'))),
+        React.createElement('tbody',{},filteredTrainees.map(function(t){return React.createElement('tr',{key:t.id},React.createElement('td',{},t.employee_id),React.createElement('td',{},React.createElement('strong',{},t.name)),React.createElement('td',{},t.department||'-'),
+          React.createElement('td',{},t.courses_enrolled),React.createElement('td',{},t.courses_completed),React.createElement('td',{},t.avg_score||'-'));}),
+          filteredTrainees.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:6,style:{textAlign:'center',padding:32,color:'var(--gray-400)'}},searchTerm ? '\uAC80\uC0C9 \uACB0\uACFC \uC5C6\uC74C' : '\uB370\uC774\uD130 \uC5C6\uC74C'))
+        )
+      ))))
+    ),
+    tab==='attendance' && React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83D\uDCCB \uCD9C\uACB0 \uD604\uD669 \uBCF4\uACE0\uC11C')),
+      React.createElement('div',{className:'card-body'},
+        attData.length > 0 ? React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+          React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uACFC\uC815'),React.createElement('th',{},'\uAD50\uAD00'),React.createElement('th',{},'\uB4F1\uB85D\uC778\uC6D0'),React.createElement('th',{},'\uCD9C\uC11D'),React.createElement('th',{},'\uACB0\uC11D'),React.createElement('th',{},'\uC9C0\uAC01'),React.createElement('th',{},'\uCD9C\uC11D\uB960'))),
+          React.createElement('tbody',{},attData.map(function(a,i){
+            var rate = a.total > 0 ? Math.round(a.present / a.total * 100) : 0;
+            return React.createElement('tr',{key:i},React.createElement('td',{},React.createElement('strong',{},a.course_name||a.schedule_title||'-')),React.createElement('td',{},a.instructor_name||'-'),React.createElement('td',{},a.total||0),React.createElement('td',{style:{color:'var(--success)'}},a.present||0),React.createElement('td',{style:{color:'var(--danger)'}},a.absent||0),React.createElement('td',{style:{color:'var(--warning)'}},a.late||0),
+              React.createElement('td',{},React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                React.createElement('div',{style:{flex:1,height:8,background:'var(--gray-100)',borderRadius:4,overflow:'hidden'}},React.createElement('div',{style:{width:rate+'%',height:'100%',background:rate>=80?'var(--success)':rate>=60?'var(--warning)':'var(--danger)',borderRadius:4}})),
+                React.createElement('span',{style:{fontSize:13,fontWeight:600}},rate+'%')
+              )));
+          }))
+        )) : React.createElement('div',{style:{textAlign:'center',padding:48,color:'var(--gray-400)'}},'\uCD9C\uACB0 \uB370\uC774\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4')
+      )
+    ),
+    tab==='trends' && md && React.createElement('div',{className:'grid-2'},
+      React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uB4F1\uB85D/\uC218\uB8CC \uCD94\uC774')),React.createElement('div',{className:'card-body'},
+        md.enrollment_trends.length>0 ? React.createElement(SimpleBarChart,{data:md.enrollment_trends,labelKey:'month',valueKey:'enrollments',gradient:'linear-gradient(180deg,#2563eb,#7c3aed)'}) : React.createElement('p',{style:{color:'var(--gray-400)',textAlign:'center'}},'\uB370\uC774\uD130 \uC5C6\uC74C')
+      )),
+      React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD3C9\uADE0 \uC810\uC218 \uCD94\uC774')),React.createElement('div',{className:'card-body'},
+        md.evaluation_trends.length>0 ? React.createElement(SimpleBarChart,{data:md.evaluation_trends,labelKey:'month',valueKey:'avg_score',gradient:'linear-gradient(180deg,#059669,#0891b2)'}) : React.createElement('p',{style:{color:'var(--gray-400)',textAlign:'center'}},'\uB370\uC774\uD130 \uC5C6\uC74C')
+      ))
+    )
   );
 }
 
@@ -2933,10 +3750,19 @@ function NotificationsPage() {
 function ProfilePage() {
   const [profile, setProfile] = useState(null); const [editing, setEditing] = useState(false); const [form, setForm] = useState({});
   const [pwForm, setPwForm] = useState({current_password:'',new_password:'',confirm_password:''});
+  const [extProfile, setExtProfile] = useState({}); const [editingExt, setEditingExt] = useState(false); const [extForm, setExtForm] = useState({});
   const fileRef = useRef(null);
   const { showToast, refreshUser } = useApp();
-  const loadProfile = () => api('/auth/profile').then(d=>{setProfile(d.data);setForm(d.data);}).catch(e=>showToast(e.message,'error'));
+  const loadProfile = () => api('/auth/profile').then(d=>{setProfile(d.data);setForm(d.data);
+    api('/users/'+d.data.id+'/profile-ext').then(function(e){setExtProfile(e.data||{});setExtForm(e.data||{});}).catch(function(){});
+  }).catch(e=>showToast(e.message,'error'));
   useEffect(()=>{loadProfile();},[]);
+  const handleExtSave = async () => {
+    try { await api('/users/'+profile.id+'/profile-ext',{method:'PUT',body:JSON.stringify(extForm)});
+      showToast('\uD655\uC7A5 \uD504\uB85C\uD544 \uC800\uC7A5','success'); setEditingExt(false);
+      api('/users/'+profile.id+'/profile-ext').then(function(e){setExtProfile(e.data||{});setExtForm(e.data||{});});
+    } catch(e) { showToast(e.message,'error'); }
+  };
   const handlePhotoUpload = async (e) => {
     const file = e.target.files[0]; if(!file) return;
     const fd = new FormData(); fd.append('photo', file);
@@ -2946,7 +3772,7 @@ function ProfilePage() {
         method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
       const data = await res.json();
       if(!res.ok) throw new Error(data.error);
-      showToast('사진 업로드 완료','success'); loadProfile(); refreshUser();
+      showToast('\uC0AC\uC9C4 \uC5C5\uB85C\uB4DC \uC644\uB8CC','success'); loadProfile(); refreshUser();
     } catch(e) { showToast(e.message,'error'); }
   };
   const handleSave = async () => {
@@ -2999,7 +3825,48 @@ function ProfilePage() {
           <button className="btn btn-primary" onClick={handlePwChange}>변경</button>
         </div>
       </div>
-    </div></div>
+    </div>
+    {React.createElement('div',{className:'card',style:{marginTop:20}},
+      React.createElement('div',{className:'card-header'},
+        React.createElement('h3',{},'\uD83D\uDCCB \uD655\uC7A5 \uD504\uB85C\uD544 \uC815\uBCF4'),
+        !editingExt && React.createElement('button',{className:'btn btn-outline btn-sm',onClick:function(){setEditingExt(true);setExtForm(extProfile||{});}},'\uC218\uC815')
+      ),
+      React.createElement('div',{className:'card-body'},
+        editingExt ? React.createElement(React.Fragment,{},
+          React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC804\uACF5'),React.createElement('input',{value:extForm.major||'',onChange:function(e){setExtForm(Object.assign({},extForm,{major:e.target.value}));}})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC131\uBCC4'),
+              React.createElement('select',{value:extForm.gender||'',onChange:function(e){setExtForm(Object.assign({},extForm,{gender:e.target.value}));}},
+                React.createElement('option',{value:''},'\uC120\uD0DD'),React.createElement('option',{value:'male'},'\uB0A8'),React.createElement('option',{value:'female'},'\uC5EC'))),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC0DD\uB144\uC6D4\uC77C'),React.createElement('input',{type:'date',value:extForm.date_of_birth||'',onChange:function(e){setExtForm(Object.assign({},extForm,{date_of_birth:e.target.value}));}})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC870\uC9C1'),React.createElement('input',{value:extForm.organization||'',onChange:function(e){setExtForm(Object.assign({},extForm,{organization:e.target.value}));}})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC790\uACA9\uC99D'),React.createElement('input',{value:extForm.qualifications||'',onChange:function(e){setExtForm(Object.assign({},extForm,{qualifications:e.target.value}));}})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uBE44\uC790 \uC815\uBCF4'),React.createElement('input',{value:extForm.visa_info||'',onChange:function(e){setExtForm(Object.assign({},extForm,{visa_info:e.target.value}));}})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uBE44\uC790 \uB9CC\uB8CC\uC77C'),React.createElement('input',{type:'date',value:extForm.visa_expiry||'',onChange:function(e){setExtForm(Object.assign({},extForm,{visa_expiry:e.target.value}));}})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uAC74\uAC15\uAC80\uC9C4'),React.createElement('input',{value:extForm.medical_check||'',onChange:function(e){setExtForm(Object.assign({},extForm,{medical_check:e.target.value}));}})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uACBD\uB825\uC0AC\uD56D'),React.createElement('input',{value:extForm.career_history||'',onChange:function(e){setExtForm(Object.assign({},extForm,{career_history:e.target.value}));}})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC804\uBB38\uAE30\uC220'),React.createElement('input',{value:extForm.specialty_skill||'',onChange:function(e){setExtForm(Object.assign({},extForm,{specialty_skill:e.target.value}));}}))
+          ),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC0AC\uC804\uD6C8\uB828'),React.createElement('textarea',{rows:2,value:extForm.pre_training||'',onChange:function(e){setExtForm(Object.assign({},extForm,{pre_training:e.target.value}));}})),
+          React.createElement('div',{style:{display:'flex',gap:8,marginTop:8}},
+            React.createElement('button',{className:'btn btn-primary',onClick:handleExtSave},'\uC800\uC7A5'),
+            React.createElement('button',{className:'btn btn-outline',onClick:function(){setEditingExt(false);setExtForm(extProfile||{});}},'\uCDE8\uC18C'))
+        ) : React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:16}},
+          [
+            ['\uC804\uACF5',extProfile.major],['\uC131\uBCC4',extProfile.gender==='male'?'\uB0A8':extProfile.gender==='female'?'\uC5EC':'-'],
+            ['\uC0DD\uB144\uC6D4\uC77C',extProfile.date_of_birth],['\uC870\uC9C1',extProfile.organization],
+            ['\uC790\uACA9\uC99D',extProfile.qualifications],['\uBE44\uC790 \uC815\uBCF4',extProfile.visa_info],
+            ['\uBE44\uC790 \uB9CC\uB8CC',extProfile.visa_expiry],['\uAC74\uAC15\uAC80\uC9C4',extProfile.medical_check],
+            ['\uACBD\uB825\uC0AC\uD56D',extProfile.career_history],['\uC804\uBB38\uAE30\uC220',extProfile.specialty_skill],
+            ['\uC0AC\uC804\uD6C8\uB828',extProfile.pre_training]
+          ].map(function(item){return React.createElement('div',{key:item[0]},
+            React.createElement('span',{style:{fontSize:12,color:'var(--gray-500)'}},item[0]),
+            React.createElement('div',{style:{fontWeight:500,marginTop:2}},item[1]||'-')
+          );})
+        )
+      )
+    )}
+    </div>
   );
 }
 
@@ -4910,6 +5777,222 @@ function PilotPage() {
   );
 }
 
+// ━━━━━━━━━━━━ DIGITAL SIGNATURES (JPG 서명) ━━━━━━━━━━━━
+function DigitalSignaturesPage() {
+  var [sigs, setSigs] = useState([]);
+  var [courses, setCourses] = useState([]);
+  var [showSign, setShowSign] = useState(false);
+  var [selectedCourse, setSelectedCourse] = useState('');
+  var [loading, setLoading] = useState(true);
+  var canvasRef = useRef(null);
+  var isDrawing = useRef(false);
+  var ctx2 = useApp(); var showToast = ctx2.showToast; var user = ctx2.user;
+
+  useEffect(function(){
+    Promise.all([api('/digital-signatures'),api('/courses')]).then(function(res){
+      setSigs(res[0].data);setCourses(res[1].data);setLoading(false);
+    }).catch(function(e){showToast(e.message,'error');setLoading(false);});
+  },[]);
+
+  var initCanvas = function() {
+    setTimeout(function(){
+      var canvas = canvasRef.current;
+      if(!canvas) return;
+      canvas.width = 400; canvas.height = 200;
+      var c = canvas.getContext('2d');
+      c.fillStyle = '#fff'; c.fillRect(0,0,400,200);
+      c.strokeStyle = '#000'; c.lineWidth = 2; c.lineCap = 'round';
+    },100);
+  };
+
+  var startDraw = function(e) {
+    isDrawing.current = true;
+    var c = canvasRef.current.getContext('2d');
+    var rect = canvasRef.current.getBoundingClientRect();
+    c.beginPath();
+    c.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+  };
+  var draw = function(e) {
+    if(!isDrawing.current) return;
+    var c = canvasRef.current.getContext('2d');
+    var rect = canvasRef.current.getBoundingClientRect();
+    c.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    c.stroke();
+  };
+  var stopDraw = function() { isDrawing.current = false; };
+  var clearCanvas = function() {
+    var c = canvasRef.current.getContext('2d');
+    c.fillStyle = '#fff'; c.fillRect(0,0,400,200);
+  };
+  var submitSignature = function() {
+    if(!selectedCourse) return showToast('\uACFC\uC815 \uC120\uD0DD \uD544\uC218','error');
+    var data = canvasRef.current.toDataURL('image/jpeg');
+    api('/digital-signatures',{method:'POST',body:JSON.stringify({course_id:selectedCourse,signature_data:data,purpose:'course_completion'})})
+      .then(function(){showToast('\uC11C\uBA85 \uC81C\uCD9C \uC644\uB8CC'); setShowSign(false);
+        api('/digital-signatures').then(function(d){setSigs(d.data);});
+      }).catch(function(e){showToast(e.message,'error');});
+  };
+
+  if(loading) return React.createElement('div',{className:'page-content'},React.createElement(ATMSLoader,{label:'\uC11C\uBA85 \uB370\uC774\uD130 \uB85C\uB529...',sub:'Digital Signatures'}));
+
+  return React.createElement('div',{className:'page-content'},
+    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}},
+      React.createElement('h3',{style:{fontSize:20,fontWeight:700,display:'flex',alignItems:'center',gap:8}},'\uD83D\uDD8A\uFE0F JPG \uC11C\uBA85 \uAD00\uB9AC'),
+      user.role==='trainee' && React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowSign(!showSign); if(!showSign) initCanvas();}},showSign?'\uCDE8\uC18C':'\u2795 \uC11C\uBA85\uD558\uAE30')
+    ),
+    showSign && React.createElement('div',{className:'card',style:{marginBottom:16}},React.createElement('div',{className:'card-body'},
+      React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uACFC\uC815 \uC120\uD0DD'),
+        React.createElement('select',{value:selectedCourse,onChange:function(e){setSelectedCourse(e.target.value);}},
+          React.createElement('option',{value:''},'\uC120\uD0DD'),
+          courses.map(function(c){return React.createElement('option',{key:c.id,value:c.id},c.name);})
+      )),
+      React.createElement('div',{style:{marginBottom:12}},
+        React.createElement('label',{style:{display:'block',marginBottom:6,fontWeight:600,fontSize:13}},'\uC544\uB798\uC5D0 \uC11C\uBA85\uD558\uC138\uC694'),
+        React.createElement('canvas',{ref:canvasRef,style:{border:'2px solid var(--gray-300)',borderRadius:8,cursor:'crosshair',display:'block'},
+          onMouseDown:startDraw,onMouseMove:draw,onMouseUp:stopDraw,onMouseLeave:stopDraw})
+      ),
+      React.createElement('div',{style:{display:'flex',gap:8}},
+        React.createElement('button',{className:'btn btn-outline btn-sm',onClick:clearCanvas},'\uC9C0\uC6B0\uAE30'),
+        React.createElement('button',{className:'btn btn-success btn-sm',onClick:submitSignature},'\uC11C\uBA85 \uC81C\uCD9C')
+      )
+    )),
+    React.createElement('div',{className:'card'},React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+      React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uD6C8\uB828\uC0DD'),React.createElement('th',{},'\uACFC\uC815'),React.createElement('th',{},'\uBAA9\uC801'),React.createElement('th',{},'\uC0C1\uD0DC'),React.createElement('th',{},'\uC11C\uBA85\uC77C'),React.createElement('th',{},'\uAC80\uC99D\uC790'))),
+      React.createElement('tbody',{},
+        sigs.map(function(s){return React.createElement('tr',{key:s.id},
+          React.createElement('td',{},React.createElement('strong',{},s.trainee_name||'-')),React.createElement('td',{},s.course_name||'-'),
+          React.createElement('td',{},s.purpose||'-'),React.createElement('td',{},React.createElement(StatusBadge,{status:s.status})),
+          React.createElement('td',{},s.signed_at ? s.signed_at.slice(0,10) : '-'),React.createElement('td',{},s.verifier_name||'-')
+        );}),
+        sigs.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:6,className:'text-center',style:{padding:40,color:'var(--gray-400)'}},'\uC11C\uBA85 \uC5C6\uC74C'))
+      )
+    ))))
+  );
+}
+
+// ━━━━━━━━━━━━ COUNSELING (상담 기록) ━━━━━━━━━━━━
+function CounselingPage() {
+  var [records, setRecords] = useState([]);
+  var [showForm, setShowForm] = useState(false);
+  var [formData, setFormData] = useState({});
+  var [loading, setLoading] = useState(true);
+  var ctx2 = useApp(); var showToast = ctx2.showToast; var user = ctx2.user;
+  var isInstructor = user && (user.role==='admin'||user.role==='instructor'||user.role==='ojt_admin');
+
+  useEffect(function(){
+    api('/counseling').then(function(d){setRecords(d.data);setLoading(false);}).catch(function(e){showToast(e.message,'error');setLoading(false);});
+  },[]);
+
+  var handleAdd = function(){
+    if(!formData.trainee_id||!formData.topic) return showToast('\uD6C8\uB828\uC0DD\uACFC \uC8FC\uC81C \uD544\uC218','error');
+    api('/counseling',{method:'POST',body:JSON.stringify(formData)}).then(function(){
+      showToast('\uC0C1\uB2F4\uAE30\uB85D \uB4F1\uB85D'); setShowForm(false); setFormData({});
+      api('/counseling').then(function(d){setRecords(d.data);});
+    }).catch(function(e){showToast(e.message,'error');});
+  };
+
+  if(loading) return React.createElement('div',{className:'page-content'},React.createElement(ATMSLoader,{label:'\uC0C1\uB2F4\uAE30\uB85D \uB85C\uB529...',sub:'Counseling Records'}));
+
+  return React.createElement('div',{className:'page-content'},
+    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}},
+      React.createElement('h3',{style:{fontSize:20,fontWeight:700,display:'flex',alignItems:'center',gap:8}},'\uD83D\uDCAC \uC0C1\uB2F4 \uAE30\uB85D'),
+      isInstructor && React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowForm(!showForm);setFormData({});}},showForm?'\uCDE8\uC18C':'\u2795 \uC0C1\uB2F4 \uB4F1\uB85D')
+    ),
+    showForm && React.createElement('div',{className:'card',style:{marginBottom:16}},React.createElement('div',{className:'card-body'},
+      React.createElement('div',{className:'grid-2'},
+        React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uD6C8\uB828\uC0DD ID'),React.createElement('input',{type:'number',value:formData.trainee_id||'',onChange:function(e){setFormData(Object.assign({},formData,{trainee_id:e.target.value}));}})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC8FC\uC81C'),React.createElement('input',{value:formData.topic||'',onChange:function(e){setFormData(Object.assign({},formData,{topic:e.target.value}));}})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uB0A0\uC9DC'),React.createElement('input',{type:'date',value:formData.counseling_date||'',onChange:function(e){setFormData(Object.assign({},formData,{counseling_date:e.target.value}));}}))
+      ),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uB0B4\uC6A9'),React.createElement('textarea',{rows:3,value:formData.content||'',onChange:function(e){setFormData(Object.assign({},formData,{content:e.target.value}));}})),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC870\uCE58\uC0AC\uD56D'),React.createElement('textarea',{rows:2,value:formData.action_items||'',onChange:function(e){setFormData(Object.assign({},formData,{action_items:e.target.value}));}})),
+      React.createElement('button',{className:'btn btn-success btn-sm',onClick:handleAdd},'\uC800\uC7A5')
+    )),
+    records.map(function(r){return React.createElement('div',{key:r.id,className:'card',style:{marginBottom:12}},
+      React.createElement('div',{className:'card-body'},
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:8}},
+          React.createElement('h4',{},r.topic),
+          React.createElement('span',{style:{fontSize:12,color:'var(--gray-400)'}},r.counseling_date||'')
+        ),
+        React.createElement('div',{style:{fontSize:13,color:'var(--gray-600)',marginBottom:4}},'\uD6C8\uB828\uC0DD: ',r.trainee_name,' | \uC0C1\uB2F4\uC0AC: ',r.counselor_name),
+        r.content && React.createElement('p',{style:{fontSize:14,marginBottom:8}},r.content),
+        r.action_items && React.createElement('div',{style:{fontSize:13,color:'var(--primary)',background:'var(--primary-light)',padding:'8px 12px',borderRadius:8}},'\uD83D\uDCCC \uC870\uCE58\uC0AC\uD56D: ',r.action_items)
+      )
+    );})
+  );
+}
+
+// ━━━━━━━━━━━━ SURVEY MANAGEMENT (만족도 조사) ━━━━━━━━━━━━
+function SurveyManagementPage() {
+  var [surveys, setSurveys] = useState([]);
+  var [courses, setCourses] = useState([]);
+  var [showForm, setShowForm] = useState(false);
+  var [loading, setLoading] = useState(true);
+  var [formData, setFormData] = useState({overall_rating:5,instructor_rating:5,content_rating:5,facility_rating:5});
+  var ctx2 = useApp(); var showToast = ctx2.showToast; var user = ctx2.user;
+
+  useEffect(function(){
+    Promise.all([
+      api('/surveys').then(function(d){setSurveys(Array.isArray(d.data)?d.data:(d.data.surveys||[]));}),
+      api('/courses').then(function(d){setCourses(d.data);})
+    ]).then(function(){setLoading(false);}).catch(function(){setLoading(false);});
+  },[]);
+
+  var handleSubmit = function(){
+    if(!formData.course_id) return showToast('\uACFC\uC815 \uC120\uD0DD \uD544\uC218','error');
+    api('/surveys',{method:'POST',body:JSON.stringify(formData)}).then(function(){
+      showToast('\uC124\uBB38 \uC81C\uCD9C \uC644\uB8CC'); setShowForm(false);
+      api('/surveys').then(function(d){setSurveys(Array.isArray(d.data)?d.data:(d.data.surveys||[]));});
+    }).catch(function(e){showToast(e.message,'error');});
+  };
+
+  var RatingStars = function(props) {
+    return React.createElement('div',{style:{display:'flex',gap:4}},
+      [1,2,3,4,5].map(function(n){
+        return React.createElement('span',{key:n,onClick:function(){if(props.onChange) props.onChange(n);},
+          style:{cursor:props.onChange?'pointer':'default',fontSize:20,color:n<=props.value?'#f59e0b':'var(--gray-300)'}},'\u2605');
+      })
+    );
+  };
+
+  if(loading) return React.createElement('div',{className:'page-content'},React.createElement(ATMSLoader,{label:'\uC124\uBB38 \uB370\uC774\uD130 \uB85C\uB529...',sub:'Survey Data'}));
+
+  return React.createElement('div',{className:'page-content'},
+    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}},
+      React.createElement('h3',{style:{fontSize:20,fontWeight:700,display:'flex',alignItems:'center',gap:8}},'\uD83D\uDCCB \uB9CC\uC871\uB3C4 \uC870\uC0AC (Survey)'),
+      user.role==='trainee' && React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowForm(!showForm);}},showForm?'\uCDE8\uC18C':'\u2795 \uC124\uBB38 \uC791\uC131')
+    ),
+    showForm && React.createElement('div',{className:'card',style:{marginBottom:16}},React.createElement('div',{className:'card-body'},
+      React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uACFC\uC815 \uC120\uD0DD'),
+        React.createElement('select',{value:formData.course_id||'',onChange:function(e){setFormData(Object.assign({},formData,{course_id:e.target.value}));}},
+          React.createElement('option',{value:''},'\uC120\uD0DD'),
+          courses.map(function(c){return React.createElement('option',{key:c.id,value:c.id},c.name);})
+      )),
+      React.createElement('div',{className:'grid-2'},
+        React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC804\uCCB4 \uD3C9\uAC00'),React.createElement(RatingStars,{value:formData.overall_rating,onChange:function(v){setFormData(Object.assign({},formData,{overall_rating:v}));}})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uAC15\uC0AC \uD3C9\uAC00'),React.createElement(RatingStars,{value:formData.instructor_rating,onChange:function(v){setFormData(Object.assign({},formData,{instructor_rating:v}));}})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uCF58\uD150\uCE20 \uD3C9\uAC00'),React.createElement(RatingStars,{value:formData.content_rating,onChange:function(v){setFormData(Object.assign({},formData,{content_rating:v}));}})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uC2DC\uC124 \uD3C9\uAC00'),React.createElement(RatingStars,{value:formData.facility_rating,onChange:function(v){setFormData(Object.assign({},formData,{facility_rating:v}));}}))
+      ),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{},'\uCF54\uBA58\uD2B8'),React.createElement('textarea',{rows:3,value:formData.comments||'',onChange:function(e){setFormData(Object.assign({},formData,{comments:e.target.value}));}})),
+      React.createElement('button',{className:'btn btn-success btn-sm',onClick:handleSubmit},'\uC81C\uCD9C')
+    )),
+    React.createElement('div',{className:'card'},React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+      React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uACFC\uC815'),React.createElement('th',{},'\uC804\uCCB4'),React.createElement('th',{},'\uAC15\uC0AC'),React.createElement('th',{},'\uCF58\uD150\uCE20'),React.createElement('th',{},'\uC2DC\uC124'),React.createElement('th',{},'\uCF54\uBA58\uD2B8'),React.createElement('th',{},'\uB0A0\uC9DC'))),
+      React.createElement('tbody',{},
+        surveys.map(function(s,i){return React.createElement('tr',{key:s.id||i},
+          React.createElement('td',{},s.course_name||s.course_id||'-'),
+          React.createElement('td',{},'\u2605',s.overall_rating||'-'),React.createElement('td',{},'\u2605',s.instructor_rating||'-'),
+          React.createElement('td',{},'\u2605',s.content_rating||'-'),React.createElement('td',{},'\u2605',s.facility_rating||'-'),
+          React.createElement('td',{style:{maxWidth:200,overflow:'hidden',textOverflow:'ellipsis'}},s.comments||'-'),
+          React.createElement('td',{},s.created_at ? s.created_at.slice(0,10) : '-')
+        );}),
+        surveys.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:7,className:'text-center',style:{padding:40,color:'var(--gray-400)'}},'\uC124\uBB38 \uC5C6\uC74C'))
+      )
+    ))))
+  );
+}
+
 // ━━━━━━━━━━━━ ERROR BOUNDARY ━━━━━━━━━━━━
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -4992,37 +6075,44 @@ function App() {
     {id:'mechanic',label:'정비사 현황',icon:'🔧'},
   ];
   const commonItems = [
-    {id:'dashboard',label:'대시보드',icon:'📊'},
-    {id:'courses',label:'과정 관리',icon:'📚'},
-    {id:'schedule',label:'일정 관리',icon:'📅'},
-    {id:'evaluations',label:'평가 관리',icon:'📝'},
-    {id:'ojt',label:'OJT 관리',icon:'🛠️'},
-    {id:'content',label:'학습 자료',icon:'📖'},
-    {id:'users',label:'사용자 관리',icon:'👤',roles:['admin','ojt_admin','manager']},
-    {id:'reports',label:'리포트',icon:'📈',roles:['admin','instructor','ojt_admin','manager']},
-    {id:'notifications',label:'알림',icon:'🔔'},
-    {id:'access-logs',label:'접속 로그',icon:'🌐',roles:['admin']},
+    {id:'dashboard',label:'\uB300\uC2DC\uBCF4\uB4DC',icon:'\uD83D\uDCCA'},
+    {id:'courses',label:'\uACFC\uC815 \uAD00\uB9AC',icon:'\uD83D\uDCDA'},
+    {id:'schedule',label:'\uC77C\uC815 \uAD00\uB9AC',icon:'\uD83D\uDCC5'},
+    {id:'evaluations',label:'\uD3C9\uAC00 \uAD00\uB9AC',icon:'\uD83D\uDCDD'},
+    {id:'ojt',label:'OJT \uAD00\uB9AC',icon:'\uD83D\uDEE0\uFE0F'},
+    {id:'content',label:'\uD559\uC2B5 \uC790\uB8CC',icon:'\uD83D\uDCD6'},
+    {id:'surveys',label:'\uB9CC\uC871\uB3C4\uC870\uC0AC',icon:'\uD83D\uDCCB'},
+    {id:'signatures',label:'JPG \uC11C\uBA85',icon:'\uD83D\uDD8A\uFE0F'},
+    {id:'counseling',label:'\uC0C1\uB2F4\uAE30\uB85D',icon:'\uD83D\uDCAC',roles:['admin','instructor','ojt_admin','manager']},
+    {id:'users',label:'\uC0AC\uC6A9\uC790 \uAD00\uB9AC',icon:'\uD83D\uDC64',roles:['admin','ojt_admin','manager']},
+    {id:'reports',label:'\uB9AC\uD3EC\uD2B8',icon:'\uD83D\uDCC8',roles:['admin','instructor','ojt_admin','manager']},
+    {id:'notifications',label:'\uC54C\uB9BC',icon:'\uD83D\uDD14'},
+    {id:'access-logs',label:'\uC811\uC18D \uB85C\uADF8',icon:'\uD83C\uDF10',roles:['admin']},
   ];
-  const pn = {dashboard:'대시보드',courses:'과정 관리',schedule:'일정 관리',evaluations:'평가 관리',
-    ojt:'OJT 관리',content:'학습 자료',users:'사용자 관리',reports:'리포트',notifications:'알림',
-    profile:'내 프로필',pilots:'조종사 현황',mechanic:'정비사 현황','access-logs':'접속 로그'};
+  const pn = {dashboard:'\uB300\uC2DC\uBCF4\uB4DC',courses:'\uACFC\uC815 \uAD00\uB9AC',schedule:'\uC77C\uC815 \uAD00\uB9AC',evaluations:'\uD3C9\uAC00 \uAD00\uB9AC',
+    ojt:'OJT \uAD00\uB9AC',content:'\uD559\uC2B5 \uC790\uB8CC',users:'\uC0AC\uC6A9\uC790 \uAD00\uB9AC',reports:'\uB9AC\uD3EC\uD2B8',notifications:'\uC54C\uB9BC',
+    profile:'\uB0B4 \uD504\uB85C\uD544',pilots:'\uC870\uC885\uC0AC \uD604\uD669',mechanic:'\uC815\uBE44\uC0AC \uD604\uD669','access-logs':'\uC811\uC18D \uB85C\uADF8',
+    surveys:'\uB9CC\uC871\uB3C4\uC870\uC0AC',signatures:'JPG \uC11C\uBA85',counseling:'\uC0C1\uB2F4\uAE30\uB85D'};
 
-  const renderPage = () => {
+  var renderPage = function() {
     switch(page){
-      case 'dashboard': return <Dashboard/>;
-      case 'courses': return <CoursesPage/>;
-      case 'users': return <UsersPage/>;
-      case 'schedule': return <SchedulePage/>;
-      case 'evaluations': return <EvaluationsPage/>;
-      case 'ojt': return <OJTPage/>;
-      case 'content': return <ContentPage/>;
-      case 'reports': return <ReportsPage/>;
-      case 'notifications': return <NotificationsPage/>;
-      case 'profile': return <ProfilePage/>;
-      case 'pilots': return <PilotPage/>;
-      case 'mechanic': return <MechanicPage/>;
-      case 'access-logs': return <AccessLogsPage/>;
-      default: return <Dashboard/>;
+      case 'dashboard': return React.createElement(Dashboard);
+      case 'courses': return React.createElement(CoursesPage);
+      case 'users': return React.createElement(UsersPage);
+      case 'schedule': return React.createElement(SchedulePage);
+      case 'evaluations': return React.createElement(EvaluationsPage);
+      case 'ojt': return React.createElement(OJTPage);
+      case 'content': return React.createElement(ContentPage);
+      case 'reports': return React.createElement(ReportsPage);
+      case 'notifications': return React.createElement(NotificationsPage);
+      case 'profile': return React.createElement(ProfilePage);
+      case 'pilots': return React.createElement(PilotPage);
+      case 'mechanic': return React.createElement(MechanicPage);
+      case 'access-logs': return React.createElement(AccessLogsPage);
+      case 'surveys': return React.createElement(SurveyManagementPage);
+      case 'signatures': return React.createElement(DigitalSignaturesPage);
+      case 'counseling': return React.createElement(CounselingPage);
+      default: return React.createElement(Dashboard);
     }
   };
 
