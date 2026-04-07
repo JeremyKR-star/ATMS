@@ -2336,11 +2336,17 @@ function CoursesPage() {
   var [courses, setCourses] = useState([]);
   var [searchText, setSearchText] = useState('');
   var [showModal, setShowModal] = useState(false);
+  var [selectedCourse, setSelectedCourse] = useState(null);
+  var [courseDetail, setCourseDetail] = useState(null);
   var [form, setForm] = useState({ code:'',name:'',type:'TT',description:'',duration_weeks:'',max_trainees:20,aircraft_type:'' });
   var [formErrors, setFormErrors] = useState({});
   var { user, showToast } = useApp();
   var load = function() { api('/courses').then(function(d) { setCourses(d.data); }).catch(function(e) { showToast(e.message,'error'); }); };
   useEffect(function() { load(); }, []);
+  var selectCourse = function(c) {
+    setSelectedCourse(c.id);
+    api('/courses/'+c.id).then(function(d){setCourseDetail(d.data||d);}).catch(function(e){showToast(e.message,'error');});
+  };
   var handleCreate = function() {
     var errors = {};
     if(!form.code) errors.code = true;
@@ -2377,12 +2383,49 @@ function CoursesPage() {
       <div className="card"><div className="card-body"><div className="table-wrapper"><table>
         <thead><tr><th>코드</th><th>과정명</th><th>유형</th><th>기종</th><th>기간</th><th>상태</th><th>시작일</th></tr></thead>
         <tbody>{filteredCourses.map(function(c){
-          return <tr key={c.id}><td><strong>{c.code}</strong></td><td>{c.name}</td>
+          return <tr key={c.id} onClick={function(){selectCourse(c);}} style={{cursor:'pointer',background:selectedCourse===c.id?'var(--primary-light)':''}}><td><strong>{c.code}</strong></td><td>{c.name}</td>
             <td><span className={'badge badge-' + (c.type==='TT'?'blue':'yellow')}>{c.type}</span></td>
             <td>{c.aircraft_type||'-'}</td><td>{c.duration_weeks}주</td>
             <td><StatusBadge status={c.status}/></td><td>{c.start_date||'-'}</td></tr>;
         })}{filteredCourses.length===0&&<tr><td colSpan="7" className="text-center" style={{padding:40,color:'var(--gray-400)'}}>{searchText?'검색 결과 없음':'과정이 없습니다'}</td></tr>}</tbody>
       </table></div></div></div>
+      {courseDetail && React.createElement('div',{className:'card',style:{marginTop:16}},
+        React.createElement('div',{className:'card-header',style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+          React.createElement('h3',{},'\uD83D\uDCCB ',courseDetail.name||courseDetail.code,' \uC0C1\uC138'),
+          React.createElement('button',{className:'btn btn-outline btn-sm',onClick:function(){setSelectedCourse(null);setCourseDetail(null);}},'\u2715 \uB2EB\uAE30')
+        ),
+        React.createElement('div',{className:'card-body'},
+          React.createElement('div',{style:{display:'flex',gap:12,marginBottom:16,flexWrap:'wrap'}},
+            React.createElement('div',{style:{padding:'8px 14px',background:'var(--primary-light)',borderRadius:8,fontSize:12,fontWeight:600}},'\uD83D\uDCDA \uCF54\uB4DC: ',courseDetail.code||'-'),
+            React.createElement('div',{style:{padding:'8px 14px',background:'#FEF3C7',borderRadius:8,fontSize:12,fontWeight:600}},'\u2708\uFE0F \uAE30\uC885: ',courseDetail.aircraft_type||'-'),
+            React.createElement('div',{style:{padding:'8px 14px',background:'#E0E7FF',borderRadius:8,fontSize:12,fontWeight:600}},'\uD83D\uDCC5 \uAE30\uAC04: ',(courseDetail.duration_weeks||'-'),'\uC8FC'),
+            React.createElement('div',{style:{padding:'8px 14px',background:'#ECFDF5',borderRadius:8,fontSize:12,fontWeight:600}},'\uD83D\uDC65 \uCD5C\uB300\uC778\uC6D0: ',courseDetail.max_trainees||'-'),
+            React.createElement('div',{style:{padding:'8px 14px',background:'#FCE7F3',borderRadius:8,fontSize:12,fontWeight:600}},React.createElement(StatusBadge,{status:courseDetail.status}))
+          ),
+          courseDetail.description && React.createElement('div',{style:{padding:'12px 16px',background:'var(--gray-50)',borderRadius:8,marginBottom:16,fontSize:14,color:'var(--gray-600)',lineHeight:1.6}},courseDetail.description),
+          (courseDetail.modules && courseDetail.modules.length>0) && React.createElement(React.Fragment,{},
+            React.createElement('h4',{style:{marginBottom:10,fontSize:14,color:'var(--gray-700)',borderBottom:'2px solid var(--primary)',paddingBottom:6}},'\uD83D\uDCD6 \uBAA8\uB4C8 (',courseDetail.modules.length,')'),
+            courseDetail.modules.map(function(m){return React.createElement('div',{key:m.id,style:{padding:'10px 16px',borderLeft:'3px solid var(--primary)',background:'var(--gray-50)',borderRadius:'0 8px 8px 0',marginBottom:6}},
+              React.createElement('strong',{style:{fontSize:14}},m.order_num,'. ',m.title),
+              React.createElement('div',{style:{fontSize:12,color:'var(--gray-500)',marginTop:2}},m.type,' | ',m.duration_hours,'h')
+            );})
+          ),
+          (courseDetail.enrollments && courseDetail.enrollments.length>0) && React.createElement(React.Fragment,{},
+            React.createElement('h4',{style:{marginTop:20,marginBottom:10,fontSize:14,color:'var(--gray-700)',borderBottom:'2px solid var(--success)',paddingBottom:6}},'\uD83D\uDC65 \uC218\uAC15\uC0DD (',courseDetail.enrollments.length,')'),
+            React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
+              React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uC774\uB984'),React.createElement('th',{},'\uC0C1\uD0DC'),React.createElement('th',{},'\uC9C4\uB3C4'),React.createElement('th',{},'\uB4F1\uB85D\uC77C'))),
+              React.createElement('tbody',{},
+                courseDetail.enrollments.map(function(e){return React.createElement('tr',{key:e.id},
+                  React.createElement('td',{},React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8}},React.createElement(Avatar,{name:e.trainee_name||e.user_name,size:'xs'}),React.createElement('strong',{},e.trainee_name||e.user_name||'-'))),
+                  React.createElement('td',{},React.createElement(StatusBadge,{status:e.status})),
+                  React.createElement('td',{},React.createElement('div',{className:'progress-bar',style:{width:80,height:6}},React.createElement('div',{className:'progress-fill',style:{width:(e.progress||0)+'%'}})),React.createElement('span',{style:{fontSize:11,color:'var(--gray-500)'}},e.progress||0,'%')),
+                  React.createElement('td',{style:{fontSize:12,color:'var(--gray-500)'}},e.enrolled_at||e.created_at||'-')
+                );})
+              )
+            ))
+          )
+        )
+      )}
       {showModal&&<Modal title="신규 과정 등록" onClose={function(){setShowModal(false);setFormErrors({});}}
         footer={React.createElement(React.Fragment, {}, React.createElement('button', {className:'btn btn-outline',onClick:function(){setShowModal(false);setFormErrors({});}}, '취소'), React.createElement('button', {className:'btn btn-primary',onClick:handleCreate}, '등록'))}>
         <div className={'form-group' + (formErrors.code?' form-error':'')}><label className="form-required">과정 코드</label><input value={form.code} onChange={function(e){setForm({...form,code:e.target.value});}} placeholder="TT-B737-2026-02"/>{formErrors.code&&<div className="form-error-msg">필수 입력 항목</div>}</div>
@@ -2534,6 +2577,22 @@ function UsersPage() {
           <option value="ojt_admin">OJT Admin</option><option value="admin">Admin</option><option value="manager">Manager</option>
         </select></div>
         <div className="form-group"><label>부서</label><input value={form.department} onChange={function(e){setForm({...form,department:e.target.value});}} /></div>
+        <div className="form-group"><label>증명사진</label>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            {form.photo_preview && <img src={form.photo_preview} style={{width:60,height:80,objectFit:'cover',borderRadius:8,border:'2px solid var(--gray-200)'}} alt="photo"/>}
+            <div>
+              <input type="file" accept="image/*" onChange={function(e){
+                var file = e.target.files && e.target.files[0];
+                if(!file) return;
+                if(file.size > 2*1024*1024){showToast('2MB \uC774\uD558 \uD30C\uC77C\uB9CC \uAC00\uB2A5\uD569\uB2C8\uB2E4','error');return;}
+                var reader = new FileReader();
+                reader.onload = function(ev){setForm(Object.assign({},form,{photo:ev.target.result,photo_preview:ev.target.result}));};
+                reader.readAsDataURL(file);
+              }} style={{fontSize:12}}/>
+              <div style={{fontSize:11,color:'var(--gray-400)',marginTop:4}}>JPG/PNG, 2MB \uC774\uD558</div>
+            </div>
+          </div>
+        </div>
       </Modal>}
       {showBulkImport&&<Modal title="사용자 일괄등록" onClose={function(){setShowBulkImport(false);setImportFile(null);setImportPreview([]);}}
         footer={<><button className="btn btn-outline" onClick={function(){setShowBulkImport(false);setImportFile(null);setImportPreview([]);}}>취소</button>
@@ -2659,12 +2718,39 @@ function SchedulePage() {
       <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
         <button className={'btn '+(viewMode==='all'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('all');}}>전체 일정</button>
         {user && (user.role==='instructor'||user.role==='admin') && <button className={'btn '+(viewMode==='my'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('my');}}>나의 강의</button>}
+        <button className={'btn '+(viewMode==='weekly'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('weekly');}}>주간 근무표</button>
         <div style={{flex:1}}></div>
         {canManage && <button className="btn btn-outline btn-sm" onClick={downloadSchedules}>📥 엑셀</button>}
       </div>
       <div className="filters"><label style={{fontSize:14}}>기간:</label>
         <input type="date" value={dateFrom} onChange={function(e){setDateFrom(e.target.value);}}/><span>~</span>
         <input type="date" value={dateTo} onChange={function(e){setDateTo(e.target.value);}}/></div>
+      {viewMode==='weekly' && (function(){
+        var days=['\uC77C','\uC6D4','\uD654','\uC218','\uBAA9','\uAE08','\uD1A0'];
+        var today=new Date();var weekStart=new Date(today);weekStart.setDate(today.getDate()-today.getDay()+1);
+        var weekDays=[];for(var di=0;di<7;di++){var d=new Date(weekStart);d.setDate(weekStart.getDate()+di);weekDays.push(d);}
+        return React.createElement('div',{className:'card',style:{marginBottom:16}},
+          React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83D\uDCC5 \uC8FC\uAC04 \uADFC\uBB34\uD45C (',weekDays[0].toISOString().slice(0,10),' ~ ',weekDays[6].toISOString().slice(0,10),')')),
+          React.createElement('div',{className:'card-body',style:{overflowX:'auto'}},
+            React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:8,minWidth:700}},
+              weekDays.map(function(wd,idx){
+                var ds=wd.toISOString().slice(0,10);
+                var dayScheds=filteredSchedules.filter(function(s){return s.schedule_date===ds;});
+                var isToday=ds===today.toISOString().slice(0,10);
+                return React.createElement('div',{key:idx,style:{border:isToday?'2px solid var(--primary)':'1px solid var(--gray-200)',borderRadius:10,padding:10,minHeight:120,background:isToday?'var(--primary-light)':'white'}},
+                  React.createElement('div',{style:{fontWeight:700,fontSize:13,marginBottom:8,textAlign:'center',color:idx===0?'#DC2626':idx===6?'#2563EB':'var(--gray-700)'}},days[wd.getDay()],' ',wd.getDate()),
+                  dayScheds.length===0 && React.createElement('div',{style:{fontSize:11,color:'var(--gray-400)',textAlign:'center',marginTop:20}},'-'),
+                  dayScheds.map(function(s){return React.createElement('div',{key:s.id,style:{padding:'4px 8px',marginBottom:4,borderRadius:6,fontSize:11,background:tc[s.schedule_type]+'18',borderLeft:'3px solid '+(tc[s.schedule_type]||'#6b7280')}},
+                    React.createElement('div',{style:{fontWeight:600}},s.start_time,'-',s.end_time),
+                    React.createElement('div',{style:{color:'var(--gray-600)'}},s.title),
+                    s.instructor_name && React.createElement('div',{style:{color:'var(--gray-400)',fontSize:10}},s.instructor_name)
+                  );})
+                );
+              })
+            )
+          )
+        );
+      })()}
       <div className="card"><div className="card-body"><div className="table-wrapper"><table>
         <thead><tr><th>날짜</th><th>시간</th><th>제목</th><th>유형</th><th>과정</th><th>교관</th><th>장소</th>{canManage&&<th style={{width:140}}></th>}</tr></thead>
         <tbody>{filteredSchedules.map(function(s){return (
@@ -3079,27 +3165,62 @@ function OJTPage() {
             )
           ),
           React.createElement('div',{className:'card'},
-            React.createElement('div',{className:'card-header'},React.createElement('h3',{},detail?('\u2708\uFE0F '+detail.name):'\uC0C1\uC138 \uC815\uBCF4')),
+            React.createElement('div',{className:'card-header',style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+              React.createElement('h3',{},detail?('\u2708\uFE0F '+detail.name):'\uC0C1\uC138 \uC815\uBCF4'),
+              detail && isAdmin && React.createElement('div',{style:{display:'flex',gap:6}},
+                React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowModal('program');setFormData({name:detail.name,aircraft_type:detail.aircraft_type,duration_weeks:detail.duration_weeks,description:detail.description,status:detail.status});}},'\u270F\uFE0F \uC218\uC815')
+              )
+            ),
             React.createElement('div',{className:'card-body'},
               detail?React.createElement(React.Fragment,{},
                 detail.description && React.createElement('div',{style:{padding:'12px 16px',background:'var(--gray-50)',borderRadius:8,marginBottom:16,fontSize:14,color:'var(--gray-600)',lineHeight:1.6}},detail.description),
-                React.createElement('div',{style:{display:'flex',gap:12,marginBottom:16,flexWrap:'wrap'}},
-                  React.createElement('div',{style:{padding:'8px 16px',background:'var(--primary-light)',borderRadius:8,fontSize:13}},'\uD83D\uDCDA \uACFC\uC81C: ',(detail.tasks||[]).length),
-                  React.createElement('div',{style:{padding:'8px 16px',background:'var(--success-light)',borderRadius:8,fontSize:13}},'\uD83D\uDC65 \uCC38\uC5EC\uC790: ',(detail.enrollments||[]).length)
+                React.createElement('div',{style:{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap'}},
+                  React.createElement('div',{style:{padding:'8px 14px',background:'var(--primary-light)',borderRadius:8,fontSize:12,fontWeight:600}},'\uD83D\uDCDA \uACFC\uC81C: ',(detail.tasks||[]).length),
+                  React.createElement('div',{style:{padding:'8px 14px',background:'var(--success-light)',borderRadius:8,fontSize:12,fontWeight:600}},'\uD83D\uDC65 \uCC38\uC5EC\uC790: ',(detail.enrollments||[]).length),
+                  React.createElement('div',{style:{padding:'8px 14px',background:'#FEF3C7',borderRadius:8,fontSize:12,fontWeight:600}},'\uD83D\uDCC5 \uAE30\uAC04: ',(detail.duration_weeks||'-'),'\uC8FC'),
+                  React.createElement('div',{style:{padding:'8px 14px',background:'#E0E7FF',borderRadius:8,fontSize:12,fontWeight:600}},'\u2708\uFE0F \uAE30\uC885: ',detail.aircraft_type||'-'),
+                  React.createElement('div',{style:{padding:'8px 14px',background:'#FCE7F3',borderRadius:8,fontSize:12,fontWeight:600}},'\uD83D\uDCCB TS: ',trainingSpecs.filter(function(s){return s.program_id===detail.id;}).length),
+                  React.createElement('div',{style:{padding:'8px 14px',background:'#ECFDF5',borderRadius:8,fontSize:12,fontWeight:600}},'\uD83D\uDCDD ES: ',evalSpecs.filter(function(s){return s.program_id===detail.id;}).length)
                 ),
-                React.createElement('h4',{style:{marginBottom:10,fontSize:14,color:'var(--gray-700)'}},'\uD83D\uDCDD \uACFC\uC81C \uBAA9\uB85D'),
+                React.createElement('h4',{style:{marginBottom:10,fontSize:14,color:'var(--gray-700)',borderBottom:'2px solid var(--primary)',paddingBottom:6}},'\uD83D\uDCDD \uACFC\uC81C \uBAA9\uB85D (',( detail.tasks||[]).length,')'),
                 (detail.tasks||[]).map(function(t){return React.createElement('div',{key:t.id,style:{padding:'10px 16px',borderLeft:'3px solid var(--primary)',background:'var(--gray-50)',borderRadius:'0 8px 8px 0',marginBottom:6}},
                   React.createElement('strong',{style:{fontSize:14}},t.order_num,'. ',t.name),
-                  React.createElement('div',{style:{fontSize:12,color:'var(--gray-500)',marginTop:2}},t.description,' | ',t.required_hours,'h')
+                  React.createElement('div',{style:{fontSize:12,color:'var(--gray-500)',marginTop:2}},t.description,' | ',t.required_hours,'h'),
+                  t.sub_tasks && t.sub_tasks.length>0 && React.createElement('div',{style:{marginTop:6,paddingLeft:12}},
+                    t.sub_tasks.map(function(st){return React.createElement('div',{key:st.id,style:{fontSize:12,color:'var(--gray-600)',padding:'3px 0',borderLeft:'2px solid var(--gray-300)',paddingLeft:8,marginBottom:2}},
+                      st.order_num,'. ',st.name,' ',React.createElement(StatusBadge,{status:st.status||'pending'})
+                    );})
+                  )
                 );}),
-                React.createElement('h4',{style:{marginTop:20,marginBottom:10,fontSize:14,color:'var(--gray-700)'}},'\uD83D\uDC65 \uCC38\uC5EC\uC790'),
+                React.createElement('h4',{style:{marginTop:20,marginBottom:10,fontSize:14,color:'var(--gray-700)',borderBottom:'2px solid var(--success)',paddingBottom:6}},'\uD83D\uDC65 \uCC38\uC5EC\uC790 (',( detail.enrollments||[]).length,')'),
                 (detail.enrollments||[]).map(function(e){return React.createElement('div',{key:e.id,style:{padding:'8px 12px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid var(--gray-50)'}},
                   React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8}},React.createElement(Avatar,{name:e.trainee_name,size:'xs'}),React.createElement('span',{style:{fontWeight:500}},e.trainee_name)),
                   React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8}},React.createElement(StatusBadge,{status:e.status}),
                     React.createElement('div',{style:{width:60}},React.createElement('div',{className:'progress-bar',style:{height:6}},React.createElement('div',{className:'progress-fill',style:{width:(e.progress||0)+'%'}})),
                     React.createElement('div',{style:{fontSize:10,textAlign:'right',color:'var(--gray-500)',marginTop:2}},e.progress||0,'%'))
                   )
-                );})
+                );}),
+                (function(){var pTs=trainingSpecs.filter(function(s){return s.program_id===detail.id;});return pTs.length>0?React.createElement(React.Fragment,{},
+                  React.createElement('h4',{style:{marginTop:20,marginBottom:10,fontSize:14,color:'var(--gray-700)',borderBottom:'2px solid #6366F1',paddingBottom:6}},'\uD83D\uDCC4 \uD6C8\uB828\uACC4\uD68D\uC11C (TS) - ',pTs.length,'\uAC74'),
+                  pTs.map(function(ts){return React.createElement('div',{key:ts.id,style:{padding:'10px 14px',background:'#F5F3FF',borderRadius:8,marginBottom:6,borderLeft:'3px solid #6366F1'}},
+                    React.createElement('div',{style:{fontWeight:600,fontSize:13}},ts.title,' ',React.createElement('span',{style:{fontSize:11,color:'var(--gray-500)'}},'v',ts.version)),
+                    React.createElement('div',{style:{fontSize:12,color:'var(--gray-500)',marginTop:2}},React.createElement(StatusBadge,{status:ts.status}),ts.description?' - '+ts.description:'')
+                  );})
+                ):null;})(),
+                (function(){var pEs=evalSpecs.filter(function(s){return s.program_id===detail.id;});return pEs.length>0?React.createElement(React.Fragment,{},
+                  React.createElement('h4',{style:{marginTop:20,marginBottom:10,fontSize:14,color:'var(--gray-700)',borderBottom:'2px solid #10B981',paddingBottom:6}},'\uD83D\uDCDD \uD6C8\uB828\uD3C9\uAC00 (ES) - ',pEs.length,'\uAC74'),
+                  pEs.map(function(es){return React.createElement('div',{key:es.id,style:{padding:'10px 14px',background:'#ECFDF5',borderRadius:8,marginBottom:6,borderLeft:'3px solid #10B981'}},
+                    React.createElement('div',{style:{fontWeight:600,fontSize:13}},es.title,' ',React.createElement('span',{style:{fontSize:11,color:'var(--gray-500)'}},'v',es.version)),
+                    React.createElement('div',{style:{fontSize:12,color:'var(--gray-500)',marginTop:2}},React.createElement(StatusBadge,{status:es.status}),es.description?' - '+es.description:'')
+                  );})
+                ):null;})(),
+                (function(){var pLd=leaders.filter(function(l){return l.program_id===detail.id;});return pLd.length>0?React.createElement(React.Fragment,{},
+                  React.createElement('h4',{style:{marginTop:20,marginBottom:10,fontSize:14,color:'var(--gray-700)',borderBottom:'2px solid #F59E0B',paddingBottom:6}},'\uD83D\uDC68\u200D\uD83C\uDFEB \uB9AC\uB354/\uAD00\uB9AC\uC790 - ',pLd.length,'\uBA85'),
+                  pLd.map(function(l){return React.createElement('div',{key:l.id,style:{padding:'8px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',background:'#FFFBEB',borderRadius:8,marginBottom:4}},
+                    React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8}},React.createElement(Avatar,{name:l.user_name||'Leader',size:'xs'}),React.createElement('span',{style:{fontWeight:500,fontSize:13}},l.user_name||'ID:'+l.user_id)),
+                    React.createElement('span',{style:{fontSize:12,padding:'2px 10px',background:'#FDE68A',borderRadius:12,fontWeight:500}},l.role||'leader')
+                  );})
+                ):null;})()
               ):React.createElement(EmptyIcon,{icon:'\uD83D\uDC48',title:'\uD504\uB85C\uADF8\uB7A8\uC744 \uC120\uD0DD\uD558\uC138\uC694',sub:'\uC88C\uCE21 \uBAA9\uB85D\uC5D0\uC11C \uC120\uD0DD'})
             )
           )
@@ -3238,14 +3359,25 @@ function OJTPage() {
         ),
         React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83D\uDCCA \uC11C\uBCA0\uC774 \uD15C\uD50C\uB9BF')),
           React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
-            React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uC81C\uBAA9'),React.createElement('th',{},'\uD504\uB85C\uADF8\uB7A8'),React.createElement('th',{},'\uD56D\uBAA9\uC218'),React.createElement('th',{},'\uC2DC\uC791\uC77C'),React.createElement('th',{},'\uC885\uB8CC\uC77C'),React.createElement('th',{},'\uC0C1\uD0DC'))),
+            React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{},'\uC81C\uBAA9'),React.createElement('th',{},'\uD504\uB85C\uADF8\uB7A8'),React.createElement('th',{},'\uD56D\uBAA9\uC218'),React.createElement('th',{},'\uC2DC\uC791\uC77C'),React.createElement('th',{},'\uC885\uB8CC\uC77C'),React.createElement('th',{},'\uC0C1\uD0DC'),React.createElement('th',{style:{width:180}},'\uAD00\uB9AC'))),
             React.createElement('tbody',{},
               surveyTemplates.map(function(st){return React.createElement('tr',{key:st.id},
                 React.createElement('td',{},React.createElement('strong',{},st.title)),React.createElement('td',{},st.program_name||'-'),
                 React.createElement('td',{},st.item_count||0),React.createElement('td',{},st.start_date||'-'),React.createElement('td',{},st.end_date||'-'),
-                React.createElement('td',{},React.createElement(StatusBadge,{status:st.status}))
+                React.createElement('td',{},React.createElement(StatusBadge,{status:st.status})),
+                React.createElement('td',{style:{display:'flex',gap:4,flexWrap:'wrap'}},
+                  React.createElement('button',{className:'btn btn-outline btn-sm',style:{padding:'3px 8px',fontSize:11},onClick:function(){
+                    api('/ojt/survey-results/'+st.id).then(function(d){showToast('\uC751\uB2F5: '+(d.data.total_responses||0)+'\uAC74, \uD3C9\uADE0: '+(d.data.avg_rating||'-'),'success');}).catch(function(e){showToast(e.message,'error');});
+                  }},'\uD83D\uDCCA \uACB0\uACFC'),
+                  isAdmin && st.status==='active' && React.createElement('button',{className:'btn btn-danger btn-sm',style:{padding:'3px 8px',fontSize:11},onClick:function(){
+                    api('/ojt/survey-templates/'+st.id,{method:'PUT',body:JSON.stringify({status:'closed'})}).then(function(){showToast('\uC11C\uBCA0\uC774 \uAC15\uC81C \uC885\uB8CC','success');api('/ojt/survey-templates').then(function(d){setSurveyTemplates(d.data);});}).catch(function(e){showToast(e.message,'error');});
+                  }},'\u26D4 \uAC15\uC81C\uC885\uB8CC'),
+                  isAdmin && st.status==='draft' && React.createElement('button',{className:'btn btn-success btn-sm',style:{padding:'3px 8px',fontSize:11},onClick:function(){
+                    api('/ojt/survey-templates/'+st.id,{method:'PUT',body:JSON.stringify({status:'active'})}).then(function(){showToast('\uC11C\uBCA0\uC774 \uD65C\uC131\uD654','success');api('/ojt/survey-templates').then(function(d){setSurveyTemplates(d.data);});}).catch(function(e){showToast(e.message,'error');});
+                  }},'\u2705 \uD65C\uC131\uD654')
+                )
               );}),
-              surveyTemplates.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:6},React.createElement(EmptyIcon,{icon:'\uD83D\uDCCA',title:'\uC11C\uBCA0\uC774 \uC5C6\uC74C',sub:'\uC0C8 \uC11C\uBCA0\uC774\uB97C \uB4F1\uB85D\uD574 \uBCF4\uC138\uC694'})))
+              surveyTemplates.length===0 && React.createElement('tr',{},React.createElement('td',{colSpan:7},React.createElement(EmptyIcon,{icon:'\uD83D\uDCCA',title:'\uC11C\uBCA0\uC774 \uC5C6\uC74C',sub:'\uC0C8 \uC11C\uBCA0\uC774\uB97C \uB4F1\uB85D\uD574 \uBCF4\uC138\uC694'})))
             )
           )))
         )
@@ -3282,10 +3414,19 @@ function OJTPage() {
       ),
 
       !loading && tab==='results' && React.createElement('div',{},
-        React.createElement('div',{style:{marginBottom:16,display:'flex',gap:12,alignItems:'center'}},
+        React.createElement('div',{style:{marginBottom:16,display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}},
           React.createElement('input',{placeholder:'\uD6C8\uB828\uC0DD/\uD504\uB85C\uADF8\uB7A8/\uACFC\uC81C \uAC80\uC0C9...',value:reportSearch,onChange:function(e){setReportSearch(e.target.value);},
-            style:{padding:'9px 14px',border:'1.5px solid var(--gray-200)',borderRadius:10,fontSize:14,width:300}}),
-          React.createElement('span',{style:{fontSize:13,color:'var(--gray-500)'}},filteredResults.length,' / ',trainingResults.length,' \uAC74')
+            style:{padding:'9px 14px',border:'1.5px solid var(--gray-200)',borderRadius:10,fontSize:14,width:280}}),
+          React.createElement('select',{value:programFilter,onChange:function(e){setProgramFilter(e.target.value);},style:{padding:'9px 14px',border:'1.5px solid var(--gray-200)',borderRadius:10,fontSize:14}},
+            React.createElement('option',{value:'all'},'\uC804\uCCB4 \uD504\uB85C\uADF8\uB7A8'),
+            programs.map(function(p){return React.createElement('option',{key:p.id,value:String(p.id)},p.name);})
+          ),
+          React.createElement('span',{style:{fontSize:13,color:'var(--gray-500)'}},filteredResults.length,' / ',trainingResults.length,' \uAC74'),
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){
+            var data=filteredResults.map(function(r){return {'\uD6C8\uB828\uC0DD':r.trainee_name||'','\uD504\uB85C\uADF8\uB7A8':r.program_name||'','\uACFC\uC81C':r.task_name||'','\uCD9C\uC11D':r.attendance_status||'','\uC644\uB8CC':r.completion_status||'','\uC810\uC218':r.score||'','\uB0A0\uC9DC':r.result_date||''};});
+            var ws=XLSX.utils.json_to_sheet(data);var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Results');XLSX.writeFile(wb,'OJT_\uD6C8\uB828\uACB0\uACFC.xlsx');
+            toast('\uC5D1\uC140 \uB2E4\uC6B4\uB85C\uB4DC \uC644\uB8CC','success');
+          }},'\uD83D\uDCE5 \uC5D1\uC140 \uB2E4\uC6B4\uB85C\uB4DC')
         ),
         React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},React.createElement('h3',{},'\uD83C\uDFC6 \uD6C8\uB828 \uACB0\uACFC')),
           React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
