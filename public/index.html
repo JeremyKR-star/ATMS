@@ -3144,7 +3144,7 @@ function OJTPage() {
       !loading && tab==='programs' && React.createElement(React.Fragment,{},
         React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:8}},
           React.createElement('div',{style:{display:'flex',gap:6}},
-            ['all','\uC804\uCCB4'],['active','\uC9C4\uD589\uC911'],['pending','\uC608\uC815'],['completed','\uC885\uB8CC']].map(function(f){
+            [['all','\uC804\uCCB4'],['active','\uC9C4\uD589\uC911'],['pending','\uC608\uC815'],['completed','\uC885\uB8CC']].map(function(f){
               return React.createElement('button',{key:f[0],className:'btn btn-sm '+(programFilter===f[0]?'btn-primary':'btn-outline'),
                 onClick:function(){setProgramFilter(f[0]);}},f[1]);
             })
