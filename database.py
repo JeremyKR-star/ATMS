@@ -1219,6 +1219,22 @@ def init_db():
         )
     """)
 
+    # ── OJT Evaluation Templates (평가 템플릿) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS ojt_eval_templates (
+            id {get_pk_syntax()},
+            program_id INTEGER REFERENCES ojt_programs(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            description TEXT,
+            criteria TEXT,
+            max_score REAL DEFAULT 100,
+            template_data TEXT,
+            created_by INTEGER REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
     backend_name = "PostgreSQL" if IS_POSTGRES else "SQLite"

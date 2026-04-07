@@ -934,3 +934,145 @@ class OJTProgramAdminDetailHandler(BaseHandler):
         db.commit()
         db.close()
         self.success(None, "Program admin removed")
+
+
+# ── OJT Evaluation Templates ──
+class OJTEvalTemplateHandler(BaseHandler):
+    @require_auth()
+    def get(self):
+        program_id = self.get_argument("program_id", None)
+        db = get_db()
+        query = """
+            SELECT et.*, u.name as created_by_name, op.name as program_name
+            FROM ojt_eval_templates et
+            LEFT JOIN users u ON et.created_by = u.id
+            LEFT JOIN ojt_programs op ON et.program_id = op.id
+            WHERE 1=1
+        """
+        params = []
+        if program_id:
+            query += " AND et.program_id = ?"
+            params.append(program_id)
+        query += " ORDER BY et.created_at DESC"
+        templates = dicts_from_rows(db.execute(query, params).fetchall())
+        db.close()
+        self.success(templates)
+
+    @require_auth(roles=["admin", "ojt_admin", "instructor"])
+    def post(self):
+        body = self.get_json_body()
+        if not body.get("name"):
+            return self.error("name is required")
+        if not body.get("program_id"):
+            return self.error("program_id is required")
+        db = get_db()
+        cur = db.execute("""
+            INSERT INTO ojt_eval_templates (program_id, name, description, criteria, max_score, template_data, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (body["program_id"], body["name"], body.get("description", ""),
+              body.get("criteria", ""), body.get("max_score", 100),
+              body.get("template_data", ""), self.current_user_data["user_id"]))
+        db.commit()
+        template_id = cur.lastrowid
+        db.close()
+        self.success({"id": template_id}, "Evaluation template created")
+
+
+class OJTEvalTemplateDetailHandler(BaseHandler):
+    @require_auth()
+    def get(self, template_id):
+        db = get_db()
+        template = dict_from_row(db.execute("""
+            SELECT et.*, u.name as created_by_name, op.name as program_name
+            FROM ojt_eval_templates et
+            LEFT JOIN users u ON et.created_by = u.id
+            LEFT JOIN ojt_programs op ON et.program_id = op.id
+            WHERE et.id = ?
+        """, (template_id,)).fetchone())
+        db.close()
+        if not template:
+            return self.error("Template not found", 404)
+        self.success(template)
+
+    @require_auth(roles=["admin", "ojt_admin", "instructor"])
+    def put(self, template_id):
+        body = self.get_json_body()
+        allowed = ["name", "description", "criteria", "max_score", "template_data", "program_id"]
+        updates = {k: body[k] for k in allowed if k in body}
+        if not updates:
+            return self.error("No valid fields")
+        updates["updated_at"] = "CURRENT_TIMESTAMP"
+        set_clause = ", ".join(f"{k} = ?" for k in updates if k != "updated_at")
+        set_clause += ", updated_at = CURRENT_TIMESTAMP"
+        values = [v for k, v in updates.items() if k != "updated_at"] + [template_id]
+        db = get_db()
+        db.execute(f"UPDATE ojt_eval_templates SET {set_clause} WHERE id = ?", values)
+        db.commit()
+        db.close()
+        self.success(None, "Evaluation template updated")
+
+    @require_auth(roles=["admin", "ojt_admin", "instructor"])
+    def delete(self, template_id):
+        db = get_db()
+        db.execute("DELETE FROM ojt_eval_templates WHERE id = ?", (template_id,))
+        db.commit()
+        db.close()
+        self.success(None, "Evaluation template deleted")
+
+
+class OJTEvalTemplateBulkApplyHandler(BaseHandler):
+    @require_auth(roles=["admin", "ojt_admin", "instructor"])
+    def post(self):
+        body = self.get_json_body()
+        template_id = body.get("template_id")
+        program_id = body.get("program_id")
+        if not template_id:
+            return self.error("template_id is required")
+        if not program_id:
+            return self.error("program_id is required")
+
+        db = get_db()
+
+        # Get template
+        template = dict_from_row(db.execute(
+            "SELECT * FROM ojt_eval_templates WHERE id = ?", (template_id,)).fetchone())
+        if not template:
+            db.close()
+            return self.error("Template not found", 404)
+
+        # Get all trainees enrolled in the program
+        enrollments = dicts_from_rows(db.execute("""
+            SELECT DISTINCT oe.trainee_id, oe.id as enrollment_id
+            FROM ojt_enrollments oe
+            WHERE oe.program_id = ?
+        """, (program_id,)).fetchall())
+
+        if not enrollments:
+            db.close()
+            return self.success({"created_count": 0}, "No trainees to evaluate")
+
+        created_count = 0
+        try:
+            for enrollment in enrollments:
+                # Check if evaluation already exists
+                existing = db.execute("""
+                    SELECT id FROM ojt_evaluations
+                    WHERE enrollment_id = ? AND template_id = ?
+                """, (enrollment["enrollment_id"], template_id)).fetchone()
+
+                if not existing:
+                    db.execute("""
+                        INSERT INTO ojt_evaluations
+                        (enrollment_id, template_id, criteria, max_score, template_data, created_at)
+                        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """, (enrollment["enrollment_id"], template_id,
+                          template.get("criteria", ""), template.get("max_score", 100),
+                          template.get("template_data", "")))
+                    created_count += 1
+            db.commit()
+        except Exception as e:
+            db.close()
+            return self.error(f"Error applying template: {str(e)}", 400)
+
+        db.close()
+        self.success({"created_count": created_count}, f"Template applied to {created_count} trainee(s)")

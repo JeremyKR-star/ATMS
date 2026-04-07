@@ -23,7 +23,7 @@ from routes.evaluation_routes import EvaluationsHandler, EvaluationDetailHandler
 from routes.ojt_routes import OJTProgramsHandler, OJTProgramDetailHandler, OJTTasksHandler, OJTEnrollHandler, OJTEvaluationsHandler
 from routes.content_routes import ContentHandler, ContentDetailHandler
 from routes.report_routes import DashboardHandler, CourseReportHandler, TraineeReportHandler, AttendanceReportHandler, MonthlyStatsHandler, ReportExportHandler
-from routes.notification_routes import NotificationsHandler, NotificationReadHandler, NotificationReadAllHandler, SurveyHandler
+from routes.notification_routes import NotificationsHandler, NotificationReadHandler, NotificationReadAllHandler, SurveyHandler, SSEHandler
 from routes.photo_routes import PhotoUploadHandler
 from routes.pilot_routes import (PilotsHandler, PilotDetailHandler, PilotPhotoHandler,
                                   PilotCoursesHandler, PilotTrainingHandler, PilotWeeklyHandler,
@@ -58,7 +58,8 @@ from routes.ojt_extended_routes import (
     CareerRoadmapTasksHandler, CareerRoadmapSubTasksHandler,
     CareerRoadmapProgressHandler,
     OJTTrainingResultsHandler, OJTTrainingResultDetailHandler,
-    OJTProgramAdminsHandler, OJTProgramAdminDetailHandler
+    OJTProgramAdminsHandler, OJTProgramAdminDetailHandler,
+    OJTEvalTemplateHandler, OJTEvalTemplateDetailHandler, OJTEvalTemplateBulkApplyHandler
 )
 
 PORT = int(os.environ.get('PORT', 8080))
@@ -393,6 +394,9 @@ def make_app():
         (r"/api/notifications/read-all", NotificationReadAllHandler),
         (r"/api/surveys", SurveyHandler),
 
+        # ── Server-Sent Events (SSE fallback) ──
+        (r"/api/sse", SSEHandler),
+
         # ── Photo Upload (user photos) ──
         (r"/api/upload/photo", PhotoUploadHandler),
 
@@ -466,6 +470,9 @@ def make_app():
         (r"/api/ojt/training-results/(\d+)", OJTTrainingResultDetailHandler),
         (r"/api/ojt/programs/(\d+)/admins", OJTProgramAdminsHandler),
         (r"/api/ojt/program-admins/(\d+)", OJTProgramAdminDetailHandler),
+        (r"/api/ojt/eval-templates", OJTEvalTemplateHandler),
+        (r"/api/ojt/eval-templates/([0-9]+)", OJTEvalTemplateDetailHandler),
+        (r"/api/ojt/eval-templates/bulk-apply", OJTEvalTemplateBulkApplyHandler),
 
         # ── Career Roadmap ──
         (r"/api/career-roadmap", CareerRoadmapHandler),
