@@ -387,6 +387,7 @@ def init_db():
             department TEXT,
             specialty TEXT,
             bio TEXT,
+            language TEXT NOT NULL DEFAULT 'ko',
             status TEXT DEFAULT 'active' CHECK(status IN ('active','inactive','suspended')),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

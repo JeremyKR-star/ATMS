@@ -126,7 +126,7 @@ class RateLimitMixin:
 
 
 # Route imports
-from routes.auth_routes import LoginHandler, RegisterHandler, VerifyIdHandler, ProfileHandler, ChangePasswordHandler, BaseHandler
+from routes.auth_routes import LoginHandler, RegisterHandler, VerifyIdHandler, ProfileHandler, ChangePasswordHandler, LanguagePreferenceHandler, BaseHandler
 from routes.user_routes import UsersHandler, UserDetailHandler, ResetPasswordHandler, InstructorsHandler, BulkUserImportHandler
 from routes.course_routes import CoursesHandler, CourseDetailHandler, ModulesHandler, EnrollmentHandler
 from routes.schedule_routes import SchedulesHandler, ScheduleDetailHandler, AttendanceHandler, ScheduleConflictCheckHandler, ScheduleEnrollmentsHandler, ScheduleOptimizeHandler
@@ -504,6 +504,7 @@ def make_app():
         (r"/api/auth/verify-id", VerifyIdHandler),
         (r"/api/auth/profile", ProfileHandler),
         (r"/api/auth/change-password", ChangePasswordHandler),
+        (r"/api/auth/language", LanguagePreferenceHandler),
 
         # ── Users ──
         (r"/api/users", UsersHandler),

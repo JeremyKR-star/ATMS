@@ -103,6 +103,7 @@ class LoginHandler(BaseHandler):
                 "department": user["department"],
                 "email": user["email"],
                 "photo_url": user["photo_url"],
+                "language": user.get("language", "ko"),
             }
         }, "Login successful")
 
@@ -186,7 +187,7 @@ class ProfileHandler(BaseHandler):
     def get(self):
         db = get_db()
         user = dict_from_row(db.execute(
-            "SELECT id, employee_id, name, email, phone, birthday, photo_url, role, title, department, specialty, bio, status, created_at FROM users WHERE id = ?",
+            "SELECT id, employee_id, name, email, phone, birthday, photo_url, role, title, department, specialty, bio, language, status, created_at FROM users WHERE id = ?",
             (self.current_user_data["user_id"],)
         ).fetchone())
         db.close()
@@ -198,10 +199,14 @@ class ProfileHandler(BaseHandler):
     @require_auth()
     def put(self):
         body = self.get_json_body()
-        allowed = ["name", "email", "phone", "birthday", "bio", "specialty"]
+        allowed = ["name", "email", "phone", "birthday", "bio", "specialty", "language"]
         updates = {k: body[k] for k in allowed if k in body}
         if not updates:
             return self.error("No valid fields to update")
+
+        # Validate language if provided
+        if "language" in updates and updates["language"] not in ("ko", "en"):
+            return self.error("Invalid language. Must be 'ko' or 'en'")
 
         set_clause = ", ".join(f"{k} = ?" for k in updates)
         values = list(updates.values()) + [self.current_user_data["user_id"]]
@@ -239,3 +244,17 @@ class ChangePasswordHandler(BaseHandler):
         db.close()
         _log_audit(self, 'change_password', 'user', self.current_user_data["user_id"])
         self.success(None, "Password changed successfully")
+
+
+class LanguagePreferenceHandler(BaseHandler):
+    @require_auth()
+    def put(self):
+        body = self.get_json_body()
+        lang = body.get("language", "ko")
+        if lang not in ("ko", "en"):
+            return self.error("Invalid language. Must be 'ko' or 'en'")
+        db = get_db()
+        db.execute("UPDATE users SET language = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (lang, self.current_user_data["user_id"]))
+        db.commit()
+        db.close()
+        self.success({"language": lang}, "Language updated")
