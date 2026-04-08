@@ -9,17 +9,128 @@ import webbrowser
 import threading
 import logging
 from logging.handlers import RotatingFileHandler
+from collections import defaultdict
 import tornado.ioloop
 import tornado.web
 from database import init_db, get_db, DB_PATH, IS_POSTGRES, dicts_from_rows
 from auth import get_current_user, require_auth
+
+# ─── Rate Limiter ───
+class RateLimiter:
+    """In-memory rate limiter using sliding window algorithm."""
+
+    def __init__(self):
+        # {ip: [(timestamp, ...), (timestamp, ...), ...]}
+        self.requests = defaultdict(list)
+        self.last_cleanup = time.time()
+        self.cleanup_interval = 300  # 5 minutes
+
+        # Rate limits: requests per minute per IP
+        self.limits = {
+            'login': 10,          # /api/auth/login
+            'upload': 20,         # file upload endpoints
+            'general': 120        # general API endpoints
+        }
+
+    def _get_client_ip(self, request):
+        """Extract client IP from request, considering proxies."""
+        forwarded = request.headers.get("X-Forwarded-For", "")
+        return forwarded.split(",")[0].strip() if forwarded else request.remote_ip
+
+    def _cleanup_expired(self):
+        """Remove request timestamps older than 1 minute."""
+        now = time.time()
+        if now - self.last_cleanup < self.cleanup_interval:
+            return
+
+        self.last_cleanup = now
+        window = 60  # 1 minute
+        cutoff_time = now - window
+
+        # Clean up old entries
+        expired_ips = []
+        for ip in list(self.requests.keys()):
+            self.requests[ip] = [ts for ts in self.requests[ip] if ts > cutoff_time]
+            if not self.requests[ip]:
+                expired_ips.append(ip)
+
+        for ip in expired_ips:
+            del self.requests[ip]
+
+    def check_rate_limit(self, request, endpoint_type='general'):
+        """
+        Check if request exceeds rate limit.
+
+        Args:
+            request: Tornado request object
+            endpoint_type: 'login', 'upload', or 'general'
+
+        Returns:
+            (is_allowed, retry_after_seconds)
+        """
+        self._cleanup_expired()
+
+        ip = self._get_client_ip(request)
+        now = time.time()
+        window = 60  # 1 minute
+        cutoff_time = now - window
+
+        # Remove timestamps outside the window
+        self.requests[ip] = [ts for ts in self.requests[ip] if ts > cutoff_time]
+
+        limit = self.limits.get(endpoint_type, self.limits['general'])
+        current_count = len(self.requests[ip])
+
+        if current_count >= limit:
+            # Rate limit exceeded - calculate retry_after
+            if self.requests[ip]:
+                oldest_request = min(self.requests[ip])
+                retry_after = int(window - (now - oldest_request)) + 1
+            else:
+                retry_after = 60
+            return False, retry_after
+
+        # Add current request timestamp
+        self.requests[ip].append(now)
+        return True, 0
+
+
+# Global rate limiter instance
+_rate_limiter = RateLimiter()
+
+
+# ─── Rate Limited Handler Mixin ───
+class RateLimitMixin:
+    """
+    Mixin to add rate limiting to Tornado handlers.
+
+    Handlers using this mixin will automatically check rate limits in prepare().
+    If rate limited, a 429 response is sent automatically.
+
+    Set self.rate_limit_type = 'login', 'upload', or 'general' (default) to control the limit.
+    """
+
+    rate_limit_type = 'general'  # Can be overridden by subclasses
+
+    def prepare(self):
+        """Check rate limit before processing request."""
+        # Call parent prepare() if it exists
+        if hasattr(super(), 'prepare'):
+            super().prepare()
+
+        # Check rate limit
+        is_allowed, error_response = _check_rate_limit(self.request, self)
+        if not is_allowed:
+            self.write(error_response)
+            self.finish()
+
 
 # Route imports
 from routes.auth_routes import LoginHandler, RegisterHandler, VerifyIdHandler, ProfileHandler, ChangePasswordHandler, BaseHandler
 from routes.user_routes import UsersHandler, UserDetailHandler, ResetPasswordHandler, InstructorsHandler, BulkUserImportHandler
 from routes.course_routes import CoursesHandler, CourseDetailHandler, ModulesHandler, EnrollmentHandler
 from routes.schedule_routes import SchedulesHandler, ScheduleDetailHandler, AttendanceHandler, ScheduleConflictCheckHandler, ScheduleEnrollmentsHandler, ScheduleOptimizeHandler
-from routes.evaluation_routes import EvaluationsHandler, EvaluationDetailHandler, SubmitEvaluationHandler, BulkCreateEvaluationsHandler
+from routes.evaluation_routes import EvaluationsHandler, EvaluationDetailHandler, SubmitEvaluationHandler, BulkCreateEvaluationsHandler, TransferEvaluationHandler
 from routes.ojt_routes import OJTProgramsHandler, OJTProgramDetailHandler, OJTTasksHandler, OJTEnrollHandler, OJTEvaluationsHandler
 from routes.content_routes import ContentHandler, ContentDetailHandler
 from routes.report_routes import DashboardHandler, CourseReportHandler, TraineeReportHandler, AttendanceReportHandler, MonthlyStatsHandler, ReportExportHandler, ModuleAttendanceReportHandler, OJTTaskCompletionReportHandler, OJTTraineeProgressReportHandler, OJTLeaderEvalSummaryHandler
@@ -43,12 +154,13 @@ from routes.assignment_routes import (AssignmentSubmissionsHandler, AssignmentGr
                                        DigitalSignaturesHandler, DigitalSignatureVerifyHandler,
                                        CounselingHandler, UserProfileExtHandler)
 from websocket_handler import ATMSWebSocketHandler, broadcast_to_user, broadcast_to_all
+from routes.work_schedule_routes import WorkSchedulesHandler, WorkScheduleDetailHandler, WorkScheduleSummaryHandler
 from routes.ojt_extended_routes import (
     OJTSubTasksHandler, OJTSubTaskDetailHandler,
     OJTLeadersHandler, OJTLeaderDetailHandler,
     OJTTrainingSpecsHandler, OJTTrainingSpecDetailHandler,
     OJTEvalSpecsHandler, OJTEvalSpecDetailHandler,
-    OJTPreAssignmentsHandler,
+    OJTPreAssignmentsHandler, OJTPreAssignmentSubmitHandler,
     OJTVenuesHandler, OJTVenueDetailHandler,
     OJTAnnouncementsHandler, OJTAnnouncementDetailHandler,
     OJTSurveyTemplatesHandler, OJTSurveyTemplateDetailHandler,
@@ -92,6 +204,50 @@ def _is_bot(request):
     if request.method == "HEAD":
         return True
     return False
+
+
+def _should_rate_limit(request):
+    """Determine if rate limiting should apply to this request."""
+    # Don't rate limit bots or health checks
+    if _is_bot(request):
+        return False
+    # Don't rate limit static files
+    if request.path.startswith('/uploads/') or request.path.endswith(('.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.map')):
+        return False
+    return True
+
+
+def _check_rate_limit(request, handler):
+    """
+    Check rate limit and set response if exceeded.
+
+    Returns: (is_allowed, error_response_dict_or_none)
+    """
+    if not _should_rate_limit(request):
+        return True, None
+
+    # Determine endpoint type
+    path = request.path
+    if '/api/auth/login' in path:
+        endpoint_type = 'login'
+    elif '/upload/' in path or path.endswith('/download'):
+        endpoint_type = 'upload'
+    else:
+        endpoint_type = 'general'
+
+    is_allowed, retry_after = _rate_limiter.check_rate_limit(request, endpoint_type)
+
+    if not is_allowed:
+        error_response = {
+            "error": "Too many requests. Please try again later.",
+            "retry_after": retry_after
+        }
+        handler.set_status(429)
+        handler.set_header("Retry-After", str(retry_after))
+        handler.set_header("Content-Type", "application/json")
+        return False, error_response
+
+    return True, None
 
 
 def _track_active(request):
@@ -160,6 +316,12 @@ def log_request(handler):
     uri = request.uri
     latency = 1000.0 * request.request_time()
     ua = request.headers.get("User-Agent", "-")[:100]
+
+    # Check rate limit (note: rate limited responses are already sent by _check_rate_limit)
+    # This is informational logging only
+    if _should_rate_limit(request) and status == 429:
+        # Rate limit already applied in handler
+        pass
 
     # Track active user
     _track_active(request)
@@ -368,6 +530,7 @@ def make_app():
         (r"/api/evaluations", EvaluationsHandler),
         (r"/api/evaluations/(\d+)", EvaluationDetailHandler),
         (r"/api/evaluations/(\d+)/submit", SubmitEvaluationHandler),
+        (r"/api/evaluations/(\d+)/transfer", TransferEvaluationHandler),
         (r"/api/evaluations/bulk-create", BulkCreateEvaluationsHandler),
 
         # ── OJT ──
@@ -463,6 +626,7 @@ def make_app():
         (r"/api/ojt/eval-specs", OJTEvalSpecsHandler),
         (r"/api/ojt/eval-specs/(\d+)", OJTEvalSpecDetailHandler),
         (r"/api/ojt/pre-assignments", OJTPreAssignmentsHandler),
+        (r"/api/ojt/pre-assignments/([0-9]+)/submit", OJTPreAssignmentSubmitHandler),
         (r"/api/ojt/venues", OJTVenuesHandler),
         (r"/api/ojt/venues/(\d+)", OJTVenueDetailHandler),
         (r"/api/ojt/announcements", OJTAnnouncementsHandler),
@@ -489,6 +653,11 @@ def make_app():
         (r"/api/career-roadmap/(\d+)/tasks", CareerRoadmapTasksHandler),
         (r"/api/career-roadmap-tasks/(\d+)/sub-tasks", CareerRoadmapSubTasksHandler),
         (r"/api/career-roadmap/progress", CareerRoadmapProgressHandler),
+
+        # ── Work Schedules (근무 스케줄) ──
+        (r"/api/work-schedules", WorkSchedulesHandler),
+        (r"/api/work-schedules/(\d+)", WorkScheduleDetailHandler),
+        (r"/api/work-schedules/summary", WorkScheduleSummaryHandler),
 
         # ── Audit Log ──
         (r"/api/audit-log", AuditLogHandler),

@@ -1265,6 +1265,109 @@ def init_db():
         )
     """)
 
+    # ── Work Schedules (근무 스케줄) ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS work_schedules (
+            id {get_pk_syntax()},
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            title TEXT DEFAULT '',
+            schedule_date DATE NOT NULL,
+            start_time TEXT NOT NULL DEFAULT '09:00',
+            end_time TEXT NOT NULL DEFAULT '18:00',
+            schedule_type TEXT NOT NULL DEFAULT 'work' CHECK(schedule_type IN ('work','leave','holiday','overtime','duty','half_day')),
+            notes TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ══════════════════════════════════════════════════════════
+    # PERFORMANCE INDEXES
+    # ══════════════════════════════════════════════════════════
+
+    # ── User Indexes ──
+    c.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)")
+
+    # ── Enrollment Indexes ──
+    c.execute("CREATE INDEX IF NOT EXISTS idx_enrollments_user_id ON enrollments(trainee_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_enrollments_course_id ON enrollments(course_id)")
+
+    # ── Schedule Indexes ──
+    c.execute("CREATE INDEX IF NOT EXISTS idx_schedules_course_id ON schedules(course_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_schedules_date ON schedules(schedule_date)")
+
+    # ── Attendance Indexes ──
+    c.execute("CREATE INDEX IF NOT EXISTS idx_attendance_schedule_id ON attendance(schedule_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_attendance_user_id ON attendance(trainee_id)")
+
+    # ── OJT Enrollment Indexes ──
+    c.execute("CREATE INDEX IF NOT EXISTS idx_ojt_enrollments_user_id ON ojt_enrollments(trainee_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_ojt_enrollments_program_id ON ojt_enrollments(program_id)")
+
+    # ── Notification Indexes ──
+    c.execute("CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)")
+
+    # ── Audit Log Indexes ──
+    c.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_name)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at)")
+
+    # ── Access Log Indexes ──
+    c.execute("CREATE INDEX IF NOT EXISTS idx_access_logs_user_id ON access_logs(user_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_access_logs_accessed_at ON access_logs(created_at)")
+
+    # ── Content Indexes ──
+    c.execute("CREATE INDEX IF NOT EXISTS idx_content_course_id ON content(course_id)")
+
+    # ── Evaluation Indexes ──
+    c.execute("CREATE INDEX IF NOT EXISTS idx_evaluations_course_id ON evaluations(course_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_evaluations_trainee_id ON evaluations(trainee_id)")
+
+    # ── OJT Task Indexes ──
+    c.execute("CREATE INDEX IF NOT EXISTS idx_ojt_tasks_program_id ON ojt_tasks(program_id)")
+
+    # ── OJT Evaluation Indexes ──
+    c.execute("CREATE INDEX IF NOT EXISTS idx_ojt_evaluations_enrollment_id ON ojt_evaluations(enrollment_id)")
+
+    # ── Work Schedule Indexes ──
+    c.execute("CREATE INDEX IF NOT EXISTS idx_work_schedules_user_id ON work_schedules(user_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_work_schedules_date ON work_schedules(schedule_date)")
+
+    # ══════════════════════════════════════════════════════════
+    # SCHEMA MIGRATIONS (ADD MISSING COLUMNS)
+    # ══════════════════════════════════════════════════════════
+
+    # ── Add submission-related columns to ojt_pre_assignments ──
+    try:
+        c.execute("ALTER TABLE ojt_pre_assignments ADD COLUMN status TEXT DEFAULT 'pending' CHECK(status IN ('pending','submitted','reviewed'))")
+    except Exception:
+        pass  # Column already exists
+
+    try:
+        c.execute("ALTER TABLE ojt_pre_assignments ADD COLUMN submission_text TEXT")
+    except Exception:
+        pass  # Column already exists
+
+    try:
+        c.execute("ALTER TABLE ojt_pre_assignments ADD COLUMN file_url TEXT")
+    except Exception:
+        pass  # Column already exists
+
+    try:
+        c.execute("ALTER TABLE ojt_pre_assignments ADD COLUMN submitted_at TIMESTAMP")
+    except Exception:
+        pass  # Column already exists
+
+    # ── Add transfer-related columns to evaluations ──
+    try:
+        c.execute("ALTER TABLE evaluations ADD COLUMN transferred_at TIMESTAMP")
+    except Exception:
+        pass  # Column already exists
+
+    try:
+        c.execute("ALTER TABLE evaluations ADD COLUMN transferred_by INTEGER REFERENCES users(id) ON DELETE SET NULL")
+    except Exception:
+        pass  # Column already exists
+
     conn.commit()
     conn.close()
     backend_name = "PostgreSQL" if IS_POSTGRES else "SQLite"
