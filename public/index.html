@@ -1085,7 +1085,360 @@ var TRANSLATIONS = {
   // Misc toast messages
   '\uB4F1\uB85D \uC644\uB8CC':'Registered','\uC218\uC815 \uC644\uB8CC':'Updated',
   '\uC0AD\uC81C \uC644\uB8CC':'Deleted','\uC800\uC7A5 \uC644\uB8CC':'Saved',
-  '\uC5C5\uB85C\uB4DC \uC644\uB8CC':'Uploaded'
+  '\uC5C5\uB85C\uB4DC \uC644\uB8CC':'Uploaded',
+  // Additional common translations
+  '등급':'Grade','응시':'Take Exam','전송':'Transfer','일정':'Schedule','일정_':'Schedule_','평가_':'Evaluation_',
+  '예: - 개념을 이해한다\n- 규칙을 적용한다':'e.g. - Understand concepts\n- Apply rules',
+  '예: 2 시간':'e.g. 2 hours','예: 짧은 퀴즈, 미니 프로젝트':'e.g. Short quiz, mini project',
+  '예: 프로젝터, 동영상':'e.g. Projector, video',
+
+  // JSX page translations
+  '다른 국적을 선택하거나 조종사 관리 탭에서 조종사를 추가해주세요.':'Select another nationality or add pilots in the Pilot Management tab.',
+  '전체 조종사':'All Trainees',
+  '📥 엑셀 다운로드':'Download Excel',
+  '훈련 진도':'Training Progress',
+  '주간보고 엑셀 업로드':'Weekly Report Excel Upload',
+  '업로드 이력':'Upload History',
+  '업로드된 파일이 없습니다':'No uploaded files',
+  '보고일':'Report Date',
+  '업로드자':'Uploader',
+  '데이터 수':'Data Count',
+  '파일 크기':'File Size',
+  '업로드일시':'Upload Date',
+  '다운로드':'Download',
+  '📤 일괄등록':'Batch Register',
+  '조종사 일괄등록':'Batch Pilot Registration',
+  '명 가져오기':' pilots to import',
+  '엑셀 파일을 선택하세요':'Select an Excel file',
+  '(.xlsx / .xlsm 형식)':'(.xlsx / .xlsm format)',
+  '데이터 로딩중...':'Loading data...',
+  '필수 입력 항목':'Required field',
+  '보기':'View',
+  '비활성화':'Deactivate',
+  '(계정이 비활성 상태로 전환되며, 로그인이 불가합니다)':'(Account will be deactivated and login will be disabled)',
+  '부서/소속':'Department/Affiliation',
+  '직급/직함':'Position/Title',
+  '특기/전문분야':'Specialty/Expertise',
+  'name, email, role, department, password':'name, email, role, department, password',
+  '전체 일정':'All Schedules',
+  '나의 강의':'My Lectures',
+  '교수 스케줄':'Instructor Schedule',
+  '주간 근무표':'Weekly Work Schedule',
+  '🤖 자동 최적화':'Auto Optimize',
+  '📥 엑셀':'Excel',
+  '기간:':'Period:',
+  '빠른 출석':'Quick Attendance',
+  '전체 출석':'Full Attendance',
+  '상태를 클릭하여 변경: 출석 → 결석 → 지각 → 공결 → 출석':'Click to change status: Present → Absent → Late → Official Absence → Present',
+  '(삭제된 일정은 복구할 수 없습니다)':'(Deleted schedules cannot be recovered)',
+  '일괄 등록':'Batch Register',
+  '선호 강의실 (쉼표로 구분)':'Preferred classroom (comma separated)',
+  '교육생에게 이 QR 코드를 보여주세요':'Show this QR code to trainees',
+  '교육생은 "QR 체크인" 버튼을 눌러 토큰을 입력하면 출석 처리됩니다':'Trainees can check in by pressing "QR Check-in" and entering the token',
+  'QR 코드를 생성할 수 없습니다':'Cannot generate QR code',
+  '체크인':'Check-in',
+  'QR 코드 토큰을 입력하세요':'Enter QR code token',
+  '교관이 보여주는 QR 코드 하단의 토큰을 입력하거나 카메라로 스캔하세요':'Enter the token shown below the QR code or scan with camera',
+  '📷 카메라로 스캔':'Scan with camera',
+  '카메라 스캔 후 토큰이 자동 입력됩니다 (수동 입력도 가능)':'Token auto-fills after camera scan (manual entry also available)',
+  '전체 과정':'All Courses',
+  '이번 주':'This Week',
+  '이번 달':'This Month',
+  '지난 주':'Last Week',
+  '지난 달':'Last Month',
+  '기간 지정':'Custom Period',
+  '전체 평가':'Total Evaluations',
+  '대기중':'Pending',
+  '액션':'Action',
+  '주관식 답변':'Written Answer',
+  '파일 첨부 (선택)':'File Attachment (Optional)',
+  '만점':'Max Score',
+  '수신자':'Recipient',
+  '선택하세요':'Please select',
+  '평가 템플릿 관리':'Evaluation Template Management',
+  '적용':'Apply',
+  '각 알림 유형별로 음소거/해제를 설정할 수 있습니다. 음소거된 알림은 목록에 흐리게 표시됩니다.':'You can mute/unmute each notification type. Muted notifications appear dimmed.',
+  '프로필':'Profile',
+  '전화':'Phone',
+  '소개':'Bio',
+  '비밀번호 변경':'Change Password',
+  '새 비밀번호 확인':'Confirm New Password',
+  '변경':'Change',
+  '🌐 접속 로그':'Access Logs',
+  '사용자':'User',
+  '접속 로그가 없습니다':'No access logs',
+  '.xlsx / .xlsm 파일 지원 (최대 10MB)':'.xlsx / .xlsm files supported (max 10MB)',
+  '클릭하여 엑셀 파일 선택':'Click to select Excel file',
+  '업로드 중...':'Uploading...',
+  '파일 업로드 중...':'Uploading file...',
+  '엑셀 데이터 분석 중...':'Analyzing Excel data...',
+  '업로드 완료!':'Upload complete!',
+  '업로드 실패':'Upload failed',
+  // Auto-added translations
+  '프로그램':'Programs',
+  '훈련관리':'Training Mgmt',
+  '평가':'Evaluations',
+  '사전과제':'Pre-assignments',
+  '리더/Admin':'Leaders/Admin',
+  '훈련장소':'Training Venues',
+  '훈련일정':'Training Schedule',
+  '공지사항':'Announcements',
+  '서베이':'Surveys',
+  '경력개발':'Career Development',
+  '훈련결과':'Training Results',
+  '타임라인':'Timeline',
+  '나의 훈련':'My Training',
+  '훈련현황':'Training Status',
+  '새 OJT 프로그램':'New OJT Program',
+  '새 훈련계획서 (TS)':'New Training Plan (TS)',
+  '새 훈련평가 (ES)':'New Training Eval (ES)',
+  '새 서베이':'New Survey',
+  '새 경력개발 로드맵':'New Career Roadmap',
+  '새 사전과제 등록':'New Pre-assignment',
+  '리더/Admin 배정':'Leader/Admin Assignment',
+  '등록':'Register',
+  '전체':'All',
+  '진행중':'In Progress',
+  '예정':'Planned',
+  '종료':'Completed',
+  '📚 과제: ':'📚 Tasks: ',
+  '👥 참여자: ':'👥 Participants: ',
+  '📅 기간: ':'📅 Duration: ',
+  '✈️ 기종: ':'✈️ Aircraft: ',
+  '📋 TS: ':'📋 TS: ',
+  '📝 ES: ':'📝 ES: ',
+  '주':'weeks',
+  'OJT 프로그램 없음':'No OJT Programs',
+  '해당 상태의 프로그램 없음':'No programs with this status',
+  '새 프로그램을 등록해 보세요':'Register a new program',
+  '상세 정보':'Details',
+  '프로그램을 선택하세요':'Select a program',
+  '좌측 목록에서 선택':'Select from the list on the left',
+  '평가 데이터 없음':'No evaluation data',
+  '훈련계획서 없음':'No training plans',
+  'TS 문서를 등록해 보세요':'Register a TS document',
+  '훈련평가 없음':'No training evaluations',
+  'ES 문서를 등록해 보세요':'Register an ES document',
+  '훈련장소 없음':'No training venues',
+  '훈련일정 없음':'No training schedules',
+  '공지사항 없음':'No announcements',
+  '새 공지를 작성해 보세요':'Write a new announcement',
+  '서베이 없음':'No surveys',
+  '새 서베이를 등록해 보세요':'Register a new survey',
+  '템플릿 없음':'No templates',
+  '👥 참여자 (':'👥 Participants (',
+  '📄 훈련계획서 (TS) - ':'📄 Training Plan (TS) - ',
+  '📝 훈련평가 (ES) - ':'📝 Training Eval (ES) - ',
+  '👨‍🏫 리더/관리자 - ':'👨‍🏫 Leaders/Managers - ',
+  '건':' items',
+  '명':' people',
+  '📝 과제 계층 구조 (':'📝 Task Hierarchy (',
+  '장소명':'Venue Name',
+  '위치':'Location',
+  '장비':'Equipment',
+  '우선순위':'Priority',
+  '작성자: ':'Author: ',
+  '항목수':'Items',
+  '항목수: ':'Items: ',
+  '답변 입력':'Enter response',
+  '제출 중...':'Submitting...',
+  '진행 중인 설문이 없습니다':'No active surveys',
+  '참여':'Participate',
+  '🏅 나의 강사개발 로드맵':'🏅 My Instructor Development Roadmap',
+  '▲ 접기':'▲ Collapse',
+  '▼ 펼치기':'▼ Expand',
+  '나의 전체 진행률':'My Overall Progress',
+  ' 과제 완료':' tasks completed',
+  '🏆 전체 경력개발 진행률':'🏆 Overall Career Development Progress',
+  '전체 훈련생':'All Trainees',
+  '코드':'Code',
+  '과정명':'Course Name',
+  '유형':'Type',
+  '기종':'Aircraft',
+  '기간':'Duration',
+  '시작일':'Start Date',
+  '+ 신규 과정':'+ New Course',
+  '엑셀 다운로드':'Download Excel',
+  '과정 검색 (코드/명칭)...':'Search courses (code/name)...',
+  '검색 결과 없음. 과정이 없습니다':'No results. No courses found',
+  '과정이 없습니다':'No courses available',
+  '과정 코드':'Course Code',
+  '과정코드 필수':'Course code required',
+  '과정명 필수':'Course name required',
+  '유형 선택':'Select Type',
+  '최대인원':'Max Capacity',
+  '기간(주)':'Duration (weeks)',
+  '모듈/일정':'Modules/Schedule',
+  '모듈 관리':'Module Management',
+  '교관 배정':'Instructor Assignment',
+  '+ 모듈 추가':'+ Add Module',
+  '모듈명':'Module Name',
+  '시간':'Hours',
+  '교관':'Instructor',
+  '수강생':'Students',
+  '이수':'Completed',
+  '과정_':'Course_',
+  '사번':'Employee ID',
+  '이름':'Name',
+  '이메일':'Email',
+  '역할':'Role',
+  '부서':'Department',
+  '전화번호':'Phone',
+  '이름/사번 검색...':'Search name/ID...',
+  '전체 역할':'All Roles',
+  '+ 사용자 등록':'+ Register User',
+  '사용자 삭제 확인':'Confirm User Deletion',
+  '사번 필수':'Employee ID required',
+  '이름 필수':'Name required',
+  '비밀번호 필수 (신규)':'Password required (new)',
+  '비밀번호 (수정시 입력)':'Password (enter to change)',
+  '생년월일':'Date of Birth',
+  '전문분야':'Specialty',
+  '증명사진':'ID Photo',
+  '비밀번호':'Password',
+  '직급':'Position',
+  '평균 점수':'Average Score',
+  '예정 일정이 없습니다':'No upcoming schedules',
+  '📢 중요한 알림은 알림 페이지에서 확인하세요':'Check important notifications on the notifications page',
+  '✨ 훈련 현황: ':'✨ Training Status: ',
+  '% 완료 (':'% completed (',
+  ' 과정)':' courses)',
+  '⚠️ 평가 대기: ':'⚠️ Pending evaluations: ',
+  '날짜':'Date',
+  '장소':'Location',
+  '모듈':'Module',
+  '나의 강의 일정이 없습니다':'No lecture schedules',
+  '일정이 없습니다':'No schedules',
+  '+ 새 템플릿':'+ New Template',
+  '평가 응시: ':'Take Exam: ',
+  '채점: ':'Grading: ',
+  '평가 내역 없음':'No evaluation records',
+  '평가 결과 전송: ':'Send evaluation results: ',
+  'PDF, DOC, XLS 형식':'PDF, DOC, XLS format',
+  '평가 템플릿 등록':'Register Eval Template',
+  '평가 기준을 입력하세요':'Enter evaluation criteria',
+  '평가 템플릿명을 입력하세요':'Enter template name',
+  '프로필 저장':'Save Profile',
+  '현재 비밀번호':'Current Password',
+  '새 비밀번호':'New Password',
+  '비밀번호 확인':'Confirm Password',
+  '자기소개':'Bio',
+  '조종사 프로필':'Pilot Profile',
+  '개인별 현황':'Individual Status',
+  '주간 보고':'Weekly Report',
+  '업로드 관리':'Upload Management',
+  '해당 국적의 조종사가 없습니다':'No pilots of this nationality',
+  '파싱된 조종사':'Parsed Pilots',
+  '매칭 성공':'Matched',
+  '미매칭':'Unmatched',
+  '개인별현황_':'IndividualStatus_',
+  '주간보고_':'WeeklyReport_',
+  '명 등록됨 — 주간보고 엑셀 업로드 시 자동 반영':' registered — auto-reflected in weekly report Excel upload',
+  ' 조종사 ':' Pilot ',
+  'IP 주소':'IP Address',
+  '메서드':'Method',
+  '경로':'Path',
+  '응답시간':'Response Time',
+  '전체 요청':'Total Requests',
+  '고유 IP':'Unique IPs',
+  '(클릭)':'(click)',
+  '오늘 요청':'Today\'s Requests',
+  '오늘 고유 IP':'Today\'s Unique IPs',
+  '클릭하여 IP 목록 보기':'Click to view IP list',
+  '클릭하여 오늘 IP 목록 보기':'Click to view today\'s IP list',
+  '필터':'Filter',
+  '초기화':'Reset',
+  '실시간 ':'Real-time ',
+  '총 ':'Total ',
+  '건 (페이지 ':' items (page ',
+  '상태코드':'Status Code',
+  '2xx (성공)':'2xx (Success)',
+  '3xx (리다이렉트)':'3xx (Redirect)',
+  '4xx (클라이언트 에러)':'4xx (Client Error)',
+  '5xx (서버 에러)':'5xx (Server Error)',
+  '필터 적용':'Apply Filter',
+  '개 고유 IP':' unique IPs',
+  '요청 수':'Request Count',
+  '최초 접속':'First Access',
+  '최근 접속':'Last Access',
+  '접속 기록이 없습니다':'No access records',
+  '종료일':'End Date',
+  '1. 업로드':'1. Upload',
+  '2. 파싱':'2. Parse',
+  '3. 완료':'3. Complete',
+  '미매칭 조종사 ':'Unmatched pilots ',
+  '엑셀에 있는 이름이 DB에 등록된 조종사와 매칭되지 않았습니다.':'Names in Excel did not match registered pilots.',
+  '개인별 현황 동기화 완료':'Individual status sync complete',
+  '개 훈련기록':' training records',
+  '개 신규과목 생성':' new courses created',
+  '개인별 현황 동기화 미실행':'Individual status sync not run',
+  '이 정비사를 삭제하시겠습니까?':'Delete this mechanic?',
+  '이 업로드를 삭제하시겠습니까?':'Delete this upload?',
+  '있음':'Yes',
+  '없음':'None',
+  '추가':'Add',
+  '검색':'Search',
+  '알림 없음':'No notifications',
+  '해당 유형의 알림 없음':'No notifications of this type',
+  '음소거됨':'Muted',
+  '활성화':'Activate',
+  '주간':'Weekly',
+  '월간':'Monthly',
+  '📱 QR 출석 코드 - ':'📱 QR Attendance Code - ',
+  '📱 QR 체크인':'📱 QR Check-in',
+  '최적화 중...':'Optimizing...',
+  '최적화 실행':'Run Optimization',
+  '+ 국적 추가':'+ Add Nationality',
+  '국적을 추가하면 해당 국적의 조종사가 등록될 때 주간 보고 레이아웃이 자동 생성됩니다.':'Adding a nationality auto-creates weekly report layout when pilots of that nationality are registered.',
+  '엑셀 파일에 다음 열이 필요합니다':'The Excel file requires these columns',
+  '처리 중...':'Processing...',
+  '출석':'Present',
+  '결석':'Absent',
+  '지각':'Late',
+  '공결':'Official Absence',
+  '개인별 현황 보기':'View Individual Status',
+  '데이터 없음':'No Data',
+  '검색 결과 없음':'No results found',
+  '과정 생성 완료':'Course created',
+  '일정 삭제 완료':'Schedule deleted',
+  '일정 일괄 등록 완료':'Schedules batch registered',
+  '출석 저장 완료':'Attendance saved',
+  '과정, 기간 선택 필수':'Course and duration required',
+  '비밀번호 변경 완료':'Password changed',
+  '비밀번호 불일치':'Passwords do not match',
+  '자격 등록 완료':'Qualification registered',
+  '정비사 등록 완료':'Mechanic registered',
+  '정비사 삭제 완료':'Mechanic deleted',
+  '정비사 수정 완료':'Mechanic updated',
+  '정비사 현황':'Mechanic Status',
+  '정비사명과 전공은 필수입니다':'Mechanic name and specialty required',
+  '프로필 수정 완료':'Profile updated',
+  '조종사 현황':'Pilot Status',
+  '강의':'Lecture',
+  '실습':'Practice',
+  '토론':'Discussion',
+  '활동':'Activities',
+  '활동 이름':'Activity Name',
+  '학습 목표':'Learning Objectives',
+  '평가 방법':'Evaluation Method',
+  '필요 자료':'Required Materials',
+  '추가 중요 사항':'Additional Important Notes',
+  '교안 제목':'Lesson Plan Title',
+  '모듈 이름':'Module Name',
+  '🎓 교안 작성':'🎓 Create Lesson Plan',
+  '+  활동 추가':'+ Add Activity',
+  '개인별현황':'Individual Status',
+  '주간보고':'Weekly Report',
+  '비고':'Remarks',
+  '모든 항목을 입력하세요':'Please fill in all fields',
+  '가져올 데이터가 없습니다':'No data to import',
+  'QR 코드 인식 완료!':'QR code recognized!',
+  '카메라 접근 실패: ':'Camera access failed: ',
+  '카메라를 지원하지 않는 브라우저입니다':'Browser does not support camera',
+  '템플릿 적용: ':'Template applied: ',
+  '엑셀 파일 읽기 실패: ':'Failed to read Excel file: ',
+  '📊 서베이 참여':'📊 Survey Participation',
+  '📊 서베이 템플릿':'📊 Survey Templates'
 };
 function t(text) { if (_atmsLang === 'ko') return text; return TRANSLATIONS[text] || text; }
 function setLang(lang) { _atmsLang = lang; localStorage.setItem('atms_lang', lang); }
@@ -1175,8 +1528,8 @@ function ConfirmDialog({ title, message, onConfirm, onCancel, confirmText, cance
           {message}
         </div>
         <div className="modal-footer" style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-          <button className="btn" onClick={onCancel} style={{background:'var(--gray-100)',color:'var(--gray-700)'}}>{cancelText || '취소'}</button>
-          <button className={type === 'danger' ? 'btn btn-danger' : 'btn btn-primary'} onClick={onConfirm}>{confirmText || '확인'}</button>
+          <button className="btn" onClick={onCancel} style={{background:'var(--gray-100)',color:'var(--gray-700)'}}>{cancelText || t('취소')}</button>
+          <button className={type === 'danger' ? 'btn btn-danger' : 'btn btn-primary'} onClick={onConfirm}>{confirmText || t('확인')}</button>
         </div>
       </div>
     </div>
@@ -2018,7 +2371,7 @@ function Dashboard() {
       { icon: '👨‍🏫', label: '\uAD50\uAD00', value: stats.total_instructors, color: '#0891b2', bg: '#0891b2' },
       { icon: '🎯', label: '\uC218\uB8CC\uC728', value: stats.completion_rate + '%', color: '#059669', bg: '#059669',
         trend: stats.completion_rate >= 70 ? '+Good' : 'Low' },
-      { icon: '📝', label: '평균 점수', value: stats.avg_eval_score, color: '#d97706', bg: '#d97706' },
+      { icon: '📝', label: t('평균 점수'), value: stats.avg_eval_score, color: '#d97706', bg: '#d97706' },
     ];
   };
 
@@ -2026,13 +2379,13 @@ function Dashboard() {
     <div className="page-content">
       {user.role === 'trainee' && <div style={{marginBottom:20,padding:16,background:'var(--primary-light)',borderRadius:12}}>
         <div style={{fontSize:14,color:'var(--primary-dark)',fontWeight:500}}>
-          {'✨ 훈련 현황: '}{stats.completion_rate}{'% 완료 ('}{stats.completed_courses||0}{'/'}{stats.total_enrollments||0}{' 과정)'}
+          {t('✨ 훈련 현황: ')}{stats.completion_rate}{t('% 완료 (')}{stats.completed_courses||0}{'/'}{stats.total_enrollments||0}{t(' 과정)')}
         </div>
       </div>}
 
       {user.role === 'instructor' && <div style={{marginBottom:20,padding:16,background:'var(--warning-light)',borderRadius:12}}>
         <div style={{fontSize:14,color:'var(--gray-800)',fontWeight:500}}>
-          {'⚠️ 평가 대기: '}{stats.pending_evaluations || 0}{'건'}
+          {t('⚠️ 평가 대기: ')}{stats.pending_evaluations || 0}{'건'}
         </div>
       </div>}
 
@@ -2131,7 +2484,7 @@ function Dashboard() {
         </React.Fragment>
       ) : (
         <div className="grid-2">
-          <div className="card"><div className="card-header"><h3>예정 일정</h3></div><div className="card-body">
+          <div className="card"><div className="card-header"><h3>{t('예정 일정')}</h3></div><div className="card-body">
             {(stats.upcoming_schedules || []).slice(0, 8).map(function(s) {
               return (
                 <div className="activity-item" key={s.id}>
@@ -2142,9 +2495,9 @@ function Dashboard() {
                   </div>
                 </div>
               );
-            })}{(stats.upcoming_schedules || []).length === 0 && <div className="empty-state">예정 일정이 없습니다</div>}
+            })}{(stats.upcoming_schedules || []).length === 0 && <div className="empty-state">{t('예정 일정이 없습니다')}</div>}
           </div></div>
-          <div className="card"><div className="card-header"><h3>알림</h3></div><div className="card-body">
+          <div className="card"><div className="card-header"><h3>{t('알림')}</h3></div><div className="card-body">
             <div style={{padding:'20px',textAlign:'center',color:'var(--gray-400)'}}>
               📢 중요한 알림은 알림 페이지에서 확인하세요
             </div>
@@ -2194,25 +2547,25 @@ function CoursesPage() {
     const ws = XLSX.utils.json_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, t('과정'));
-    XLSX.writeFile(wb, '과정_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    XLSX.writeFile(wb, t('과정_') + new Date().toISOString().slice(0, 10) + '.xlsx');
   };
   var canCreate = ['admin','ojt_admin'].includes(user.role);
   return (
     <div className="page-content">
       <div className="filters">
         <input placeholder="과정 검색 (코드/명칭)..." value={searchText} onChange={function(e){setSearchText(e.target.value);}} aria-label={"\uACFC\uC815 \uAC80\uC0C9"}/>
-        {canCreate && <button className="btn btn-primary btn-sm" onClick={function(){setShowModal(true);}}>+ 신규 과정</button>}
-        <button className="btn btn-primary btn-sm" onClick={downloadCourses} aria-label="\uC6D0\uC2A4 \uD30C\uC77C \uB2E4\uC6B4\uB85C\uB4DC">📥 엑셀 다운로드</button>
+        {canCreate && <button className="btn btn-primary btn-sm" onClick={function(){setShowModal(true);}}>{t('+ 신규 과정')}</button>}
+        <button className="btn btn-primary btn-sm" onClick={downloadCourses} aria-label="\uC6D0\uC2A4 \uD30C\uC77C \uB2E4\uC6B4\uB85C\uB4DC">{t('📥 엑셀 다운로드')}</button>
       </div>
       <div className="card"><div className="card-body"><div className="table-wrapper"><table role="table" aria-label="\uACFC\uC815 \uAC04 \uC815\uBCF4">
         <caption style={{display:'none'}}>Available training courses list with code, name, type, aircraft type, duration, status and start date</caption>
-        <thead><tr><th>코드</th><th>과정명</th><th>유형</th><th>기종</th><th>기간</th><th>상태</th><th>시작일</th></tr></thead>
+        <thead><tr><th>{t('코드')}</th><th>{t('과정명')}</th><th>{t('유형')}</th><th>{t('기종')}</th><th>{t('기간')}</th><th>{t('상태')}</th><th>{t('시작일')}</th></tr></thead>
         <tbody>{filteredCourses.map(function(c){
           return <tr key={c.id} onClick={function(){selectCourse(c);}} style={{cursor:'pointer',background:selectedCourse===c.id?'var(--primary-light)':''}}><td><strong>{c.code}</strong></td><td>{c.name}</td>
             <td><span className={'badge badge-' + (c.type==='TT'?'blue':'yellow')}>{c.type}</span></td>
             <td>{c.aircraft_type||'-'}</td><td>{c.duration_weeks}주</td>
             <td><StatusBadge status={c.status}/></td><td>{c.start_date||'-'}</td></tr>;
-        })}{filteredCourses.length===0&&<tr><td colSpan="7" className="text-center" style={{padding:40,color:'var(--gray-400)'}}>{searchText?'검색 결과 없음':'과정이 없습니다'}</td></tr>}</tbody>
+        })}{filteredCourses.length===0&&<tr><td colSpan="7" className="text-center" style={{padding:40,color:'var(--gray-400)'}}>{searchText?t('검색 결과 없음'):t('과정이 없습니다')}</td></tr>}</tbody>
       </table></div></div></div>
       {courseDetail && React.createElement('div',{className:'card',style:{marginTop:16}},
         React.createElement('div',{className:'card-header',style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
@@ -2253,14 +2606,14 @@ function CoursesPage() {
       )}
       {showModal&&<Modal title="\uC2E0\uADDC \uACFC\uC815 \uB4F1\uB85D" onClose={function(){setShowModal(false);setFormErrors({});}}
         footer={React.createElement(React.Fragment, {}, React.createElement('button', {className:'btn btn-outline',onClick:function(){setShowModal(false);setFormErrors({});}}, t('\uCDE8\uC18C')), React.createElement('button', {className:'btn btn-primary',onClick:handleCreate}, t('\uB4F1\uB85D')))}>
-        <div className={'form-group' + (formErrors.code?' form-error':'')}><label className="form-required" id="lbl-course-code">과정 코드</label><input value={form.code} onChange={function(e){setForm({...form,code:e.target.value});}} placeholder="TT-B737-2026-02" aria-label={"\uACFC\uC815 \uCF54\uB4DC"} aria-describedby={formErrors.code?"err-course-code":undefined}/>{formErrors.code&&<div className="form-error-msg" id="err-course-code">필수 입력 항목</div>}</div>
-        <div className={'form-group' + (formErrors.name?' form-error':'')}><label className="form-required" id="lbl-course-name">과정명</label><input value={form.name} onChange={function(e){setForm({...form,name:e.target.value});}} aria-label={"\uACFC\uC815\uBA85"} aria-describedby={formErrors.name?"err-course-name":undefined}/>{formErrors.name&&<div className="form-error-msg" id="err-course-name">필수 입력 항목</div>}</div>
-        <div className="form-group"><label>유형</label><select value={form.type} onChange={function(e){setForm({...form,type:e.target.value});}} aria-label={"\uACFC\uC815 \uC720\uD615"}>
+        <div className={'form-group' + (formErrors.code?' form-error':'')}><label className="form-required" id="lbl-course-code">{t('과정 코드')}</label><input value={form.code} onChange={function(e){setForm({...form,code:e.target.value});}} placeholder="TT-B737-2026-02" aria-label={"\uACFC\uC815 \uCF54\uB4DC"} aria-describedby={formErrors.code?"err-course-code":undefined}/>{formErrors.code&&<div className="form-error-msg" id="err-course-code">{t('필수 입력 항목')}</div>}</div>
+        <div className={'form-group' + (formErrors.name?' form-error':'')}><label className="form-required" id="lbl-course-name">{t('과정명')}</label><input value={form.name} onChange={function(e){setForm({...form,name:e.target.value});}} aria-label={"\uACFC\uC815\uBA85"} aria-describedby={formErrors.name?"err-course-name":undefined}/>{formErrors.name&&<div className="form-error-msg" id="err-course-name">{t('필수 입력 항목')}</div>}</div>
+        <div className="form-group"><label>{t('유형')}</label><select value={form.type} onChange={function(e){setForm({...form,type:e.target.value});}} aria-label={"\uACFC\uC815 \uC720\uD615"}>
           <option value="TT">TT</option><option value="OJT">OJT</option></select></div>
-        <div className="form-group"><label>기종</label><input value={form.aircraft_type} onChange={function(e){setForm({...form,aircraft_type:e.target.value});}} aria-label={"\uD56D\uACF5\uAE30 \uAE30\uC885"}/></div>
-        <div className="form-group"><label>기간(주)</label><input type="number" value={form.duration_weeks} onChange={function(e){setForm({...form,duration_weeks:e.target.value});}} aria-label={"\uAE30\uAC04 \uC8FC"}/></div>
-        <div className="form-group"><label>최대인원</label><input type="number" value={form.max_trainees} onChange={function(e){setForm({...form,max_trainees:e.target.value});}} aria-label={"\uCD5C\uB300\uC778\uC6D0"}/></div>
-        <div className="form-group"><label>설명</label><textarea rows="3" value={form.description} onChange={function(e){setForm({...form,description:e.target.value});}} aria-label={"\uACFC\uC815 \uC124\uBA85"}/></div>
+        <div className="form-group"><label>{t('기종')}</label><input value={form.aircraft_type} onChange={function(e){setForm({...form,aircraft_type:e.target.value});}} aria-label={"\uD56D\uACF5\uAE30 \uAE30\uC885"}/></div>
+        <div className="form-group"><label>{t('기간(주)')}</label><input type="number" value={form.duration_weeks} onChange={function(e){setForm({...form,duration_weeks:e.target.value});}} aria-label={"\uAE30\uAC04 \uC8FC"}/></div>
+        <div className="form-group"><label>{t('최대인원')}</label><input type="number" value={form.max_trainees} onChange={function(e){setForm({...form,max_trainees:e.target.value});}} aria-label={"\uCD5C\uB300\uC778\uC6D0"}/></div>
+        <div className="form-group"><label>{t('설명')}</label><textarea rows="3" value={form.description} onChange={function(e){setForm({...form,description:e.target.value});}} aria-label={"\uACFC\uC815 \uC124\uBA85"}/></div>
       </Modal>}
     </div>
   );
@@ -2364,56 +2717,56 @@ function UsersPage() {
       <div className="filters">
         <input placeholder="이름/사번 검색..." value={search} onChange={function(e){setSearch(e.target.value);}} aria-label={"\uC0AC\uC6A9\uC790 \uAC80\uC0C9"}/>
         <select value={roleFilter} onChange={function(e){setRoleFilter(e.target.value);}} aria-label={"\uC5ED\uD560 \uD544\uD130"}>
-          <option value="">전체 역할</option><option value="admin">Admin</option><option value="instructor">Instructor</option>
+          <option value="">{t('전체 역할')}</option><option value="admin">Admin</option><option value="instructor">Instructor</option>
           <option value="trainee">Trainee</option><option value="ojt_admin">OJT Admin</option><option value="manager">Manager</option>
           <option value="staff">Staff</option><option value="customer">Customer Officer</option>
         </select>
-        {canManage&&<button className="btn btn-primary btn-sm" onClick={function(){setShowModal(true);}}>+ 사용자 등록</button>}
-        {canManage&&<button className="btn btn-primary btn-sm" onClick={function(){setShowBulkImport(true);}} aria-label="\uC77C\uD310 \uB4F1\uB85D">📤 일괄등록</button>}
+        {canManage&&<button className="btn btn-primary btn-sm" onClick={function(){setShowModal(true);}}>{t('+ 사용자 등록')}</button>}
+        {canManage&&<button className="btn btn-primary btn-sm" onClick={function(){setShowBulkImport(true);}} aria-label="\uC77C\uD310 \uB4F1\uB85D">{t('📤 일괄등록')}</button>}
         <span style={{fontSize:13,color:'var(--gray-500)'}}>총 {data.total}명</span>
       </div>
       <div className="card"><div className="card-body"><div className="table-wrapper"><table>
-        <thead><tr><th style={{width:50}}></th><th>사번</th><th>이름</th><th>이메일</th><th>역할</th><th>부서</th><th>상태</th>{(canManage||user.role==='instructor')&&<th style={{width:70}}></th>}</tr></thead>
+        <thead><tr><th style={{width:50}}></th><th>{t('사번')}</th><th>{t('이름')}</th><th>{t('이메일')}</th><th>{t('역할')}</th><th>{t('부서')}</th><th>{t('상태')}</th>{(canManage||user.role==='instructor')&&<th style={{width:70}}></th>}</tr></thead>
         <tbody>{data.users.map(u=>(
           <tr key={u.id}>
             <td><Avatar src={u.photo_url} name={u.name} size="sm"/></td>
             <td>{u.employee_id}</td><td><strong>{u.name}</strong></td><td>{u.email||'-'}</td>
             <td><span className="badge badge-blue">{u.role}</span></td><td>{u.department||'-'}</td><td><StatusBadge status={u.status}/></td>
             {(canManage||user.role==='instructor')&&<td>{isAdminRole?<button className="btn btn-danger btn-sm" style={{padding:'4px 10px',fontSize:11}}
-              onClick={()=>setDeleteTarget(u)}>삭제</button>:<button className="btn btn-outline btn-sm" style={{padding:'4px 10px',fontSize:11}}>보기</button>}</td>}</tr>
+              onClick={()=>setDeleteTarget(u)}>{t('삭제')}</button>:<button className="btn btn-outline btn-sm" style={{padding:'4px 10px',fontSize:11}}>{t('보기')}</button>}</td>}</tr>
         ))}</tbody>
       </table></div></div></div>
       {deleteTarget&&<Modal title="사용자 삭제 확인" onClose={function(){setDeleteTarget(null);}}
-        footer={<><button className="btn btn-outline" onClick={function(){setDeleteTarget(null);}}>취소</button>
-          <button className="btn btn-danger" onClick={handleDelete}>비활성화</button></>}>
+        footer={<><button className="btn btn-outline" onClick={function(){setDeleteTarget(null);}}>{t('취소')}</button>
+          <button className="btn btn-danger" onClick={handleDelete}>{t('비활성화')}</button></>}>
         <div style={{textAlign:'center',padding:'20px 0'}}>
           <Avatar src={deleteTarget.photo_url} name={deleteTarget.name} size="lg" />
           <div style={{marginTop:16,fontSize:18,fontWeight:700}}>{deleteTarget.name}</div>
           <div style={{color:'var(--gray-500)',marginTop:4}}>{deleteTarget.employee_id} &middot; {deleteTarget.role}</div>
           <div style={{marginTop:20,padding:16,background:'var(--danger-light)',borderRadius:10,fontSize:14,color:'#991b1b'}}>
-            이 사용자를 비활성화하시겠습니까?<br/><span style={{fontSize:12}}>(계정이 비활성 상태로 전환되며, 로그인이 불가합니다)</span>
+            이 사용자를 비활성화하시겠습니까?<br/><span style={{fontSize:12}}>{t('(계정이 비활성 상태로 전환되며, 로그인이 불가합니다)')}</span>
           </div>
         </div>
       </Modal>}
       {showModal&&<Modal title="사용자 등록" onClose={function(){setShowModal(false);setFormErrors({});}}
-        footer={<><button className="btn btn-outline" onClick={function(){setShowModal(false);setFormErrors({});}}>취소</button><button className="btn btn-primary" onClick={handleCreate}>등록</button></>}>
-        <div className={'form-group' + (formErrors.employee_id?' form-error':'')}><label className="form-required">사번</label><input value={form.employee_id} onChange={function(e){setForm({...form,employee_id:e.target.value});}} aria-label={"\uC0AC\uBC88"} aria-describedby={formErrors.employee_id?"err-user-eid":undefined}/>{formErrors.employee_id&&<div className="form-error-msg" id="err-user-eid">필수 입력 항목</div>}</div>
-        <div className={'form-group' + (formErrors.name?' form-error':'')}><label className="form-required">이름</label><input value={form.name} onChange={function(e){setForm({...form,name:e.target.value});}} aria-label={"\uC774\uB984"} aria-describedby={formErrors.name?"err-user-name":undefined}/>{formErrors.name&&<div className="form-error-msg" id="err-user-name">필수 입력 항목</div>}</div>
-        <div className="form-group"><label>이메일</label><input value={form.email} onChange={function(e){setForm({...form,email:e.target.value});}} aria-label={"\uC774\uBA54\uC77C"}/></div>
-        <div className={'form-group' + (formErrors.password?' form-error':'')}><label className="form-required">비밀번호</label><input type="password" value={form.password} onChange={function(e){setForm({...form,password:e.target.value});}} aria-label={"\uBE44\uBC00\uBC88\uD638"} aria-describedby={formErrors.password?"err-user-pw":undefined}/>
-          {form.password && <PasswordStrength password={form.password}/>}{formErrors.password&&<div className="form-error-msg" id="err-user-pw">필수 입력 항목</div>}
+        footer={<><button className="btn btn-outline" onClick={function(){setShowModal(false);setFormErrors({});}}>{t('취소')}</button><button className="btn btn-primary" onClick={handleCreate}>{t('등록')}</button></>}>
+        <div className={'form-group' + (formErrors.employee_id?' form-error':'')}><label className="form-required">{t('사번')}</label><input value={form.employee_id} onChange={function(e){setForm({...form,employee_id:e.target.value});}} aria-label={"\uC0AC\uBC88"} aria-describedby={formErrors.employee_id?"err-user-eid":undefined}/>{formErrors.employee_id&&<div className="form-error-msg" id="err-user-eid">{t('필수 입력 항목')}</div>}</div>
+        <div className={'form-group' + (formErrors.name?' form-error':'')}><label className="form-required">{t('이름')}</label><input value={form.name} onChange={function(e){setForm({...form,name:e.target.value});}} aria-label={"\uC774\uB984"} aria-describedby={formErrors.name?"err-user-name":undefined}/>{formErrors.name&&<div className="form-error-msg" id="err-user-name">{t('필수 입력 항목')}</div>}</div>
+        <div className="form-group"><label>{t('이메일')}</label><input value={form.email} onChange={function(e){setForm({...form,email:e.target.value});}} aria-label={"\uC774\uBA54\uC77C"}/></div>
+        <div className={'form-group' + (formErrors.password?' form-error':'')}><label className="form-required">{t('비밀번호')}</label><input type="password" value={form.password} onChange={function(e){setForm({...form,password:e.target.value});}} aria-label={"\uBE44\uBC00\uBC88\uD638"} aria-describedby={formErrors.password?"err-user-pw":undefined}/>
+          {form.password && <PasswordStrength password={form.password}/>}{formErrors.password&&<div className="form-error-msg" id="err-user-pw">{t('필수 입력 항목')}</div>}
         </div>
-        <div className="form-group"><label>역할</label><select value={form.role} onChange={function(e){setForm({...form,role:e.target.value});}} aria-label={"\uC0AC\uC6A9\uC790 \uC5ED\uD560"}>
+        <div className="form-group"><label>{t('역할')}</label><select value={form.role} onChange={function(e){setForm({...form,role:e.target.value});}} aria-label={"\uC0AC\uC6A9\uC790 \uC5ED\uD560"}>
           <option value="trainee">Trainee</option><option value="instructor">Instructor</option>
           <option value="ojt_admin">OJT Admin</option><option value="admin">Admin</option><option value="manager">Manager</option>
           <option value="staff">Staff</option><option value="customer">Customer Officer</option>
         </select></div>
-        <div className="form-group"><label>부서/소속</label><input value={form.department} onChange={function(e){setForm({...form,department:e.target.value});}} aria-label={"\uBD80\uC11C \uC18C\uC18D"}/></div>
-        <div className="form-group"><label>직급/직함</label><input value={form.title||''} onChange={function(e){setForm({...form,title:e.target.value});}} aria-label={"\uC9C1\uAE09 \uC9C1\uD568"}/></div>
-        <div className="form-group"><label>전화번호</label><input value={form.phone||''} onChange={function(e){setForm({...form,phone:e.target.value});}} aria-label={"\uC804\uD654\uBC88\uD638"}/></div>
-        <div className="form-group"><label>생년월일</label><input type="date" value={form.birthday||''} onChange={function(e){setForm({...form,birthday:e.target.value});}} aria-label={"\uC0DD\uB144\uC6D4\uC77C"}/></div>
-        <div className="form-group"><label>특기/전문분야</label><input value={form.specialty||''} onChange={function(e){setForm({...form,specialty:e.target.value});}} aria-label={"\uD2B9\uAE30 \uC804\uBB38\uBD84\uC57C"}/></div>
-        <div className="form-group"><label>증명사진</label>
+        <div className="form-group"><label>{t('부서/소속')}</label><input value={form.department} onChange={function(e){setForm({...form,department:e.target.value});}} aria-label={"\uBD80\uC11C \uC18C\uC18D"}/></div>
+        <div className="form-group"><label>{t('직급/직함')}</label><input value={form.title||''} onChange={function(e){setForm({...form,title:e.target.value});}} aria-label={"\uC9C1\uAE09 \uC9C1\uD568"}/></div>
+        <div className="form-group"><label>{t('전화번호')}</label><input value={form.phone||''} onChange={function(e){setForm({...form,phone:e.target.value});}} aria-label={"\uC804\uD654\uBC88\uD638"}/></div>
+        <div className="form-group"><label>{t('생년월일')}</label><input type="date" value={form.birthday||''} onChange={function(e){setForm({...form,birthday:e.target.value});}} aria-label={"\uC0DD\uB144\uC6D4\uC77C"}/></div>
+        <div className="form-group"><label>{t('특기/전문분야')}</label><input value={form.specialty||''} onChange={function(e){setForm({...form,specialty:e.target.value});}} aria-label={"\uD2B9\uAE30 \uC804\uBB38\uBD84\uC57C"}/></div>
+        <div className="form-group"><label>{t('증명사진')}</label>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
             {form.photo_preview && <img src={form.photo_preview} style={{width:60,height:80,objectFit:'cover',borderRadius:8,border:'2px solid var(--gray-200)'}} alt="photo"/>}
             <div>
@@ -2431,17 +2784,17 @@ function UsersPage() {
         </div>
       </Modal>}
       {showBulkImport&&<Modal title="사용자 일괄등록" onClose={function(){setShowBulkImport(false);setImportFile(null);setImportPreview([]);}}
-        footer={<><button className="btn btn-outline" onClick={function(){setShowBulkImport(false);setImportFile(null);setImportPreview([]);}}>취소</button>
+        footer={<><button className="btn btn-outline" onClick={function(){setShowBulkImport(false);setImportFile(null);setImportPreview([]);}}>{t('취소')}</button>
           {importFile && importFile.length > 0 && <button className="btn btn-success" onClick={confirmBulkImport} disabled={importLoading}>{importLoading ? '\uCC98\uB9AC\uC911...' : importFile.length+'\uBA85 \uAC00\uC838\uC624\uAE30'}</button>}</>}>
         {!importFile || importFile.length === 0 ? (
           <div>
-            <div style={{fontSize: 12, color: 'var(--gray-500)', marginBottom: 12}}>엑셀 파일에 다음 열이 필요합니다: employee_id, name, email, role, department, password</div>
+            <div style={{fontSize: 12, color: 'var(--gray-500)', marginBottom: 12}}>{t('엑셀 파일에 다음 열이 필요합니다: employee_id, name, email, role, department, password')}</div>
             <div className="import-area">
               <div style={{fontSize: 40, marginBottom: 8}}>📊</div>
-              <div style={{fontWeight: 600, marginBottom: 4}}>엑셀 파일을 선택하세요</div>
-              <div style={{fontSize: 12, color: 'var(--gray-400)'}}>(.xlsx / .xlsm 형식)</div>
+              <div style={{fontWeight: 600, marginBottom: 4}}>{t('엑셀 파일을 선택하세요')}</div>
+              <div style={{fontSize: 12, color: 'var(--gray-400)'}}>{t('(.xlsx / .xlsm 형식)')}</div>
               <input type="file" ref={importFileRef} onChange={handleBulkImportFile} accept=".xlsx,.xls,.xlsm" style={{display: 'none'}} />
-              <button className="btn btn-primary btn-sm" onClick={function(){importFileRef.current && importFileRef.current.click();}} style={{marginTop: 12}}>파일 선택</button>
+              <button className="btn btn-primary btn-sm" onClick={function(){importFileRef.current && importFileRef.current.click();}} style={{marginTop: 12}}>{t('파일 선택')}</button>
             </div>
           </div>
         ) : (
@@ -2456,7 +2809,7 @@ function UsersPage() {
                     <div>{row.email || '-'}</div>
                     <div>{row.role || '-'}</div>
                     <div>{row.department || '-'}</div>
-                    <div style={{color: 'var(--gray-400)'}}>{row.password ? '있음' : '없음'}</div>
+                    <div style={{color: 'var(--gray-400)'}}>{row.password ? t('있음') : t('없음')}</div>
                   </div>
                 );
               })}
@@ -2640,22 +2993,22 @@ function SchedulePage() {
     const ws = XLSX.utils.json_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, t('일정'));
-    XLSX.writeFile(wb, '일정_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    XLSX.writeFile(wb, t('일정_') + new Date().toISOString().slice(0, 10) + '.xlsx');
   };
   return (
     <div className="page-content">
       <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
-        <button className={'btn '+(viewMode==='all'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('all');}}>전체 일정</button>
-        {user && (user.role==='instructor'||user.role==='admin') && <button className={'btn '+(viewMode==='my'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('my');}}>나의 강의</button>}
-        <button className={'btn '+(viewMode==='teaching'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('teaching');}}>교수 스케줄</button>
-        <button className={'btn '+(viewMode==='weekly'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('weekly');}}>주간 근무표</button>
-        <button className={'btn '+(viewMode==='duty'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('duty');}}>근무 스케줄</button>
+        <button className={'btn '+(viewMode==='all'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('all');}}>{t('전체 일정')}</button>
+        {user && (user.role==='instructor'||user.role==='admin') && <button className={'btn '+(viewMode==='my'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('my');}}>{t('나의 강의')}</button>}
+        <button className={'btn '+(viewMode==='teaching'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('teaching');}}>{t('교수 스케줄')}</button>
+        <button className={'btn '+(viewMode==='weekly'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('weekly');}}>{t('주간 근무표')}</button>
+        <button className={'btn '+(viewMode==='duty'?'btn-primary':'btn-outline')+' btn-sm'} style={{borderRadius:20}} onClick={function(){setViewMode('duty');}}>{t('근무 스케줄')}</button>
         <div style={{flex:1}}></div>
-        {user && user.role==='trainee' && <button className="btn btn-sm" style={{background:'#7C3AED',color:'#fff',border:'none',borderRadius:20,marginRight:8}} onClick={function(){setQrScanMode(true);}} aria-label="QR \uCF54\uB4DC \uC785\uB825">📱 QR 체크인</button>}
-        {canManage && <button className="btn btn-outline btn-sm" onClick={function(){setShowOptimize(true);}} style={{marginRight:8}} aria-label="\uC790\uB3D9 \uCD5C\uC801\uD654">🤖 자동 최적화</button>}
-        {canManage && <button className="btn btn-outline btn-sm" onClick={downloadSchedules} aria-label="\uC2A4\uCF00\uC904 \uD30C\uC77C \uB2E4\uC6B4\uB85C\uB4DC">📥 엑셀</button>}
+        {user && user.role==='trainee' && <button className="btn btn-sm" style={{background:'#7C3AED',color:'#fff',border:'none',borderRadius:20,marginRight:8}} onClick={function(){setQrScanMode(true);}} aria-label="QR \uCF54\uB4DC \uC785\uB825">{t('📱 QR 체크인')}</button>}
+        {canManage && <button className="btn btn-outline btn-sm" onClick={function(){setShowOptimize(true);}} style={{marginRight:8}} aria-label="\uC790\uB3D9 \uCD5C\uC801\uD654">{t('🤖 자동 최적화')}</button>}
+        {canManage && <button className="btn btn-outline btn-sm" onClick={downloadSchedules} aria-label="\uC2A4\uCF00\uC904 \uD30C\uC77C \uB2E4\uC6B4\uB85C\uB4DC">{t('📥 엑셀')}</button>}
       </div>
-      <div className="filters"><label style={{fontSize:14}}>기간:</label>
+      <div className="filters"><label style={{fontSize:14}}>{t('기간:')}</label>
         <input type="date" value={dateFrom} onChange={function(e){setDateFrom(e.target.value);}} aria-label={"\uC2DC\uC791\uC77C"}/><span>~</span>
         <input type="date" value={dateTo} onChange={function(e){setDateTo(e.target.value);}} aria-label={"\uC885\uB8CC\uC77C"}/></div>
       {viewMode==='teaching' && (function(){
@@ -2894,23 +3247,23 @@ function SchedulePage() {
         );
       })()}
       <div className="card"><div className="card-body"><div className="table-wrapper"><table>
-        <thead><tr><th>날짜</th><th>시간</th><th>제목</th><th>유형</th><th>과정</th><th>교관</th><th>장소</th>{canManage&&<th style={{width:140}}></th>}</tr></thead>
+        <thead><tr><th>{t('날짜')}</th><th>{t('시간')}</th><th>{t('제목')}</th><th>{t('유형')}</th><th>{t('과정')}</th><th>{t('교관')}</th><th>{t('장소')}</th>{canManage&&<th style={{width:140}}></th>}</tr></thead>
         <tbody>{filteredSchedules.map(function(s){return (
           <tr key={s.id}><td><strong>{s.schedule_date}</strong></td><td>{s.start_time}-{s.end_time}</td><td>{s.title}</td>
             <td><span className="badge" style={{background:tc[s.schedule_type]+'18',color:tc[s.schedule_type]}}>{s.schedule_type}</span></td>
             <td>{s.course_name||'-'}</td><td>{s.instructor_name||'-'}</td><td>{s.room||'-'}</td>
             {canManage&&<td style={{display:'flex',gap:4,flexWrap:'wrap'}}><button className="btn btn-primary btn-sm" style={{padding:'4px 10px',fontSize:11}}
-              onClick={function(){openAttendance(s);}}>빠른 출석</button><button className="btn btn-sm" style={{padding:'4px 10px',fontSize:11,background:'#7C3AED',color:'#fff',border:'none',borderRadius:8}}
+              onClick={function(){openAttendance(s);}}>{t('빠른 출석')}</button><button className="btn btn-sm" style={{padding:'4px 10px',fontSize:11,background:'#7C3AED',color:'#fff',border:'none',borderRadius:8}}
               onClick={function(){generateQR(s);}}>QR</button><button className="btn btn-danger btn-sm" style={{padding:'4px 10px',fontSize:11}}
-              onClick={function(){setDeleteTarget(s);}}>삭제</button></td>}</tr>
-        );})}{filteredSchedules.length===0&&<tr><td colSpan={canManage?8:7} className="text-center" style={{padding:40,color:'var(--gray-400)'}}>{viewMode==='my'?'나의 강의 일정이 없습니다':'일정이 없습니다'}</td></tr>}</tbody>
+              onClick={function(){setDeleteTarget(s);}}>{t('삭제')}</button></td>}</tr>
+        );})}{filteredSchedules.length===0&&<tr><td colSpan={canManage?8:7} className="text-center" style={{padding:40,color:'var(--gray-400)'}}>{viewMode==='my'?t('나의 강의 일정이 없습니다'):t('일정이 없습니다')}</td></tr>}</tbody>
       </table></div></div></div>
       {attendanceTarget&&<Modal title={'\uBE60\uB978 \uCD9C\uC11D - ' + attendanceTarget.title} onClose={function(){setAttendanceTarget(null);setEnrolledStudents([]);setAttendanceMap({});}}
-        footer={<><button className="btn btn-outline" onClick={function(){setAttendanceTarget(null);setEnrolledStudents([]);setAttendanceMap({});}}>취소</button>
-          <button className="btn btn-primary" onClick={markAllPresent} style={{marginRight: 8}}>전체 출석</button>
-          <button className="btn btn-success" onClick={saveAttendance}>저장</button></>}>
+        footer={<><button className="btn btn-outline" onClick={function(){setAttendanceTarget(null);setEnrolledStudents([]);setAttendanceMap({});}}>{t('취소')}</button>
+          <button className="btn btn-primary" onClick={markAllPresent} style={{marginRight: 8}}>{t('전체 출석')}</button>
+          <button className="btn btn-success" onClick={saveAttendance}>{t('저장')}</button></>}>
         <div style={{marginBottom: 16}}>
-          <div style={{fontSize: 12, color: 'var(--gray-500)', marginBottom: 12}}>상태를 클릭하여 변경: 출석 → 결석 → 지각 → 공결 → 출석</div>
+          <div style={{fontSize: 12, color: 'var(--gray-500)', marginBottom: 12}}>{t('상태를 클릭하여 변경: 출석 → 결석 → 지각 → 공결 → 출석')}</div>
           <div className="attendance-grid">
             {enrolledStudents.map(function(student) {
               const status = attendanceMap[student.id] || 'present';
@@ -2920,7 +3273,7 @@ function SchedulePage() {
                     <Avatar name={student.trainee_name} size="xs"/>
                     <div><strong style={{fontSize: 12}}>{student.trainee_name}</strong></div>
                   </div>
-                  <span className={'attendance-status ' + status}>{status === 'present' ? '출석' : status === 'absent' ? '결석' : status === 'late' ? '지각' : '공결'}</span>
+                  <span className={'attendance-status ' + status}>{status === 'present' ? t('출석') : status === 'absent' ? t('결석') : status === 'late' ? t('지각') : t('공결')}</span>
                 </div>
               );
             })}
@@ -2928,40 +3281,40 @@ function SchedulePage() {
         </div>
       </Modal>}
       {deleteTarget&&<Modal title="\uC77C\uC815 \uC0AD\uC81C \uD655\uC778" onClose={function(){setDeleteTarget(null);}}
-        footer={<><button className="btn btn-outline" onClick={function(){setDeleteTarget(null);}}>취소</button>
-          <button className="btn btn-danger" onClick={handleDelete}>삭제</button></>}>
+        footer={<><button className="btn btn-outline" onClick={function(){setDeleteTarget(null);}}>{t('취소')}</button>
+          <button className="btn btn-danger" onClick={handleDelete}>{t('삭제')}</button></>}>
         <div style={{textAlign:'center',padding:'20px 0'}}>
           <div style={{fontSize:40,marginBottom:12}}>📅</div>
           <div style={{fontSize:18,fontWeight:700}}>{deleteTarget.title}</div>
           <div style={{color:'var(--gray-500)',marginTop:8}}>{deleteTarget.schedule_date} {deleteTarget.start_time}-{deleteTarget.end_time}</div>
           <div style={{marginTop:20,padding:16,background:'var(--danger-light)',borderRadius:10,fontSize:14,color:'#991b1b'}}>
-            이 일정을 삭제하시겠습니까?<br/><span style={{fontSize:12}}>(삭제된 일정은 복구할 수 없습니다)</span></div>
+            이 일정을 삭제하시겠습니까?<br/><span style={{fontSize:12}}>{t('(삭제된 일정은 복구할 수 없습니다)')}</span></div>
         </div>
       </Modal>}
       {showOptimize&&<Modal title="🤖 일정 자동 최적화" onClose={function(){setShowOptimize(false);setSuggestions([]);}}
-        footer={<><button className="btn btn-outline" onClick={function(){setShowOptimize(false);setSuggestions([]);}}>{suggestions.length>0?'닫기':'취소'}</button>
-          {suggestions.length===0 && <button className="btn btn-primary" onClick={handleOptimize} disabled={optimizing}>{optimizing?'최적화 중...':'최적화 실행'}</button>}
-          {suggestions.length>0 && <button className="btn btn-success" onClick={handleBatchRegister}>일괄 등록</button>}
+        footer={<><button className="btn btn-outline" onClick={function(){setShowOptimize(false);setSuggestions([]);}}>{suggestions.length>0?t('닫기'):t('취소')}</button>
+          {suggestions.length===0 && <button className="btn btn-primary" onClick={handleOptimize} disabled={optimizing}>{optimizing?t('최적화 중...'):t('최적화 실행')}</button>}
+          {suggestions.length>0 && <button className="btn btn-success" onClick={handleBatchRegister}>{t('일괄 등록')}</button>}
         </>}>
         {suggestions.length===0 ? (
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
             <div className="form-group">
-              <label className="form-required">과정</label>
+              <label className="form-required">{t('과정')}</label>
               <select value={optimizeForm.course_id||''} onChange={function(e){setOptimizeForm({...optimizeForm,course_id:e.target.value});}}>
-                <option value="">선택</option>
+                <option value="">{t('선택')}</option>
                 {allCourses.map(function(c){return <option key={c.id} value={c.id}>{c.name}</option>;})}
               </select>
             </div>
             <div className="form-group">
-              <label className="form-required">선호 강의실 (쉼표로 구분)</label>
+              <label className="form-required">{t('선호 강의실 (쉼표로 구분)')}</label>
               <input type="text" placeholder="예: A101, A102" value={optimizeForm.preferred_rooms||''} onChange={function(e){setOptimizeForm({...optimizeForm,preferred_rooms:e.target.value});}} />
             </div>
             <div className="form-group">
-              <label className="form-required">시작일</label>
+              <label className="form-required">{t('시작일')}</label>
               <input type="date" value={optimizeForm.date_from||''} onChange={function(e){setOptimizeForm({...optimizeForm,date_from:e.target.value});}} />
             </div>
             <div className="form-group">
-              <label className="form-required">종료일</label>
+              <label className="form-required">{t('종료일')}</label>
               <input type="date" value={optimizeForm.date_to||''} onChange={function(e){setOptimizeForm({...optimizeForm,date_to:e.target.value});}} />
             </div>
           </div>
@@ -2971,7 +3324,7 @@ function SchedulePage() {
             <div className="table-wrapper" style={{maxHeight:'300px',overflowY:'auto'}}>
               <table>
                 <thead>
-                  <tr><th>날짜</th><th>시간</th><th>모듈</th><th>교관</th><th>강의실</th></tr>
+                  <tr><th>{t('날짜')}</th><th>{t('시간')}</th><th>{t('모듈')}</th><th>{t('교관')}</th><th>{t('강의실')}</th></tr>
                 </thead>
                 <tbody>
                   {suggestions.map(function(s,idx){return (
@@ -2989,8 +3342,8 @@ function SchedulePage() {
           </div>
         )}
       </Modal>}
-      {qrModal && <Modal title={'📱 QR 출석 코드 - ' + qrModal.title} onClose={function(){setQrModal(null);setQrToken(null);setQrExpiry(null);}}
-        footer={<button className="btn btn-outline" onClick={function(){setQrModal(null);setQrToken(null);setQrExpiry(null);}}>닫기</button>}>
+      {qrModal && <Modal title={t('📱 QR 출석 코드 - ') + qrModal.title} onClose={function(){setQrModal(null);setQrToken(null);setQrExpiry(null);}}
+        footer={<button className="btn btn-outline" onClick={function(){setQrModal(null);setQrToken(null);setQrExpiry(null);}}>{t('닫기')}</button>}>
         <div style={{textAlign:'center',padding:'20px 0'}}>
           {qrToken ? <>
             <div style={{background:'#fff',border:'2px solid var(--gray-200)',borderRadius:16,padding:24,display:'inline-block',marginBottom:16}}>
@@ -3001,16 +3354,16 @@ function SchedulePage() {
                 }
               }} style={{width:200,height:200,margin:'0 auto'}}></div>
             </div>
-            <div style={{fontSize:16,fontWeight:700,marginBottom:8}}>교육생에게 이 QR 코드를 보여주세요</div>
+            <div style={{fontSize:16,fontWeight:700,marginBottom:8}}>{t('교육생에게 이 QR 코드를 보여주세요')}</div>
             <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:8}}>만료: {qrExpiry}</div>
             <div style={{fontSize:11,background:'var(--gray-50)',padding:'8px 16px',borderRadius:8,fontFamily:'monospace',wordBreak:'break-all',color:'var(--gray-600)'}}>
               토큰: {qrToken}
             </div>
-            <div style={{marginTop:12,fontSize:12,color:'var(--gray-400)'}}>교육생은 "QR 체크인" 버튼을 눌러 토큰을 입력하면 출석 처리됩니다</div>
-          </> : <div>QR 코드를 생성할 수 없습니다</div>}
+            <div style={{marginTop:12,fontSize:12,color:'var(--gray-400)'}}>{t('교육생은 "QR 체크인" 버튼을 눌러 토큰을 입력하면 출석 처리됩니다')}</div>
+          </> : <div>{t('QR 코드를 생성할 수 없습니다')}</div>}
         </div>
       </Modal>}
-      {qrScanMode && <Modal title={'📱 QR 체크인'} onClose={function(){
+      {qrScanMode && <Modal title={t('📱 QR 체크인')} onClose={function(){
         var v=document.getElementById('qr-camera-preview');
         if(v && v.srcObject){v.srcObject.getTracks().forEach(function(t){t.stop();});v.srcObject=null;}
         if(window._qrScanInterval){clearInterval(window._qrScanInterval);window._qrScanInterval=null;}
@@ -3021,12 +3374,12 @@ function SchedulePage() {
           if(v && v.srcObject){v.srcObject.getTracks().forEach(function(t){t.stop();});v.srcObject=null;}
           if(window._qrScanInterval){clearInterval(window._qrScanInterval);window._qrScanInterval=null;}
           setQrScanMode(false);setQrInput('');
-        }}>취소</button>
-          <button className="btn btn-primary" onClick={handleQRCheckIn}>체크인</button></>}>
+        }}>{t('취소')}</button>
+          <button className="btn btn-primary" onClick={handleQRCheckIn}>{t('체크인')}</button></>}>
         <div style={{textAlign:'center',padding:'20px 0'}}>
           <div style={{fontSize:48,marginBottom:16}}>📱</div>
-          <div style={{fontSize:16,fontWeight:600,marginBottom:8}}>QR 코드 토큰을 입력하세요</div>
-          <div style={{fontSize:13,color:'var(--gray-500)',marginBottom:16}}>교관이 보여주는 QR 코드 하단의 토큰을 입력하거나 카메라로 스캔하세요</div>
+          <div style={{fontSize:16,fontWeight:600,marginBottom:8}}>{t('QR 코드 토큰을 입력하세요')}</div>
+          <div style={{fontSize:13,color:'var(--gray-500)',marginBottom:16}}>{t('교관이 보여주는 QR 코드 하단의 토큰을 입력하거나 카메라로 스캔하세요')}</div>
           <input type="text" placeholder="토큰 입력 (예: a1b2c3d4-...)" value={qrInput} onChange={function(e){setQrInput(e.target.value);}}
             style={{width:'100%',padding:'12px 16px',fontSize:14,borderRadius:10,border:'2px solid var(--primary)',textAlign:'center',fontFamily:'monospace',marginBottom:16}} />
           <button className="btn btn-outline btn-sm" style={{marginBottom:12}} onClick={function(){
@@ -3067,11 +3420,11 @@ function SchedulePage() {
                 }
               }).catch(function(err){showToast(t('카메라 접근 실패: ')+err.message,'error');});
             } else {showToast(t('카메라를 지원하지 않는 브라우저입니다'),'error');}
-          }}>📷 카메라로 스캔</button>
+          }}>{t('📷 카메라로 스캔')}</button>
           <div style={{marginTop:8}}>
             <video id="qr-camera-preview" style={{width:'100%',maxWidth:300,borderRadius:12,border:'2px solid var(--gray-200)',display:'block',margin:'0 auto'}} playsInline muted></video>
           </div>
-          <div style={{marginTop:8,fontSize:11,color:'var(--gray-400)'}}>카메라 스캔 후 토큰이 자동 입력됩니다 (수동 입력도 가능)</div>
+          <div style={{marginTop:8,fontSize:11,color:'var(--gray-400)'}}>{t('카메라 스캔 후 토큰이 자동 입력됩니다 (수동 입력도 가능)')}</div>
         </div>
       </Modal>}
     </div>
@@ -3213,116 +3566,116 @@ function EvaluationsPage() {
     const ws = XLSX.utils.json_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, t('평가'));
-    XLSX.writeFile(wb, '평가_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    XLSX.writeFile(wb, t('평가_') + new Date().toISOString().slice(0, 10) + '.xlsx');
   };
   return (
     <div className="page-content">
       <div className="filters">
         <input placeholder="훈련생 검색..." value={studentSearch} onChange={function(e){setStudentSearch(e.target.value);}} aria-label="\uD6C8\uB828\uC0DD \uAC80\uC0C9" />
         <select value={courseFilter} onChange={function(e){setCourseFilter(e.target.value);}} aria-label="\uACFC\uC815 \uD544\uD130">
-          <option value="">전체 과정</option>
+          <option value="">{t('전체 과정')}</option>
           {courses.map(function(c){return <option key={c.id} value={c.name}>{c.name}</option>;})}
         </select>
         <select value={statusFilter} onChange={function(e){setStatusFilter(e.target.value);}} aria-label="\uC0C1\uD0DC \uD544\uD130">
-          <option value="">전체</option><option value="pending">Pending</option><option value="submitted">Submitted</option>
+          <option value="">{t('전체')}</option><option value="pending">Pending</option><option value="submitted">Submitted</option>
           <option value="graded">Graded</option></select>
         <select value={periodFilter} onChange={function(e){setPeriodFilter(e.target.value);setPeriodDateFrom('');setPeriodDateTo('');}} aria-label="\uAE30\uAC04 \uD544\uD130">
-          <option value="all">전체</option><option value="this_week">이번 주</option><option value="this_month">이번 달</option>
-          <option value="last_week">지난 주</option><option value="last_month">지난 달</option><option value="custom">기간 지정</option></select>
+          <option value="all">{t('전체')}</option><option value="this_week">{t('이번 주')}</option><option value="this_month">{t('이번 달')}</option>
+          <option value="last_week">{t('지난 주')}</option><option value="last_month">{t('지난 달')}</option><option value="custom">{t('기간 지정')}</option></select>
         {periodFilter==='custom' && <>
           <input type="date" value={periodDateFrom} onChange={function(e){setPeriodDateFrom(e.target.value);}} aria-label="\uC2DC\uC791\uC77C" />
           <input type="date" value={periodDateTo} onChange={function(e){setPeriodDateTo(e.target.value);}} aria-label="\uC885\uB8CC\uC77C" />
         </>}
-        <button className="btn btn-primary btn-sm" onClick={downloadEvaluations} aria-label="\uD3C9\uAC00 \uD30C\uC77C \uB2E4\uC6B4\uB85C\uB4DC">📥 엑셀 다운로드</button>
+        <button className="btn btn-primary btn-sm" onClick={downloadEvaluations} aria-label="\uD3C9\uAC00 \uD30C\uC77C \uB2E4\uC6B4\uB85C\uB4DC">{t('📥 엑셀 다운로드')}</button>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:16}}>
         <div style={{background:'white',padding:16,borderRadius:10,border:'1px solid var(--gray-200)'}}>
-          <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:4}}>전체 평가</div>
+          <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:4}}>{t('전체 평가')}</div>
           <div style={{fontSize:24,fontWeight:700,color:'var(--primary)'}}>{stats.total}</div>
         </div>
         <div style={{background:'white',padding:16,borderRadius:10,border:'1px solid var(--gray-200)'}}>
-          <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:4}}>평균 점수</div>
+          <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:4}}>{t('평균 점수')}</div>
           <div style={{fontSize:24,fontWeight:700,color:'var(--success)'}}>{stats.avg}</div>
         </div>
         <div style={{background:'white',padding:16,borderRadius:10,border:'1px solid var(--gray-200)'}}>
-          <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:4}}>대기중</div>
+          <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:4}}>{t('대기중')}</div>
           <div style={{fontSize:24,fontWeight:700,color:'var(--warning)'}}>{stats.pending}</div>
         </div>
         <div style={{background:'white',padding:16,borderRadius:10,border:'1px solid var(--gray-200)'}}>
-          <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:4}}>평가 완료</div>
+          <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:4}}>{t('평가 완료')}</div>
           <div style={{fontSize:24,fontWeight:700,color:'var(--info)'}}>{stats.graded}</div>
         </div>
       </div>
       <div className="card"><div className="card-body"><div className="table-wrapper"><table>
-        <thead><tr><th>제목</th><th>유형</th><th>과정</th><th>훈련생</th><th>점수</th><th>등급</th><th>상태</th><th>액션</th></tr></thead>
+        <thead><tr><th>{t('제목')}</th><th>{t('유형')}</th><th>{t('과정')}</th><th>{t('훈련생')}</th><th>{t('점수')}</th><th>{t('등급')}</th><th>{t('상태')}</th><th>{t('액션')}</th></tr></thead>
         <tbody>{filteredEvals.map(function(ev){
           return (
             <tr key={ev.id}><td><strong>{ev.title}</strong></td><td><span className="badge badge-gray">{ev.eval_type}</span></td>
               <td>{ev.course_name||'-'}</td><td>{ev.trainee_name||'-'}</td>
               <td>{ev.score!==null?`${ev.score}/${ev.max_score}`:'-'}</td><td>{ev.grade||'-'}</td><td><StatusBadge status={ev.status}/></td>
               <td style={{whiteSpace:'nowrap'}}>
-                {isTrainee && ev.status==='pending' && <button className="btn btn-primary btn-sm" style={{padding:'4px 10px',fontSize:11}} onClick={function(){handleSubmitEval(ev);}}>응시</button>}
-                {isInstructorOrAdmin && ev.status==='submitted' && <button className="btn btn-success btn-sm" style={{padding:'4px 10px',fontSize:11}} onClick={function(){handleGradeEval(ev);}}>채점</button>}
-                {isInstructorOrAdmin && ev.status==='graded' && <><button className="btn btn-outline btn-sm" style={{padding:'4px 10px',fontSize:11,marginRight:4}} onClick={function(){handleGradeEval(ev);}}>수정</button><button className="btn btn-info btn-sm" style={{padding:'4px 10px',fontSize:11}} onClick={function(){handleTransferEval(ev);}}>전송</button></>}
+                {isTrainee && ev.status==='pending' && <button className="btn btn-primary btn-sm" style={{padding:'4px 10px',fontSize:11}} onClick={function(){handleSubmitEval(ev);}}>{t('응시')}</button>}
+                {isInstructorOrAdmin && ev.status==='submitted' && <button className="btn btn-success btn-sm" style={{padding:'4px 10px',fontSize:11}} onClick={function(){handleGradeEval(ev);}}>{t('채점')}</button>}
+                {isInstructorOrAdmin && ev.status==='graded' && <><button className="btn btn-outline btn-sm" style={{padding:'4px 10px',fontSize:11,marginRight:4}} onClick={function(){handleGradeEval(ev);}}>{t('수정')}</button><button className="btn btn-info btn-sm" style={{padding:'4px 10px',fontSize:11}} onClick={function(){handleTransferEval(ev);}}>{t('전송')}</button></>}
               </td></tr>
           );
-        })}{filteredEvals.length===0&&<tr><td colSpan="8" className="text-center" style={{padding:40,color:'var(--gray-400)'}}>{evals.length===0?'평가 내역 없음':'검색 결과 없음'}</td></tr>}</tbody>
+        })}{filteredEvals.length===0&&<tr><td colSpan="8" className="text-center" style={{padding:40,color:'var(--gray-400)'}}>{evals.length===0?t('평가 내역 없음'):t('검색 결과 없음')}</td></tr>}</tbody>
       </table></div></div></div>
-      {examModal && <Modal title={'평가 응시: ' + examModal.title} onClose={function(){setExamModal(null);}}
-        footer={<><button className="btn btn-outline" onClick={function(){setExamModal(null);}}>취소</button>
-          <button className="btn btn-primary" onClick={confirmSubmitEval}>제출</button></>}>
+      {examModal && <Modal title={t('평가 응시: ') + examModal.title} onClose={function(){setExamModal(null);}}
+        footer={<><button className="btn btn-outline" onClick={function(){setExamModal(null);}}>{t('취소')}</button>
+          <button className="btn btn-primary" onClick={confirmSubmitEval}>{t('제출')}</button></>}>
         <div style={{marginBottom:16,padding:12,background:'var(--primary-light)',borderRadius:10}}>
           <div style={{fontSize:14,fontWeight:600}}>{examModal.title}</div>
-          <div style={{fontSize:12,color:'var(--gray-600)',marginTop:4}}>유형: {examModal.eval_type} | 과정: {examModal.course_name || '-'}</div>
+          <div style={{fontSize:12,color:'var(--gray-600)',marginTop:4}}>{t('유형')}: {examModal.eval_type} | {t('과정')}: {examModal.course_name || '-'}</div>
         </div>
-        <div className="form-group"><label>주관식 답변</label>
+        <div className="form-group"><label>{t('주관식 답변')}</label>
           <textarea rows={6} placeholder="평가에 대한 답변을 작성하세요..." value={examAnswers.text || ''} onChange={function(e){setExamAnswers({...examAnswers, text: e.target.value});}}
             style={{width:'100%',padding:12,border:'1.5px solid var(--gray-200)',borderRadius:10,fontSize:14,lineHeight:1.6,resize:'vertical'}}/>
         </div>
-        <div className="form-group"><label>파일 첨부 (선택)</label>
+        <div className="form-group"><label>{t('파일 첨부 (선택)')}</label>
           <div style={{border:'2px dashed var(--gray-200)',borderRadius:10,padding:16,textAlign:'center',cursor:'pointer',background:'var(--gray-50)'}}>
             <input type="file" onChange={function(e){var f=e.target.files&&e.target.files[0];if(f)setExamAnswers({...examAnswers,file_name:f.name});}} style={{fontSize:12}}/>
-            <div style={{fontSize:12,color:'var(--gray-400)',marginTop:4}}>{examAnswers.file_name || 'PDF, DOC, XLS 형식'}</div>
+            <div style={{fontSize:12,color:'var(--gray-400)',marginTop:4}}>{examAnswers.file_name || t('PDF, DOC, XLS 형식')}</div>
           </div>
         </div>
       </Modal>}
-      {gradeModal && <Modal title={'채점: ' + gradeModal.title} onClose={function(){setGradeModal(null);}}
-        footer={<><button className="btn btn-outline" onClick={function(){setGradeModal(null);}}>취소</button>
-          <button className="btn btn-success" onClick={confirmGrade}>채점 완료</button></>}>
+      {gradeModal && <Modal title={t('채점: ') + gradeModal.title} onClose={function(){setGradeModal(null);}}
+        footer={<><button className="btn btn-outline" onClick={function(){setGradeModal(null);}}>{t('취소')}</button>
+          <button className="btn btn-success" onClick={confirmGrade}>{t('채점 완료')}</button></>}>
         <div style={{marginBottom:16,padding:12,background:'var(--gray-50)',borderRadius:10}}>
           <div style={{fontWeight:600}}>{gradeModal.trainee_name || '-'}</div>
           <div style={{fontSize:12,color:'var(--gray-600)',marginTop:4}}>{gradeModal.title} | {gradeModal.eval_type}</div>
         </div>
         <div className="grid-2">
-          <div className="form-group"><label className="form-required">점수</label>
+          <div className="form-group"><label className="form-required">{t('점수')}</label>
             <input type="number" min="0" max="100" value={gradeForm.score} onChange={function(e){setGradeForm({...gradeForm, score: e.target.value});}} placeholder="0-100"/>
           </div>
-          <div className="form-group"><label>만점</label>
+          <div className="form-group"><label>{t('만점')}</label>
             <input type="number" value={gradeForm.max_score} onChange={function(e){setGradeForm({...gradeForm, max_score: e.target.value});}}/>
           </div>
         </div>
-        <div className="form-group"><label>등급</label>
+        <div className="form-group"><label>{t('등급')}</label>
           <select value={gradeForm.grade} onChange={function(e){setGradeForm({...gradeForm, grade: e.target.value});}}>
-            <option value="">선택</option><option value="A+">A+</option><option value="A">A</option><option value="B+">B+</option>
+            <option value="">{t('선택')}</option><option value="A+">A+</option><option value="A">A</option><option value="B+">B+</option>
             <option value="B">B</option><option value="C+">C+</option><option value="C">C</option><option value="D">D</option><option value="F">F</option>
           </select>
         </div>
-        <div className="form-group"><label>피드백</label>
+        <div className="form-group"><label>{t('피드백')}</label>
           <textarea rows={4} value={gradeForm.feedback} onChange={function(e){setGradeForm({...gradeForm, feedback: e.target.value});}}
             placeholder="학습자에 대한 피드백을 입력하세요..." style={{width:'100%',padding:12,border:'1.5px solid var(--gray-200)',borderRadius:10,fontSize:14,resize:'vertical'}}/>
         </div>
       </Modal>}
-      {transferModal && <Modal title={'평가 결과 전송: ' + transferModal.title} onClose={function(){setTransferModal(null);}}
-        footer={<><button className="btn btn-outline" onClick={function(){setTransferModal(null);}}>취소</button>
-          <button className="btn btn-primary" onClick={confirmTransferEval}>전송</button></>}>
+      {transferModal && <Modal title={t('평가 결과 전송: ') + transferModal.title} onClose={function(){setTransferModal(null);}}
+        footer={<><button className="btn btn-outline" onClick={function(){setTransferModal(null);}}>{t('취소')}</button>
+          <button className="btn btn-primary" onClick={confirmTransferEval}>{t('전송')}</button></>}>
         <div style={{marginBottom:16,padding:12,background:'var(--gray-50)',borderRadius:10}}>
           <div style={{fontWeight:600}}>{transferModal.trainee_name || '-'}</div>
           <div style={{fontSize:12,color:'var(--gray-600)',marginTop:4}}>{transferModal.title} | {transferModal.eval_type}</div>
-          <div style={{fontSize:12,color:'var(--gray-600)',marginTop:4}}>점수: {transferModal.score}/{transferModal.max_score} | 등급: {transferModal.grade || '-'}</div>
+          <div style={{fontSize:12,color:'var(--gray-600)',marginTop:4}}>{t('점수')}: {transferModal.score}/{transferModal.max_score} | {t('등급')}: {transferModal.grade || '-'}</div>
         </div>
-        <div className="form-group"><label className="form-required">수신자</label>
+        <div className="form-group"><label className="form-required">{t('수신자')}</label>
           <select value={transferRecipientId} onChange={function(e){setTransferRecipientId(e.target.value);}}>
-            <option value="">선택하세요</option>
+            <option value="">{t('선택하세요')}</option>
             {recipientUsers.map(function(u){return <option key={u.id} value={u.id}>{u.name} ({u.role})</option>;})}
           </select>
         </div>
@@ -3333,8 +3686,8 @@ function EvaluationsPage() {
       {isInstructorOrAdmin && (
         <div className="card" style={{marginTop: 20}}>
           <div className="card-header">
-            <h3>평가 템플릿 관리</h3>
-            <button className="btn btn-primary btn-sm" onClick={function(){setShowTemplateModal(true);}}>+ 새 템플릿</button>
+            <h3>{t('평가 템플릿 관리')}</h3>
+            <button className="btn btn-primary btn-sm" onClick={function(){setShowTemplateModal(true);}}>{t('+ 새 템플릿')}</button>
           </div>
           <div className="card-body">
             <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap: 16}}>
@@ -3344,7 +3697,7 @@ function EvaluationsPage() {
                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
                       <div>
                         <div style={{fontWeight:600, fontSize:15}}>{tmpl.name}</div>
-                        <span className={`badge badge-${tmpl.type === 'weekly' ? 'blue' : 'green'}`}>{tmpl.type === 'weekly' ? '주간' : '월간'}</span>
+                        <span className={`badge badge-${tmpl.type === 'weekly' ? 'blue' : 'green'}`}>{tmpl.type === 'weekly' ? t('주간') : t('월간')}</span>
                       </div>
                     </div>
                     <div style={{fontSize:13, color:'var(--gray-600)'}}>
@@ -3358,7 +3711,7 @@ function EvaluationsPage() {
                       })}
                     </div>
                     <div style={{marginTop:12, display:'flex', gap:8}}>
-                      <button className="btn btn-outline btn-sm" style={{flex:1}} onClick={function(){showToast(t('템플릿 적용: ') + tmpl.name, 'success');}}>적용</button>
+                      <button className="btn btn-outline btn-sm" style={{flex:1}} onClick={function(){showToast(t('템플릿 적용: ') + tmpl.name, 'success');}}>{t('적용')}</button>
                     </div>
                   </div>
                 );
@@ -3526,21 +3879,21 @@ function OJTPage() {
   var handleAddVenue = function() {
     if(!formData.name) return showToast(t('\uC7A5\uC18C\uBA85 \uD544\uC218'),'error');
     api('/ojt/venues',{method:'POST',body:JSON.stringify(formData)}).then(function(){
-      showToast(t('\uD6C8\uB828\uC7A5\uC18C \uB4F1\uB85D')); setShowForm(false); setFormData({});
+      showToast('\uD6C8\uB828\uC7A5\uC18C \uB4F1\uB85D'); setShowForm(false); setFormData({});
       api('/ojt/venues').then(function(d){setVenues(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleAddAnnouncement = function() {
     if(!formData.title) return showToast(t('\uC81C\uBAA9 \uD544\uC218'),'error');
     api('/ojt/announcements',{method:'POST',body:JSON.stringify(formData)}).then(function(){
-      showToast(t('\uACF5\uC9C0\uC0AC\uD56D \uB4F1\uB85D')); setShowForm(false); setFormData({});
+      showToast('\uACF5\uC9C0\uC0AC\uD56D \uB4F1\uB85D'); setShowForm(false); setFormData({});
       api('/ojt/announcements').then(function(d){setAnnouncements(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleAddProgram = function() {
     if(!formData.name) return showToast(t('\uD504\uB85C\uADF8\uB7A8\uBA85 \uD544\uC218'),'error');
     api('/ojt/programs',{method:'POST',body:JSON.stringify(formData)}).then(function(){
-      showToast(t('\uD504\uB85C\uADF8\uB7A8 \uB4F1\uB85D')); setShowModal(null); setFormData({}); loadAll();
+      showToast('\uD504\uB85C\uADF8\uB7A8 \uB4F1\uB85D'); setShowModal(null); setFormData({}); loadAll();
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleAddSpec = function(type) {
@@ -3555,21 +3908,21 @@ function OJTPage() {
   var handleAddSchedule = function() {
     if(!formData.title) return showToast(t('\uC81C\uBAA9 \uD544\uC218'),'error');
     api('/ojt/schedules',{method:'POST',body:JSON.stringify(formData)}).then(function(){
-      showToast(t('\uC77C\uC815 \uB4F1\uB85D')); setShowModal(null); setFormData({});
+      showToast('\uC77C\uC815 \uB4F1\uB85D'); setShowModal(null); setFormData({});
       api('/ojt/schedules').then(function(d){setOjtSchedules(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleAddSurvey = function() {
     if(!formData.title) return showToast(t('\uC81C\uBAA9 \uD544\uC218'),'error');
     api('/ojt/survey-templates',{method:'POST',body:JSON.stringify(formData)}).then(function(){
-      showToast(t('\uC11C\uBCA0\uC774 \uB4F1\uB85D')); setShowModal(null); setFormData({});
+      showToast('\uC11C\uBCA0\uC774 \uB4F1\uB85D'); setShowModal(null); setFormData({});
       api('/ojt/survey-templates').then(function(d){setSurveyTemplates(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleAddRoadmap = function() {
     if(!formData.title || !formData.level) return showToast(t('\uC81C\uBAA9\uACFC \uB808\uBCA8 \uD544\uC218'),'error');
     api('/career-roadmap',{method:'POST',body:JSON.stringify(formData)}).then(function(){
-      showToast(t('\uB85C\uB4DC\uB9F5 \uB4F1\uB85D')); setShowModal(null); setFormData({});
+      showToast('\uB85C\uB4DC\uB9F5 \uB4F1\uB85D'); setShowModal(null); setFormData({});
       api('/career-roadmap').then(function(d){setRoadmaps(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
@@ -3577,14 +3930,14 @@ function OJTPage() {
   var handleAddPreAssignment = function() {
     if(!formData.title || !formData.program_id) return showToast(t('\uC81C\uBAA9\uACFC \uD504\uB85C\uADF8\uB7A8 \uD544\uC218'),'error');
     api('/ojt/pre-assignments',{method:'POST',body:JSON.stringify(formData)}).then(function(){
-      showToast(t('\uC0AC\uC804\uACFC\uC81C \uB4F1\uB85D')); setShowModal(null); setFormData({});
+      showToast('\uC0AC\uC804\uACFC\uC81C \uB4F1\uB85D'); setShowModal(null); setFormData({});
       api('/ojt/pre-assignments').then(function(d){setPreAssignments(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleAddLeader = function() {
     if(!formData.program_id || !formData.user_id) return showToast(t('\uD504\uB85C\uADF8\uB7A8\uACFC \uC0AC\uC6A9\uC790 \uD544\uC218'),'error');
     api('/ojt/programs/'+formData.program_id+'/leaders',{method:'POST',body:JSON.stringify({user_id:formData.user_id,role:formData.leader_role||'leader'})}).then(function(){
-      showToast(t('\uB9AC\uB354/Admin \uB4F1\uB85D')); setShowModal(null); setFormData({});
+      showToast('\uB9AC\uB354/Admin \uB4F1\uB85D'); setShowModal(null); setFormData({});
       setTab('leaders');
     }).catch(function(e){showToast(e.message,'error');});
   };
@@ -3601,7 +3954,7 @@ function OJTPage() {
     var body = Object.assign({},evalTemplateForm);
     if(programFilter && programFilter !== 'all') body.program_id = parseInt(programFilter);
     api('/ojt/eval-templates',{method:'POST',body:JSON.stringify(body)}).then(function(){
-      showToast(t('\uD3C9\uAC00 \uD15C\uD50C\uB9BF \uB4F1\uB85D')); setEvalTemplateModal(null); setEvalTemplateForm({name:'',description:'',criteria:'',max_score:100,template_data:''});
+      showToast('\uD3C9\uAC00 \uD15C\uD50C\uB9BF \uB4F1\uB85D'); setEvalTemplateModal(null); setEvalTemplateForm({name:'',description:'',criteria:'',max_score:100,template_data:''});
       api('/ojt/eval-templates').then(function(d){setEvalTemplates(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
@@ -5106,11 +5459,11 @@ function ContentPage() {
       var token = localStorage.getItem('atms_token');
       fetch('/api/content', {method:'POST', headers:{'Authorization':'Bearer '+(token||'')}, body:fd}).then(function(r){return r.json();}).then(function(d){
         if(d.error) throw new Error(d.error);
-        showToast(t('\uD559\uC2B5\uC790\uB8CC \uB4F1\uB85D')); setShowForm(false); setFormData({}); loadContent(tab);
+        showToast('\uD559\uC2B5\uC790\uB8CC \uB4F1\uB85D'); setShowForm(false); setFormData({}); loadContent(tab);
       }).catch(function(e){showToast(e.message,'error');});
     } else {
       api('/content',{method:'POST',body:JSON.stringify(formData)}).then(function(){
-        showToast(t('\uD559\uC2B5\uC790\uB8CC \uB4F1\uB85D')); setShowForm(false); setFormData({}); loadContent(tab);
+        showToast('\uD559\uC2B5\uC790\uB8CC \uB4F1\uB85D'); setShowForm(false); setFormData({}); loadContent(tab);
       }).catch(function(e){showToast(e.message,'error');});
     }
   };
@@ -5127,7 +5480,7 @@ function ContentPage() {
   var handleCreateTest = function() {
     if(!testForm.title || !testForm.course_id) return showToast(t('\uC81C\uBAA9\uACFC \uACFC\uC815 \uD544\uC218'),'error');
     api('/wrapup-tests',{method:'POST',body:JSON.stringify(testForm)}).then(function(){
-      showToast(t('Wrap-up Test \uC0DD\uC131')); setShowTestModal(false); setTestForm({time_limit_minutes:30,status:'draft'});
+      showToast('Wrap-up Test \uC0DD\uC131'); setShowTestModal(false); setTestForm({time_limit_minutes:30,status:'draft'});
       api('/wrapup-tests').then(function(d){setWrapUpTests(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
@@ -5149,7 +5502,7 @@ function ContentPage() {
       body.options = body.options;
     }
     api('/wrapup-tests/' + activeTest.id + '/questions', {method:'POST', body:JSON.stringify(body)}).then(function(){
-      showToast(t('\uBB38\uD56D \uCD94\uAC00')); setShowQuestionForm(false); setQuestionForm({question_type:'multiple_choice',points:1,order_num:testQuestions.length+1});
+      showToast('\uBB38\uD56D \uCD94\uAC00'); setShowQuestionForm(false); setQuestionForm({question_type:'multiple_choice',points:1,order_num:testQuestions.length+1});
       api('/wrapup-tests/' + activeTest.id).then(function(d){setTestQuestions(d.data.questions||[]);});
     }).catch(function(e){showToast(e.message,'error');});
   };
@@ -5263,15 +5616,15 @@ function ContentPage() {
     showLessonPlanEditor && React.createElement('div',{className:'card',style:{marginBottom:16}},React.createElement('div',{className:'card-body'},
       React.createElement('div',{style:{marginBottom:20}},React.createElement('h3',{style:{margin:'0 0 16px 0'}},t('🎓 교안 작성'))),
       React.createElement('div',{className:'grid-2'},
-        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},t('제목')),React.createElement('input',{value:lessonPlanForm.title||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{title:e.target.value}));},placeholder:'교안 제목'})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},t('제목')),React.createElement('input',{value:lessonPlanForm.title||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{title:e.target.value}));},placeholder:t('교안 제목')})),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-required'},t('과정')),React.createElement('select',{value:lessonPlanForm.course_id||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{course_id:e.target.value}));}},React.createElement('option',{value:''},t('선택')),courses.map(function(c){return React.createElement('option',{key:c.id,value:c.id},c.name);})))
       ),
       React.createElement('div',{className:'grid-2'},
-        React.createElement('div',{className:'form-group'},React.createElement('label',{},t('모듈')),React.createElement('input',{value:lessonPlanForm.module||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{module:e.target.value}));},placeholder:'모듈 이름'})),
-        React.createElement('div',{className:'form-group'},React.createElement('label',{},t('시간')),React.createElement('input',{value:lessonPlanForm.duration||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{duration:e.target.value}));},placeholder:'예: 2 시간'}))
+        React.createElement('div',{className:'form-group'},React.createElement('label',{},t('모듈')),React.createElement('input',{value:lessonPlanForm.module||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{module:e.target.value}));},placeholder:t('모듈 이름')})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{},t('시간')),React.createElement('input',{value:lessonPlanForm.duration||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{duration:e.target.value}));},placeholder:t('예: 2 시간')}))
       ),
-      React.createElement('div',{className:'form-group'},React.createElement('label',{},t('학습 목표')),React.createElement('textarea',{rows:3,value:lessonPlanForm.learning_objectives||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{learning_objectives:e.target.value}));},placeholder:'예: - 개념을 이해한다\n- 규칙을 적용한다'})),
-      React.createElement('div',{className:'form-group'},React.createElement('label',{},t('필요 자료')),React.createElement('textarea',{rows:2,value:lessonPlanForm.materials_needed||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{materials_needed:e.target.value}));},placeholder:'예: 프로젝터, 동영상'})),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{},t('학습 목표')),React.createElement('textarea',{rows:3,value:lessonPlanForm.learning_objectives||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{learning_objectives:e.target.value}));},placeholder:t('예: - 개념을 이해한다\n- 규칙을 적용한다')})),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{},t('필요 자료')),React.createElement('textarea',{rows:2,value:lessonPlanForm.materials_needed||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{materials_needed:e.target.value}));},placeholder:t('예: 프로젝터, 동영상')})),
       React.createElement('div',{style:{marginTop:16,marginBottom:16}},
         React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
           React.createElement('label',{style:{fontWeight:600}},t('활동')),
@@ -5280,19 +5633,19 @@ function ContentPage() {
         lessonPlanForm.activities && lessonPlanForm.activities.map(function(act, idx){
           return React.createElement('div',{key:idx,style:{padding:12,border:'1px solid var(--gray-200)',borderRadius:8,marginBottom:12,background:'var(--gray-50)'}},
             React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:12,gap:8}},
-              React.createElement('input',{type:'text',value:act.name||'',onChange:function(e){var newActs = lessonPlanForm.activities.slice(); newActs[idx].name = e.target.value; setLessonPlanForm(Object.assign({},lessonPlanForm,{activities:newActs}));},placeholder:'활동 이름',style:{flex:1}}),
+              React.createElement('input',{type:'text',value:act.name||'',onChange:function(e){var newActs = lessonPlanForm.activities.slice(); newActs[idx].name = e.target.value; setLessonPlanForm(Object.assign({},lessonPlanForm,{activities:newActs}));},placeholder:t('활동 이름'),style:{flex:1}}),
               React.createElement('select',{value:act.activity_type||'lecture',onChange:function(e){var newActs = lessonPlanForm.activities.slice(); newActs[idx].activity_type = e.target.value; setLessonPlanForm(Object.assign({},lessonPlanForm,{activities:newActs}));}},React.createElement('option',{value:'lecture'},t('강의')),React.createElement('option',{value:'discussion'},t('토론')),React.createElement('option',{value:'exercise'},t('실습')),React.createElement('option',{value:'assessment'},t('평가'))),
               React.createElement('button',{className:'btn btn-outline btn-sm',style:{padding:'4px 8px'},onClick:function(){var newActs = lessonPlanForm.activities.filter(function(_, i){return i !== idx;}); setLessonPlanForm(Object.assign({},lessonPlanForm,{activities:newActs}));}},'✕')
             ),
             React.createElement('div',{className:'grid-2',style:{gap:8}},
-              React.createElement('input',{type:'text',value:act.duration||'',onChange:function(e){var newActs = lessonPlanForm.activities.slice(); newActs[idx].duration = e.target.value; setLessonPlanForm(Object.assign({},lessonPlanForm,{activities:newActs}));},placeholder:'시간'}),
-              React.createElement('textarea',{rows:1,value:act.description||'',onChange:function(e){var newActs = lessonPlanForm.activities.slice(); newActs[idx].description = e.target.value; setLessonPlanForm(Object.assign({},lessonPlanForm,{activities:newActs}));},placeholder:'설명'})
+              React.createElement('input',{type:'text',value:act.duration||'',onChange:function(e){var newActs = lessonPlanForm.activities.slice(); newActs[idx].duration = e.target.value; setLessonPlanForm(Object.assign({},lessonPlanForm,{activities:newActs}));},placeholder:t('시간')}),
+              React.createElement('textarea',{rows:1,value:act.description||'',onChange:function(e){var newActs = lessonPlanForm.activities.slice(); newActs[idx].description = e.target.value; setLessonPlanForm(Object.assign({},lessonPlanForm,{activities:newActs}));},placeholder:t('설명')})
             )
           );
         })
       ),
-      React.createElement('div',{className:'form-group'},React.createElement('label',{},t('평가 방법')),React.createElement('textarea',{rows:2,value:lessonPlanForm.assessment_method||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{assessment_method:e.target.value}));},placeholder:'예: 짧은 퀴즈, 미니 프로젝트'})),
-      React.createElement('div',{className:'form-group'},React.createElement('label',{},t('비고')),React.createElement('textarea',{rows:2,value:lessonPlanForm.notes||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{notes:e.target.value}));},placeholder:'추가 중요 사항'})),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{},t('평가 방법')),React.createElement('textarea',{rows:2,value:lessonPlanForm.assessment_method||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{assessment_method:e.target.value}));},placeholder:t('예: 짧은 퀴즈, 미니 프로젝트')})),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{},t('비고')),React.createElement('textarea',{rows:2,value:lessonPlanForm.notes||'',onChange:function(e){setLessonPlanForm(Object.assign({},lessonPlanForm,{notes:e.target.value}));},placeholder:t('추가 중요 사항')})),
       React.createElement('div',{style:{display:'flex',gap:8,marginTop:16}},
         React.createElement('button',{className:'btn btn-outline btn-sm',onClick:function(){setShowLessonPlanEditor(false);setLessonPlanForm({title:'',course_id:'',module:'',duration:'',learning_objectives:'',materials_needed:'',activities:[],assessment_method:'',notes:''});}},t('취소')),
         React.createElement('button',{className:'btn btn-success btn-sm',onClick:handleSaveLessonPlan},t('저장'))
@@ -5916,7 +6269,7 @@ function NotificationsPage() {
       {notifTab==='list' && <>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,flexWrap:'wrap',gap:8}}>
           <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
-            <button className={'btn btn-sm '+(typeFilter==='all'?'btn-primary':'btn-outline')} onClick={()=>setTypeFilter('all')}>전체</button>
+            <button className={'btn btn-sm '+(typeFilter==='all'?'btn-primary':'btn-outline')} onClick={()=>setTypeFilter('all')}>{t('전체')}</button>
             {notifTypes.slice(0,4).map(nt=>(
               <button key={nt.key} className={'btn btn-sm '+(typeFilter===nt.key?'btn-primary':'btn-outline')} onClick={()=>setTypeFilter(nt.key)}>
                 {nt.icon} {nt.label}{isMuted(nt.key)?' 🔇':''}
@@ -5925,7 +6278,7 @@ function NotificationsPage() {
           </div>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
             <span style={{fontSize:14,color:'var(--gray-500)'}}>읽지않음: {data.unread_count}건</span>
-            <button className="btn btn-outline btn-sm" onClick={markAllRead}>모두 읽음</button>
+            <button className="btn btn-outline btn-sm" onClick={markAllRead}>{t('모두 읽음')}</button>
           </div>
         </div>
         <div className="card"><div className="card-body">
@@ -5943,14 +6296,14 @@ function NotificationsPage() {
                 <div style={{fontSize:11,color:'var(--gray-400)',marginTop:4}}>{n.created_at}</div>
               </div>
             </div>
-          ))}{filtered.length===0&&<div style={{textAlign:'center',padding:40,color:'var(--gray-400)'}}>{'\uD83D\uDD14'} {typeFilter==='all'?'알림 없음':'해당 유형의 알림 없음'}</div>}
+          ))}{filtered.length===0&&<div style={{textAlign:'center',padding:40,color:'var(--gray-400)'}}>{'\uD83D\uDD14'} {typeFilter==='all'?t('알림 없음'):t('해당 유형의 알림 없음')}</div>}
         </div></div>
       </>}
       {notifTab==='prefs' && <div className="card">
         <div className="card-header"><h3>{'\u2699\uFE0F'} 알림 설정</h3></div>
         <div className="card-body">
-          <p style={{fontSize:13,color:'var(--gray-500)',marginBottom:16}}>각 알림 유형별로 음소거/해제를 설정할 수 있습니다. 음소거된 알림은 목록에 흐리게 표시됩니다.</p>
-          {prefsLoading ? <div style={{textAlign:'center',padding:20}}>로딩 중...</div> :
+          <p style={{fontSize:13,color:'var(--gray-500)',marginBottom:16}}>{t('각 알림 유형별로 음소거/해제를 설정할 수 있습니다. 음소거된 알림은 목록에 흐리게 표시됩니다.')}</p>
+          {prefsLoading ? <div style={{textAlign:'center',padding:20}}>{t('로딩 중...')}</div> :
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))',gap:12}}>
               {notifTypes.map(nt => {
                 const muted = isMuted(nt.key);
@@ -5961,7 +6314,7 @@ function NotificationsPage() {
                       <span style={{fontSize:22}}>{nt.icon}</span>
                       <div>
                         <div style={{fontWeight:600,fontSize:14,color:muted?'var(--gray-400)':'var(--gray-800)'}}>{nt.label}</div>
-                        <div style={{fontSize:11,color:'var(--gray-400)',marginTop:2}}>{muted?'음소거됨':'활성화'}</div>
+                        <div style={{fontSize:11,color:'var(--gray-400)',marginTop:2}}>{muted?t('음소거됨'):t('활성화')}</div>
                       </div>
                     </div>
                     <button onClick={()=>toggleMute(nt.key)}
@@ -6025,7 +6378,7 @@ function ProfilePage() {
   return (
     <div className="page-content"><div className="grid-2">
       <div className="card">
-        <div className="card-header"><h3>프로필</h3>{!editing&&<button className="btn btn-outline btn-sm" onClick={()=>setEditing(true)}>수정</button>}</div>
+        <div className="card-header"><h3>{t('프로필')}</h3>{!editing&&<button className="btn btn-outline btn-sm" onClick={()=>setEditing(true)}>{t('수정')}</button>}</div>
         <div className="card-body">
           <div style={{display:'flex',alignItems:'center',gap:20,marginBottom:24}}>
             <Avatar src={profile.photo_url} name={profile.name} size="xl" onClick={function(){if(fileRef.current) fileRef.current.click();}} />
@@ -6035,12 +6388,12 @@ function ProfilePage() {
               <span className="badge badge-blue" style={{marginTop:8}}>{profile.role}</span></div>
           </div>
           {editing?(<>
-            <div className="form-group"><label>이름</label><input value={form.name||''} onChange={e=>setForm({...form,name:e.target.value})}/></div>
-            <div className="form-group"><label>이메일</label><input value={form.email||''} onChange={e=>setForm({...form,email:e.target.value})}/></div>
-            <div className="form-group"><label>전화</label><input value={form.phone||''} onChange={e=>setForm({...form,phone:e.target.value})}/></div>
-            <div className="form-group"><label>소개</label><textarea rows="3" value={form.bio||''} onChange={e=>setForm({...form,bio:e.target.value})}/></div>
-            <div style={{display:'flex',gap:8}}><button className="btn btn-primary" onClick={handleSave}>저장</button>
-              <button className="btn btn-outline" onClick={()=>{setEditing(false);setForm(profile);}}>취소</button></div>
+            <div className="form-group"><label>{t('이름')}</label><input value={form.name||''} onChange={e=>setForm({...form,name:e.target.value})}/></div>
+            <div className="form-group"><label>{t('이메일')}</label><input value={form.email||''} onChange={e=>setForm({...form,email:e.target.value})}/></div>
+            <div className="form-group"><label>{t('전화')}</label><input value={form.phone||''} onChange={e=>setForm({...form,phone:e.target.value})}/></div>
+            <div className="form-group"><label>{t('소개')}</label><textarea rows="3" value={form.bio||''} onChange={e=>setForm({...form,bio:e.target.value})}/></div>
+            <div style={{display:'flex',gap:8}}><button className="btn btn-primary" onClick={handleSave}>{t('저장')}</button>
+              <button className="btn btn-outline" onClick={()=>{setEditing(false);setForm(profile);}}>{t('취소')}</button></div>
           </>):(<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
             {[['\uC0AC\uBC88',profile.employee_id],['\uC774\uB984',profile.name],['\uC774\uBA54\uC77C',profile.email],['\uC804\uD654',profile.phone],
               ['\uBD80\uC11C',profile.department],['\uC9C1\uC704',profile.title],['\uC804\uACF5',profile.specialty],['\uC0DD\uB144\uC6D4\uC77C',profile.birthday]
@@ -6050,14 +6403,14 @@ function ProfilePage() {
         </div>
       </div>
       <div className="card">
-        <div className="card-header"><h3>비밀번호 변경</h3></div>
+        <div className="card-header"><h3>{t('비밀번호 변경')}</h3></div>
         <div className="card-body">
-          <div className="form-group"><label>현재 비밀번호</label><input type="password" value={pwForm.current_password} onChange={e=>setPwForm({...pwForm,current_password:e.target.value})}/></div>
-          <div className="form-group"><label>새 비밀번호</label><input type="password" value={pwForm.new_password} onChange={e=>setPwForm({...pwForm,new_password:e.target.value})}/>
+          <div className="form-group"><label>{t('현재 비밀번호')}</label><input type="password" value={pwForm.current_password} onChange={e=>setPwForm({...pwForm,current_password:e.target.value})}/></div>
+          <div className="form-group"><label>{t('새 비밀번호')}</label><input type="password" value={pwForm.new_password} onChange={e=>setPwForm({...pwForm,new_password:e.target.value})}/>
             {pwForm.new_password && <PasswordStrength password={pwForm.new_password}/>}
           </div>
-          <div className="form-group"><label>새 비밀번호 확인</label><input type="password" value={pwForm.confirm_password} onChange={e=>setPwForm({...pwForm,confirm_password:e.target.value})}/></div>
-          <button className="btn btn-primary" onClick={handlePwChange}>변경</button>
+          <div className="form-group"><label>{t('새 비밀번호 확인')}</label><input type="password" value={pwForm.confirm_password} onChange={e=>setPwForm({...pwForm,confirm_password:e.target.value})}/></div>
+          <button className="btn btn-primary" onClick={handlePwChange}>{t('변경')}</button>
         </div>
       </div>
     </div>
@@ -6150,7 +6503,7 @@ function WeeklyReportTable({ rows, onPilotClick }) {
                 {onPilotClick && w.id ? (
                   <strong style={{cursor:'pointer',color:'var(--primary)',textDecoration:'underline dotted',textUnderlineOffset:3}}
                     onClick={function(){onPilotClick(w.id, w.name);}}
-                    title={'개인별 현황 보기'}>{w.name}</strong>
+                    title={t('개인별 현황 보기')}>{w.name}</strong>
                 ) : <strong>{w.name}</strong>}
               </td>
               <td className="text-center">{w.fltPlan}</td><td className="text-center" style={{color:'var(--wr-flight)',fontWeight:700}}>{w.fltDone}</td>
@@ -6218,9 +6571,9 @@ function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap
         return (
           <div className="card" key={nat.code} style={{marginBottom:16,opacity:0.7}}>
             <div className="card-header"><h3 style={{margin:0,fontSize:16}}>{nat.label_ko} - Weekly Report</h3>
-              <span className="badge" style={{marginLeft:8,background:'var(--gray-200)',color:'var(--gray-500)'}}>{'데이터 없음'}</span></div>
+              <span className="badge" style={{marginLeft:8,background:'var(--gray-200)',color:'var(--gray-500)'}}>{t('데이터 없음')}</span></div>
             <div className="card-body" style={{textAlign:'center',padding:24,color:'var(--gray-400)',fontSize:13}}>
-              {nat.label_ko}{' 조종사 '}{natPilotCount}{'명 등록됨 — 주간보고 엑셀 업로드 시 자동 반영'}
+              {nat.label_ko}{t(' 조종사 ')}{natPilotCount}{t('명 등록됨 — 주간보고 엑셀 업로드 시 자동 반영')}
             </div>
           </div>
         );
@@ -6231,7 +6584,7 @@ function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap
         {!showAdd ? (
           <button className="btn btn-sm" style={{border:'2px dashed var(--gray-300)',background:'transparent',color:'var(--gray-500)',width:'100%',padding:12}}
             onClick={function(){setShowAdd(true);}}>
-            {'+ 국적 추가'}
+            {t('+ 국적 추가')}
           </button>
         ) : (
           <div className="card" style={{padding:16}}>
@@ -6246,7 +6599,7 @@ function WeeklyReport({ weekly, pilots, nationalities, normalizeNat, natLabelMap
               <button className="btn btn-sm" onClick={function(){setShowAdd(false);setCode('');setLabel('');}}>{'취소'}</button>
             </div>
             <div style={{fontSize:11,color:'var(--gray-400)',marginTop:8}}>
-              {'국적을 추가하면 해당 국적의 조종사가 등록될 때 주간 보고 레이아웃이 자동 생성됩니다.'}
+              {t('국적을 추가하면 해당 국적의 조종사가 등록될 때 주간 보고 레이아웃이 자동 생성됩니다.')}
             </div>
           </div>
         )}
@@ -6627,32 +6980,32 @@ function AccessLogsPage() {
 
   return (
     <div style={{padding:'20px',maxWidth:1200,margin:'0 auto'}}>
-      <h4 style={{marginBottom:20}}>🌐 접속 로그</h4>
+      <h4 style={{marginBottom:20}}>{t('🌐 접속 로그')}</h4>
 
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:16,marginBottom:24}}>
         <div className="card" style={{padding:20,textAlign:'center'}}>
           <div style={{fontSize:28,fontWeight:700,color:'var(--primary)'}}>{stats.total_requests || 0}</div>
-          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>{'전체 요청'}</div>
+          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>{t('전체 요청')}</div>
         </div>
         <div className="card" style={{padding:20,textAlign:'center',cursor:'pointer',transition:'transform 0.15s'}}
           onClick={function(){showUniqueIPs('all');}}
           onMouseEnter={function(e){e.currentTarget.style.transform='scale(1.03)';}}
           onMouseLeave={function(e){e.currentTarget.style.transform='scale(1)';}}
-          title={'클릭하여 IP 목록 보기'}>
+          title={t('클릭하여 IP 목록 보기')}>
           <div style={{fontSize:28,fontWeight:700,color:'#10b981'}}>{stats.unique_ips || 0}</div>
-          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>{'고유 IP'} <span style={{fontSize:10}}>{'(클릭)'}</span></div>
+          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>{t('고유 IP')} <span style={{fontSize:10}}>{t('(클릭)')}</span></div>
         </div>
         <div className="card" style={{padding:20,textAlign:'center'}}>
           <div style={{fontSize:28,fontWeight:700,color:'#f59e0b'}}>{stats.today_requests || 0}</div>
-          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>{'오늘 요청'}</div>
+          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>{t('오늘 요청')}</div>
         </div>
         <div className="card" style={{padding:20,textAlign:'center',cursor:'pointer',transition:'transform 0.15s'}}
           onClick={function(){showUniqueIPs('today');}}
           onMouseEnter={function(e){e.currentTarget.style.transform='scale(1.03)';}}
           onMouseLeave={function(e){e.currentTarget.style.transform='scale(1)';}}
-          title={'클릭하여 오늘 IP 목록 보기'}>
+          title={t('클릭하여 오늘 IP 목록 보기')}>
           <div style={{fontSize:28,fontWeight:700,color:'#8b5cf6'}}>{stats.today_unique_ips || 0}</div>
-          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>{'오늘 고유 IP'} <span style={{fontSize:10}}>{'(클릭)'}</span></div>
+          <div style={{fontSize:13,color:'var(--gray-400)',marginTop:4}}>{t('오늘 고유 IP')} <span style={{fontSize:10}}>{t('(클릭)')}</span></div>
         </div>
       </div>
 
@@ -6664,17 +7017,17 @@ function AccessLogsPage() {
             style={{flex:1,minWidth:150,maxWidth:250}} />
           <button className="btn btn-primary btn-sm" onClick={handleSearch}>{'검색'}</button>
           <button className="btn btn-sm" style={{position:'relative'}} onClick={function(){setShowFilters(!showFilters);}}>
-            {'\uD83D\uDD0D '}{'필터'}
+            {'\uD83D\uDD0D '}{t('필터')}
             {activeFilterCount > 0 && <span style={{position:'absolute',top:-6,right:-6,background:'var(--danger)',color:'white',borderRadius:'50%',width:18,height:18,fontSize:10,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>{activeFilterCount}</span>}
           </button>
-          {activeFilterCount > 0 && <button className="btn btn-sm" onClick={handleReset} style={{color:'var(--danger)'}}>{'초기화'}</button>}
+          {activeFilterCount > 0 && <button className="btn btn-sm" onClick={handleReset} style={{color:'var(--danger)'}}>{t('초기화')}</button>}
           <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:12}}>
             <label style={{display:'flex',alignItems:'center',gap:6,fontSize:13,cursor:'pointer',color: autoRefresh ? '#10b981' : 'var(--gray-400)'}}>
               <span style={{width:8,height:8,borderRadius:'50%',background: autoRefresh ? '#10b981' : '#ccc',display:'inline-block',animation: autoRefresh ? 'pulse 1.5s infinite' : 'none'}}></span>
-              <span onClick={function(){setAutoRefresh(!autoRefresh);}}>{'실시간 '}{autoRefresh ? 'ON' : 'OFF'}</span>
+              <span onClick={function(){setAutoRefresh(!autoRefresh);}}>{t('실시간 ')}{autoRefresh ? 'ON' : 'OFF'}</span>
             </label>
             <div style={{fontSize:13,color:'var(--gray-400)'}}>
-              {'총 '}{total}{'건 (페이지 '}{pg}/{totalPages}{')'}
+              {t('총 ')}{total}{t('건 (페이지 ')}{pg}/{totalPages}{')'}
             </div>
           </div>
         </div>
@@ -6693,13 +7046,13 @@ function AccessLogsPage() {
               </select>
             </div>
             <div>
-              <label style={{fontSize:11,color:'var(--gray-500)',marginBottom:4,display:'block'}}>{'상태코드'}</label>
+              <label style={{fontSize:11,color:'var(--gray-500)',marginBottom:4,display:'block'}}>{t('상태코드')}</label>
               <select className="form-input" value={statusFilter} onChange={function(e){setStatusFilter(e.target.value);}} style={{fontSize:13}}>
                 <option value="">{'전체'}</option>
-                <option value="2xx">{'2xx (성공)'}</option>
-                <option value="3xx">{'3xx (리다이렉트)'}</option>
-                <option value="4xx">{'4xx (클라이언트 에러)'}</option>
-                <option value="5xx">{'5xx (서버 에러)'}</option>
+                <option value="2xx">{t('2xx (성공)')}</option>
+                <option value="3xx">{t('3xx (리다이렉트)')}</option>
+                <option value="4xx">{t('4xx (클라이언트 에러)')}</option>
+                <option value="5xx">{t('5xx (서버 에러)')}</option>
                 <option value="disconnect">{'DISCONNECT'}</option>
                 <option value="200">200</option>
                 <option value="304">304</option>
@@ -6723,7 +7076,7 @@ function AccessLogsPage() {
                 style={{fontSize:13}} />
             </div>
             <div style={{display:'flex',alignItems:'flex-end'}}>
-              <button className="btn btn-primary btn-sm" onClick={handleSearch} style={{width:'100%'}}>{'필터 적용'}</button>
+              <button className="btn btn-primary btn-sm" onClick={handleSearch} style={{width:'100%'}}>{t('필터 적용')}</button>
             </div>
           </div>
         )}
@@ -6733,20 +7086,20 @@ function AccessLogsPage() {
         <table className="table">
           <thead>
             <tr>
-              <th>시간</th>
-              <th>IP 주소</th>
-              <th>메서드</th>
-              <th>경로</th>
-              <th>상태</th>
-              <th>사용자</th>
-              <th>응답시간</th>
+              <th>{t('시간')}</th>
+              <th>{t('IP 주소')}</th>
+              <th>{t('메서드')}</th>
+              <th>{t('경로')}</th>
+              <th>{t('상태')}</th>
+              <th>{t('사용자')}</th>
+              <th>{t('응답시간')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr><td colSpan={7} style={{textAlign:'center',padding:40}}><div className="atms-3d-loader" style={{'--loader-size':'80px',minHeight:200}}><div className="scene"><div className="ring"></div><div className="ring"></div><div className="ring"></div><div className="core"></div><div className="orbit-dot"></div><div className="orbit-dot"></div><div className="orbit-dot"></div></div><div className="loader-label">{'\uB85C\uADF8 \uB85C\uB529 \uC911...'}</div></div></td></tr>
             ) : logs.length === 0 ? (
-              <tr><td colSpan={7} style={{textAlign:'center',padding:40,color:'var(--gray-400)'}}>접속 로그가 없습니다</td></tr>
+              <tr><td colSpan={7} style={{textAlign:'center',padding:40,color:'var(--gray-400)'}}>{t('접속 로그가 없습니다')}</td></tr>
             ) : logs.map(function(log) {
               var isDisconnect = log.method === 'DISCONNECT';
               var statusColor = isDisconnect ? '#8b5cf6' : log.status_code < 300 ? '#10b981' : log.status_code < 400 ? '#3b82f6' : log.status_code < 500 ? '#f59e0b' : '#ef4444';
@@ -6769,14 +7122,14 @@ function AccessLogsPage() {
 
       {totalPages > 1 && (
         <div style={{display:'flex',justifyContent:'center',gap:8,marginTop:16}}>
-          <button className="btn btn-sm" disabled={pg<=1} onClick={function(){setPg(pg-1);}}>이전</button>
+          <button className="btn btn-sm" disabled={pg<=1} onClick={function(){setPg(pg-1);}}>{t('이전')}</button>
           {Array.from({length: Math.min(totalPages, 10)}, function(_, i) {
             var start = Math.max(1, pg - 4);
             var p = start + i;
             if (p > totalPages) return null;
             return <button key={p} className={'btn btn-sm ' + (p===pg?'btn-primary':'')} onClick={function(){setPg(p);}}>{p}</button>;
           })}
-          <button className="btn btn-sm" disabled={pg>=totalPages} onClick={function(){setPg(pg+1);}}>다음</button>
+          <button className="btn btn-sm" disabled={pg>=totalPages} onClick={function(){setPg(pg+1);}}>{t('다음')}</button>
         </div>
       )}
 
@@ -6798,16 +7151,16 @@ function AccessLogsPage() {
             ) : (
               <div style={{flex:1,overflow:'auto'}}>
                 <div style={{fontSize:13,color:'var(--gray-500)',marginBottom:12}}>
-                  {'총 '}<b style={{color:'var(--primary)'}}>{ipModal.ips.length}</b>{'개 고유 IP'}
+                  {t('총 ')}<b style={{color:'var(--primary)'}}>{ipModal.ips.length}</b>{t('개 고유 IP')}
                 </div>
                 <table className="table" style={{fontSize:13}}>
                   <thead>
                     <tr style={{position:'sticky',top:0,background:'white'}}>
                       <th style={{width:30}}>{'#'}</th>
                       <th>{'IP 주소'}</th>
-                      <th style={{textAlign:'right'}}>{'요청 수'}</th>
-                      <th>{'최초 접속'}</th>
-                      <th>{'최근 접속'}</th>
+                      <th style={{textAlign:'right'}}>{t('요청 수')}</th>
+                      <th>{t('최초 접속')}</th>
+                      <th>{t('최근 접속')}</th>
                       <th style={{width:40}}></th>
                     </tr>
                   </thead>
@@ -6843,7 +7196,7 @@ function AccessLogsPage() {
                       );
                     })}
                     {ipModal.ips.length === 0 && (
-                      <tr><td colSpan={6} style={{textAlign:'center',padding:30,color:'var(--gray-400)'}}>{'접속 기록이 없습니다'}</td></tr>
+                      <tr><td colSpan={6} style={{textAlign:'center',padding:30,color:'var(--gray-400)'}}>{t('접속 기록이 없습니다')}</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -6918,7 +7271,7 @@ function MechanicPage() {
   };
 
   var deleteMechanic = function(id) {
-    if(!confirm('이 정비사를 삭제하시겠습니까?')) return;
+    if(!confirm(t('이 정비사를 삭제하시겠습니까?'))) return;
     api('/mechanics/' + id, {method:'DELETE'}).then(function() {
       showToast(t('정비사 삭제 완료'),'success'); loadAll();
     }).catch(function(e) { showToast(e.message,'error'); });
@@ -7378,7 +7731,7 @@ function PilotPage() {
   };
 
   var handleWeeklyDelete = async function(uploadId) {
-    if (!confirm('이 업로드를 삭제하시겠습니까?')) return;
+    if (!confirm(t('이 업로드를 삭제하시겠습니까?'))) return;
     try {
       await api('/pilots/weekly-uploads/' + uploadId, { method: 'DELETE' });
       showToast(t('삭제 완료'), 'success');
@@ -7470,7 +7823,7 @@ function PilotPage() {
     var ws = XLSX.utils.json_to_sheet(wsData);
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, t('개인별현황'));
-    XLSX.writeFile(wb, '개인별현황_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    XLSX.writeFile(wb, t('개인별현황_') + new Date().toISOString().slice(0, 10) + '.xlsx');
   };
 
   var downloadWeeklyReport = function() {
@@ -7480,7 +7833,7 @@ function PilotPage() {
     var ws = XLSX.utils.json_to_sheet(wsData);
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, t('주간보고'));
-    XLSX.writeFile(wb, '주간보고_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    XLSX.writeFile(wb, t('주간보고_') + new Date().toISOString().slice(0, 10) + '.xlsx');
   };
 
   if(loading) return React.createElement(ATMSLoader, {label: '\uC870\uC885\uC0AC \uB370\uC774\uD130 \uB85C\uB529 \uC911...', sub: 'Pilot Database'});
@@ -7494,32 +7847,32 @@ function PilotPage() {
   return (
     <div className="page-content">
       <div className="tabs">
-        <div className={`tab ${subTab==='profiles'?'active':''}`} onClick={()=>setSubTab('profiles')}>조종사 프로필</div>
-        <div className={`tab ${subTab==='individual'?'active':''}`} onClick={()=>setSubTab('individual')}>개인별 현황</div>
-        <div className={`tab ${subTab==='weekly'?'active':''}`} onClick={()=>setSubTab('weekly')}>주간 보고</div>
-        <div className={`tab ${subTab==='uploads'?'active':''}`} onClick={function(){setSubTab('uploads');}}>업로드 관리</div>
-        {isAdmin && <div className={`tab ${subTab==='manage'?'active':''}`} onClick={()=>setSubTab('manage')}>조종사 관리</div>}
+        <div className={`tab ${subTab==='profiles'?'active':''}`} onClick={()=>setSubTab('profiles')}>{t('조종사 프로필')}</div>
+        <div className={`tab ${subTab==='individual'?'active':''}`} onClick={()=>setSubTab('individual')}>{t('개인별 현황')}</div>
+        <div className={`tab ${subTab==='weekly'?'active':''}`} onClick={()=>setSubTab('weekly')}>{t('주간 보고')}</div>
+        <div className={`tab ${subTab==='uploads'?'active':''}`} onClick={function(){setSubTab('uploads');}}>{t('업로드 관리')}</div>
+        {isAdmin && <div className={`tab ${subTab==='manage'?'active':''}`} onClick={()=>setSubTab('manage')}>{t('조종사 관리')}</div>}
       </div>
 
       {/* ── Nationality Filter + Profiles ── */}
       {subTab==='profiles' && (
         <div>
           <div className="nat-filter-bar">
-            <span style={{fontSize:13,fontWeight:600,color:'var(--gray-500)',marginRight:4}}>국적:</span>
-            <button className={'nat-chip'+(natFilter==='all'?' active':'')} onClick={function(){setNatFilter('all');}}>전체</button>
+            <span style={{fontSize:13,fontWeight:600,color:'var(--gray-500)',marginRight:4}}>{t('국적')}:</span>
+            <button className={'nat-chip'+(natFilter==='all'?' active':'')} onClick={function(){setNatFilter('all');}}>{t('전체')}</button>
             {nationalities.map(function(n){return (
               <button key={n.id} className={'nat-chip'+(natFilter===n.code?' active':'')} onClick={function(){setNatFilter(n.code);}}>
                 {n.label_ko}</button>
             );})}
-            {!showNatAdd && <button className="nat-add-btn" onClick={function(){setShowNatAdd(true);}}>+ 국적 추가</button>}
+            {!showNatAdd && <button className="nat-add-btn" onClick={function(){setShowNatAdd(true);}}>{t('+ 국적 추가')}</button>}
             {showNatAdd && (
               <div style={{display:'flex',gap:6,alignItems:'center'}}>
                 <input style={{padding:'5px 10px',borderRadius:8,border:'1.5px solid var(--gray-200)',fontSize:13,width:100}}
                   placeholder="Code (English)" value={newNatCode} onChange={function(e){setNewNatCode(e.target.value);}}/>
                 <input style={{padding:'5px 10px',borderRadius:8,border:'1.5px solid var(--gray-200)',fontSize:13,width:100}}
                   placeholder="\uB77C\uBCA8 (\uD55C\uAE00)" value={newNatLabel} onChange={function(e){setNewNatLabel(e.target.value);}}/>
-                <button className="btn btn-primary btn-sm" onClick={addNationality}>추가</button>
-                <button className="btn btn-outline btn-sm" onClick={function(){setShowNatAdd(false);setNewNatCode('');setNewNatLabel('');}}>취소</button>
+                <button className="btn btn-primary btn-sm" onClick={addNationality}>{t('추가')}</button>
+                <button className="btn btn-outline btn-sm" onClick={function(){setShowNatAdd(false);setNewNatCode('');setNewNatLabel('');}}>{t('취소')}</button>
               </div>
             )}
           </div>
@@ -7557,7 +7910,7 @@ function PilotPage() {
                                 <div className="pilot-rank">{p.rank} &middot; {p.callsign||p.service_number||'N/A'}</div>
                                 <div style={{margin:'0 auto',maxWidth:300}}>
                                   <div className="flex-between" style={{fontSize:12,marginBottom:4}}>
-                                    <span>훈련 진도</span><span style={{fontWeight:700,color:'var(--primary)'}}>{pct}%</span></div>
+                                    <span>{t('훈련 진도')}</span><span style={{fontWeight:700,color:'var(--primary)'}}>{pct}%</span></div>
                                   <div className="progress-bar" style={{height:10}}>
                                     <div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg,#2563eb,#7c3aed)'}}/></div>
                                 </div>
@@ -7613,7 +7966,7 @@ function PilotPage() {
                               <div className="pilot-rank">{p.rank} &middot; {p.callsign||p.service_number||'N/A'}</div>
                               <div style={{margin:'0 auto',maxWidth:300}}>
                                 <div className="flex-between" style={{fontSize:12,marginBottom:4}}>
-                                  <span>훈련 진도</span><span style={{fontWeight:700,color:'var(--primary)'}}>{pct}%</span></div>
+                                  <span>{t('훈련 진도')}</span><span style={{fontWeight:700,color:'var(--primary)'}}>{pct}%</span></div>
                                 <div className="progress-bar" style={{height:10}}>
                                   <div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg,#2563eb,#7c3aed)'}}/></div>
                               </div>
@@ -7646,8 +7999,8 @@ function PilotPage() {
             <div className="card"><div className="card-body">
               <div className="empty-state" style={{padding:'60px 20px'}}>
                 <div style={{fontSize:48,marginBottom:12}}>🌍</div>
-                <div style={{fontSize:16,fontWeight:600,color:'var(--gray-600)',marginBottom:6}}>해당 국적의 조종사가 없습니다</div>
-                <div style={{fontSize:13,color:'var(--gray-400)'}}>다른 국적을 선택하거나 조종사 관리 탭에서 조종사를 추가해주세요.</div>
+                <div style={{fontSize:16,fontWeight:600,color:'var(--gray-600)',marginBottom:6}}>{t('해당 국적의 조종사가 없습니다')}</div>
+                <div style={{fontSize:13,color:'var(--gray-400)'}}>{t('다른 국적을 선택하거나 조종사 관리 탭에서 조종사를 추가해주세요.')}</div>
               </div>
             </div></div>
           )}
@@ -7659,10 +8012,10 @@ function PilotPage() {
         <div>
           <div className="filters">
             <select value={selectedPilot||''} onChange={function(e){setSelectedPilot(e.target.value?Number(e.target.value):null);}}>
-              <option value="">전체 조종사</option>
+              <option value="">{t('전체 조종사')}</option>
               {pilots.map(function(p){return <option key={p.id} value={p.id}>{p.short_name} ({p.name})</option>;})}
             </select>
-            <button className="btn btn-primary btn-sm" onClick={downloadIndividualTraining} aria-label="\uD6C4\uBCF4 \uB2E8\uC5F0 \uD6C4\uBCF4 \uD30C\uC77C \uB2E4\uC6B4\uB85C\uB4DC">📥 엑셀 다운로드</button>
+            <button className="btn btn-primary btn-sm" onClick={downloadIndividualTraining} aria-label="\uD6C4\uBCF4 \uB2E8\uC5F0 \uD6C4\uBCF4 \uD30C\uC77C \uB2E4\uC6B4\uB85C\uB4DC">{t('📥 엑셀 다운로드')}</button>
             {canEditTraining && <span style={{fontSize:12,color:'var(--gray-400)'}}>Click a cell to edit</span>}
           </div>
 
@@ -7770,7 +8123,7 @@ function PilotPage() {
       {/* ── Weekly Report ── */}
       {subTab==='weekly' && (
         <div>
-          <div style={{marginBottom: 16}}><button className="btn btn-primary btn-sm" onClick={downloadWeeklyReport} aria-label="\uC8FC\uAC04 \uBCF4\uACE0\uC11C \uD30C\uC77C \uB2E4\uC6B4\uB85C\uB4DC">📥 엑셀 다운로드</button></div>
+          <div style={{marginBottom: 16}}><button className="btn btn-primary btn-sm" onClick={downloadWeeklyReport} aria-label="\uC8FC\uAC04 \uBCF4\uACE0\uC11C \uD30C\uC77C \uB2E4\uC6B4\uB85C\uB4DC">{t('📥 엑셀 다운로드')}</button></div>
           <WeeklyReport weekly={weekly} pilots={pilots} nationalities={nationalities} normalizeNat={normalizeNat} natLabelMap={natLabelMap} onPilotClick={handlePilotClick} onAddNationality={handleAddNationality} />
         </div>
       )}
@@ -7796,9 +8149,9 @@ function PilotPage() {
                   <div className="progress-fill" style={{width:uploadProgress.step==='uploading'?'40%':'80%',background:'linear-gradient(90deg,#6366f1,#818cf8)',transition:'width 0.5s ease'}}/>
                 </div>
                 <div style={{display:'flex',justifyContent:'center',gap:24,fontSize:12,color:'var(--gray-400)'}}>
-                  <span style={{color:uploadProgress.step==='uploading'?'var(--primary)':'var(--gray-400)',fontWeight:uploadProgress.step==='uploading'?700:400}}>{'1. 업로드'}</span>
-                  <span style={{color:uploadProgress.step==='parsing'?'var(--primary)':'var(--gray-400)',fontWeight:uploadProgress.step==='parsing'?700:400}}>{'2. 파싱'}</span>
-                  <span style={{color:'var(--gray-400)'}}>{'3. 완료'}</span>
+                  <span style={{color:uploadProgress.step==='uploading'?'var(--primary)':'var(--gray-400)',fontWeight:uploadProgress.step==='uploading'?700:400}}>{t('1. 업로드')}</span>
+                  <span style={{color:uploadProgress.step==='parsing'?'var(--primary)':'var(--gray-400)',fontWeight:uploadProgress.step==='parsing'?700:400}}>{t('2. 파싱')}</span>
+                  <span style={{color:'var(--gray-400)'}}>{t('3. 완료')}</span>
                 </div>
               </div>
             )}
@@ -7807,18 +8160,18 @@ function PilotPage() {
               <div>
                 <div style={{background:'var(--gray-50)',borderRadius:12,padding:16,marginBottom:16}}>
                   <div style={{display:'flex',justifyContent:'space-around',textAlign:'center'}}>
-                    <div><div style={{fontSize:24,fontWeight:800,color:'var(--primary)'}}>{uploadProgress.total}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>{'파싱된 조종사'}</div></div>
-                    <div><div style={{fontSize:24,fontWeight:800,color:'var(--success)'}}>{uploadProgress.matched}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>{'매칭 성공'}</div></div>
-                    <div><div style={{fontSize:24,fontWeight:800,color:uploadProgress.total - uploadProgress.matched > 0 ? 'var(--danger)' : 'var(--gray-400)'}}>{uploadProgress.total - uploadProgress.matched}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>{'미매칭'}</div></div>
+                    <div><div style={{fontSize:24,fontWeight:800,color:'var(--primary)'}}>{uploadProgress.total}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>{t('파싱된 조종사')}</div></div>
+                    <div><div style={{fontSize:24,fontWeight:800,color:'var(--success)'}}>{uploadProgress.matched}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>{t('매칭 성공')}</div></div>
+                    <div><div style={{fontSize:24,fontWeight:800,color:uploadProgress.total - uploadProgress.matched > 0 ? 'var(--danger)' : 'var(--gray-400)'}}>{uploadProgress.total - uploadProgress.matched}</div><div style={{fontSize:11,color:'var(--gray-500)'}}>{t('미매칭')}</div></div>
                   </div>
                 </div>
                 {uploadProgress.unmatchedNames && uploadProgress.unmatchedNames.length > 0 && (
                   <div style={{background:'#fef2f2',borderRadius:12,padding:14,marginBottom:16,border:'1px solid #fecaca'}}>
                     <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
                       <span style={{fontSize:18}}>{'\u26A0\uFE0F'}</span>
-                      <div style={{fontSize:14,fontWeight:700,color:'#dc2626'}}>{'미매칭 조종사 '}{uploadProgress.unmatchedNames.length}{'명'}</div>
+                      <div style={{fontSize:14,fontWeight:700,color:'#dc2626'}}>{t('미매칭 조종사 ')}{uploadProgress.unmatchedNames.length}{'명'}</div>
                     </div>
-                    <div style={{fontSize:12,color:'#991b1b',marginBottom:8}}>{'엑셀에 있는 이름이 DB에 등록된 조종사와 매칭되지 않았습니다.'}</div>
+                    <div style={{fontSize:12,color:'#991b1b',marginBottom:8}}>{t('엑셀에 있는 이름이 DB에 등록된 조종사와 매칭되지 않았습니다.')}</div>
                     {uploadProgress.unmatchedNames.map(function(um, idx) {
                       return React.createElement('div', {key: idx, style: {padding:'8px 12px',background:'#fff',borderRadius:8,marginBottom:6,border:'1px solid #fecaca'}},
                         React.createElement('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
@@ -7844,14 +8197,14 @@ function PilotPage() {
                   <div style={{background:'#f0fdf4',borderRadius:12,padding:12,marginBottom:16,display:'flex',alignItems:'center',gap:10}}>
                     <span style={{fontSize:22}}>{'\u2705'}</span>
                     <div style={{fontSize:13,color:'#15803d'}}>
-                      <b>{'개인별 현황 동기화 완료'}</b>
-                      <span style={{marginLeft:6}}>{uploadProgress.individualSynced}{'개 훈련기록'}</span>
-                      {uploadProgress.coursesCreated > 0 && <span style={{marginLeft:6}}>{'/ '}{uploadProgress.coursesCreated}{'개 신규과목 생성'}</span>}
+                      <b>{t('개인별 현황 동기화 완료')}</b>
+                      <span style={{marginLeft:6}}>{uploadProgress.individualSynced}{t('개 훈련기록')}</span>
+                      {uploadProgress.coursesCreated > 0 && <span style={{marginLeft:6}}>{'/ '}{uploadProgress.coursesCreated}{t('개 신규과목 생성')}</span>}
                     </div>
                   </div>
                 ) : uploadProgress.indDebug ? (
                   <div style={{background:'#fef9c3',borderRadius:12,padding:12,marginBottom:16,fontSize:11,color:'#854d0e'}}>
-                    <b>{'개인별 현황 동기화 미실행'}</b>
+                    <b>{t('개인별 현황 동기화 미실행')}</b>
                     <div style={{marginTop:4,wordBreak:'break-all'}}>{JSON.stringify(uploadProgress.indDebug)}</div>
                   </div>
                 ) : null}
@@ -7870,14 +8223,14 @@ function PilotPage() {
                     </table>
                   </div>
                 )}
-                <button className="btn btn-primary btn-block" onClick={function(){setUploadProgress(null);}}>확인</button>
+                <button className="btn btn-primary btn-block" onClick={function(){setUploadProgress(null);}}>{t('확인')}</button>
               </div>
             )}
 
             {uploadProgress.step==='error' && (
               <div>
                 <div style={{background:'#fef2f2',borderRadius:12,padding:16,marginBottom:16,color:'#dc2626',fontSize:13}}>{uploadProgress.error}</div>
-                <button className="btn btn-primary btn-block" onClick={function(){setUploadProgress(null);}}>닫기</button>
+                <button className="btn btn-primary btn-block" onClick={function(){setUploadProgress(null);}}>{t('닫기')}</button>
               </div>
             )}
           </div>
@@ -7890,7 +8243,7 @@ function PilotPage() {
           {/* Upload Area */}
           <div className="card" style={{marginBottom:16}}>
             <div className="card-header">
-              <h3 style={{margin:0,fontSize:16}}>주간보고 엑셀 업로드</h3>
+              <h3 style={{margin:0,fontSize:16}}>{t('주간보고 엑셀 업로드')}</h3>
             </div>
             <div className="card-body">
               <div style={{border:'2px dashed var(--gray-300)',borderRadius:12,padding:'32px 20px',textAlign:'center',
@@ -7915,20 +8268,20 @@ function PilotPage() {
           {/* Upload History */}
           <div className="card">
             <div className="card-header">
-              <h3 style={{margin:0,fontSize:16}}>업로드 이력</h3>
+              <h3 style={{margin:0,fontSize:16}}>{t('업로드 이력')}</h3>
               <span className="badge badge-blue" style={{marginLeft:8}}>{weeklyUploads.length}건</span>
             </div>
             <div className="card-body">
               {weeklyUploads.length === 0 ? (
                 <div className="empty-state" style={{padding:'40px 20px'}}>
                   <div style={{fontSize:36,marginBottom:8}}>📁</div>
-                  <div style={{fontSize:14,color:'var(--gray-500)'}}>업로드된 파일이 없습니다</div>
+                  <div style={{fontSize:14,color:'var(--gray-500)'}}>{t('업로드된 파일이 없습니다')}</div>
                 </div>
               ) : (
                 <div className="table-wrapper"><table>
                   <thead><tr>
-                    <th>No.</th><th>파일명</th><th>보고일</th><th>업로드자</th>
-                    <th>데이터 수</th><th>파일 크기</th><th>업로드일시</th><th>관리</th>
+                    <th>No.</th><th>{t('파일명')}</th><th>{t('보고일')}</th><th>{t('업로드자')}</th>
+                    <th>{t('데이터 수')}</th><th>{t('파일 크기')}</th><th>{t('업로드일시')}</th><th>{t('관리')}</th>
                   </tr></thead>
                   <tbody>{weeklyUploads.map(function(u, idx){
                     return (
@@ -7965,7 +8318,7 @@ function PilotPage() {
             <span style={{fontSize:14,color:'var(--gray-500)'}}>Active Pilots: {pilots.length}</span>
             <div style={{display:'flex',gap:8}}>
               <button className="btn btn-primary" onClick={openCreate}>+ Add Pilot</button>
-              <button className="btn btn-primary" onClick={function(){setShowBulkPilotImport(true);}} aria-label="\uD6C4\uBCF4 \uC77C\uD310 \uB4F1\uB85D">📤 일괄등록</button>
+              <button className="btn btn-primary" onClick={function(){setShowBulkPilotImport(true);}} aria-label="\uD6C4\uBCF4 \uC77C\uD310 \uB4F1\uB85D">{t('📤 일괄등록')}</button>
             </div>
           </div>
           <div className="card"><div className="card-body">
@@ -8034,17 +8387,17 @@ function PilotPage() {
 
       {/* Bulk Pilot Import Modal */}
       {showBulkPilotImport&&<Modal title="조종사 일괄등록" onClose={function(){setShowBulkPilotImport(false);setPilotImportFile(null);setPilotImportPreview([]);}}
-        footer={<><button className="btn btn-outline" onClick={function(){setShowBulkPilotImport(false);setPilotImportFile(null);setPilotImportPreview([]);}}>취소</button>
+        footer={<><button className="btn btn-outline" onClick={function(){setShowBulkPilotImport(false);setPilotImportFile(null);setPilotImportPreview([]);}}>{t('취소')}</button>
           {pilotImportFile && pilotImportFile.length > 0 && <button className="btn btn-success" onClick={confirmBulkPilotImport}>{pilotImportFile.length}명 가져오기</button>}</>}>
         {!pilotImportFile || pilotImportFile.length === 0 ? (
           <div>
-            <div style={{fontSize: 12, color: 'var(--gray-500)', marginBottom: 12}}>엑셀 파일에 다음 열이 필요합니다: name, short_name, rank, nationality, callsign, service_number</div>
+            <div style={{fontSize: 12, color: 'var(--gray-500)', marginBottom: 12}}>{t('엑셀 파일에 다음 열이 필요합니다: name, short_name, rank, nationality, callsign, service_number')}</div>
             <div className="import-area">
               <div style={{fontSize: 40, marginBottom: 8}}>📊</div>
-              <div style={{fontWeight: 600, marginBottom: 4}}>엑셀 파일을 선택하세요</div>
-              <div style={{fontSize: 12, color: 'var(--gray-400)'}}>(.xlsx / .xlsm 형식)</div>
+              <div style={{fontWeight: 600, marginBottom: 4}}>{t('엑셀 파일을 선택하세요')}</div>
+              <div style={{fontSize: 12, color: 'var(--gray-400)'}}>{t('(.xlsx / .xlsm 형식)')}</div>
               <input type="file" ref={pilotImportFileRef} onChange={handleBulkPilotImportFile} accept=".xlsx,.xls,.xlsm" style={{display: 'none'}} />
-              <button className="btn btn-primary btn-sm" onClick={function(){pilotImportFileRef.current && pilotImportFileRef.current.click();}} style={{marginTop: 12}}>파일 선택</button>
+              <button className="btn btn-primary btn-sm" onClick={function(){pilotImportFileRef.current && pilotImportFileRef.current.click();}} style={{marginTop: 12}}>{t('파일 선택')}</button>
             </div>
           </div>
         ) : (
@@ -8125,7 +8478,7 @@ function DigitalSignaturesPage() {
     if(!selectedCourse) return showToast(t('\uACFC\uC815 \uC120\uD0DD \uD544\uC218'),'error');
     var data = canvasRef.current.toDataURL('image/jpeg');
     api('/digital-signatures',{method:'POST',body:JSON.stringify({course_id:selectedCourse,signature_data:data,purpose:'course_completion'})})
-      .then(function(){showToast(t('\uC11C\uBA85 \uC81C\uCD9C \uC644\uB8CC')); setShowSign(false); loadSigs();
+      .then(function(){showToast('\uC11C\uBA85 \uC81C\uCD9C \uC644\uB8CC'); setShowSign(false); loadSigs();
       }).catch(function(e){showToast(e.message,'error');});
   };
   var verifySig = function(sigId, newStatus) {
@@ -8219,7 +8572,7 @@ function CounselingPage() {
   var handleAdd = function(){
     if(!formData.trainee_id||!formData.topic) return showToast(t('\uD6C8\uB828\uC0DD\uACFC \uC8FC\uC81C \uD544\uC218'),'error');
     api('/counseling',{method:'POST',body:JSON.stringify(formData)}).then(function(){
-      showToast(t('\uC0C1\uB2F4\uAE30\uB85D \uB4F1\uB85D')); setShowForm(false); setFormData({});
+      showToast('\uC0C1\uB2F4\uAE30\uB85D \uB4F1\uB85D'); setShowForm(false); setFormData({});
       api('/counseling').then(function(d){setRecords(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
@@ -8282,7 +8635,7 @@ function SurveyManagementPage() {
   var handleSubmit = function(){
     if(!formData.course_id) return showToast(t('\uACFC\uC815 \uC120\uD0DD \uD544\uC218'),'error');
     api('/surveys',{method:'POST',body:JSON.stringify(formData)}).then(function(){
-      showToast(t('\uC124\uBB38 \uC81C\uCD9C \uC644\uB8CC')); setShowForm(false);
+      showToast('\uC124\uBB38 \uC81C\uCD9C \uC644\uB8CC'); setShowForm(false);
       api('/surveys').then(function(d){setSurveys(Array.isArray(d.data)?d.data:(d.data.surveys||[]));});
     }).catch(function(e){showToast(e.message,'error');});
   };
