@@ -5721,7 +5721,7 @@ function NotificationsPage() {
     {key:'ojt_task_complete',label:'OJT \uC644\uB8CC',icon:'\uD83C\uDFC6',color:'#D97706'},
     {key:'ojt_survey_submit',label:'\uC124\uBB38 \uC81C\uCD9C',icon:'\uD83D\uDCCA',color:'#EC4899'}
   ];
-  const load = () => api('/notifications').then(d=>setData(extractArr(d.data))).catch(e=>showToast(e.message,'error'));
+  const load = () => api('/notifications').then(d=>{var r=d.data;setData({notifications:extractArr(r),unread_count:r&&r.unread_count||0});}).catch(e=>showToast(e.message,'error'));
   const loadPrefs = () => { setPrefsLoading(true); api('/notifications/preferences').then(d=>{setPreferences(d.data||[]);setPrefsLoading(false);}).catch(()=>setPrefsLoading(false)); };
   useEffect(()=>{load(); loadPrefs();},[]);
   const markRead = async id => { try{await api(`/notifications/${id}/read`,{method:'PUT'});load();}catch(e){showToast(e.message,'error');} };
