@@ -905,6 +905,19 @@ async function api(path, options) {
   return data;
 }
 
+// Universal helper: extract array from paginated API responses
+// Handles both plain arrays and {key:[...], pagination:{...}} wrappers
+function extractArr(d) {
+  if (Array.isArray(d)) return d;
+  if (d && typeof d === 'object') {
+    var keys = Object.keys(d);
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i] !== 'pagination' && keys[i] !== 'unread_count' && Array.isArray(d[keys[i]])) return d[keys[i]];
+    }
+  }
+  return [];
+}
+
 const AppContext = createContext();
 function useApp() { return useContext(AppContext); }
 
@@ -1979,7 +1992,7 @@ function CoursesPage() {
   var [form, setForm] = useState({ code:'',name:'',type:'TT',description:'',duration_weeks:'',max_trainees:20,aircraft_type:'' });
   var [formErrors, setFormErrors] = useState({});
   var { user, showToast } = useApp();
-  var load = function() { api('/courses').then(function(d) { setCourses(d.data); }).catch(function(e) { showToast(e.message,'error'); }); };
+  var load = function() { api('/courses').then(function(d) { var raw=d.data; setCourses(Array.isArray(raw)?raw:(raw&&raw.courses?raw.courses:[])); }).catch(function(e) { showToast(e.message,'error'); }); };
   useEffect(function() { load(); }, []);
   var selectCourse = function(c) {
     setSelectedCourse(c.id);
@@ -2095,7 +2108,7 @@ function UsersPage() {
   const importFileRef = useRef(null);
   const { user, showToast } = useApp();
   const load = function() { let q='/users?per_page=100'; if(roleFilter) q+=`&role=${roleFilter}`; if(search) q+=`&search=${search}`;
-    api(q).then(function(d){setData(d.data);}).catch(function(e){showToast(e.message,'error');}); };
+    api(q).then(function(d){setData(extractArr(d.data));}).catch(function(e){showToast(e.message,'error');}); };
   useEffect(function(){load();},[roleFilter,search]);
   const handleCreate = async function() {
     var errors = {};
@@ -2293,7 +2306,7 @@ function SchedulePage() {
   const { user, showToast } = useApp();
   const [viewMode, setViewMode] = useState('all');
   const load = function() { let q='/schedules?'; if(dateFrom)q+=`&date_from=${dateFrom}`; if(dateTo)q+=`&date_to=${dateTo}`;
-    api(q).then(function(d){setSchedules(d.data);}).catch(function(e){showToast(e.message,'error');}); };
+    api(q).then(function(d){setSchedules(extractArr(d.data));}).catch(function(e){showToast(e.message,'error');}); };
   useEffect(function(){load();},[dateFrom,dateTo]);
   var filteredSchedules = schedules.filter(function(s){
     if(viewMode==='all') return true;
@@ -2392,7 +2405,7 @@ function SchedulePage() {
   };
 
   useEffect(function(){
-    api('/courses').then(function(d){setAllCourses(d.data);}).catch(function(){});
+    api('/courses').then(function(d){var raw=d.data;setAllCourses(Array.isArray(raw)?raw:(raw&&raw.courses?raw.courses:[]));}).catch(function(){});
   }, []);
 
   const handleOptimize = function() {
@@ -2932,11 +2945,11 @@ function EvaluationsPage() {
     let q='/evaluations?';
     if(statusFilter)q+=`&status=${statusFilter}`;
     api(q).then(function(d){
-      setEvals(d.data);
+      setEvals(extractArr(d.data));
     }).catch(function(e){showToast(e.message,'error');});
   };
   useEffect(function(){
-    api('/courses').then(function(d){setCourses(d.data);}).catch(function(){});
+    api('/courses').then(function(d){var raw=d.data;setCourses(Array.isArray(raw)?raw:(raw&&raw.courses?raw.courses:[]));}).catch(function(){});
     load();
   },[statusFilter]);
   var getDateRange = function() {
@@ -3238,7 +3251,7 @@ function OJTPage() {
 
   var loadAll = function() {
     setLoading(true);
-    api('/ojt/programs').then(function(d){setPrograms(d.data);setLoading(false);}).catch(function(e){showToast(e.message,'error');setLoading(false);});
+    api('/ojt/programs').then(function(d){setPrograms(extractArr(d.data));setLoading(false);}).catch(function(e){showToast(e.message,'error');setLoading(false);});
   };
 
   var loadSurveyItems = function(templateId) {
@@ -3265,7 +3278,7 @@ function OJTPage() {
       setSurveyItems([]);
       setSurveyResponses({});
       setSubmittingSurvey(false);
-      api('/ojt/survey-templates').then(function(d){setSurveyTemplates(d.data);});
+      api('/ojt/survey-templates').then(function(d){setSurveyTemplates(extractArr(d.data));});
     }).catch(function(e) { showToast(e.message, 'error'); setSubmittingSurvey(false); });
   };
 
@@ -3283,7 +3296,7 @@ function OJTPage() {
     })}).then(function(){
       showToast('\uD6C8\uB828 \uACB0\uACFC \uC5C5\uB370\uC774\uD2B8 \uC644\uB8CC','success');
       setTaskCompleteModal(null);
-      api('/ojt/training-results').then(function(d){setTrainingResults(d.data);});
+      api('/ojt/training-results').then(function(d){setTrainingResults(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
 
@@ -3295,7 +3308,7 @@ function OJTPage() {
       var msgs = {submit:'\uC81C\uCD9C \uC644\uB8CC',leader_approve:'\uB9AC\uB354 \uC2B9\uC778 \uC644\uB8CC',admin_approve:'\uCD5C\uC885 \uC2B9\uC778 \uC644\uB8CC',leader_reject:'\uBC18\uB824 \uCC98\uB9AC',admin_reject:'\uBC18\uB824 \uCC98\uB9AC'};
       showToast(msgs[action] || '\uCC98\uB9AC \uC644\uB8CC','success');
       setTaskCompleteModal(null);
-      api('/ojt/training-results').then(function(d){setTrainingResults(d.data);});
+      api('/ojt/training-results').then(function(d){setTrainingResults(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
 
@@ -3310,16 +3323,16 @@ function OJTPage() {
   useEffect(function(){ loadAll(); },[]);
   useEffect(function(){
     setLoading(true);
-    if(tab === 'evaluations') { Promise.all([api('/ojt/evaluations'),api('/ojt/eval-templates')]).then(function(res){setOjtEvaluations(res[0].data);setEvalTemplates(res[1].data);setLoading(false);}).catch(function(){setLoading(false);}); }
-    else if(tab === 'venues') api('/ojt/venues').then(function(d){setVenues(d.data);setLoading(false);}).catch(function(){setLoading(false);});
-    else if(tab === 'announcements') api('/ojt/announcements').then(function(d){setAnnouncements(d.data);setLoading(false);}).catch(function(){setLoading(false);});
-    else if(tab === 'surveys') api('/ojt/survey-templates').then(function(d){setSurveyTemplates(d.data);setLoading(false);}).catch(function(){setLoading(false);});
-    else if(tab === 'roadmap') { var promises = [api('/career-roadmap'),api('/career-roadmap/progress'),api('/users?role=trainee')]; var isInstructorRole = user && user.role === 'instructor'; if(isInstructorRole) promises.push(api('/career-roadmap/progress?trainee_id='+user.id)); Promise.all(promises).then(function(res){setRoadmaps(res[0].data);setRoadmapProgress(res[1].data);setAllTrainees(res[2].data.users||res[2].data||[]);if(res[3]) setMyRoadmapProgress(res[3].data);setLoading(false);}).catch(function(){setLoading(false);}); }
-    else if(tab === 'specs') { Promise.all([api('/ojt/training-specs'),api('/ojt/eval-specs')]).then(function(res){setTrainingSpecs(res[0].data);setEvalSpecs(res[1].data);setLoading(false);}).catch(function(){setLoading(false);}); }
-    else if(tab === 'schedules') api('/ojt/schedules').then(function(d){setOjtSchedules(d.data);setLoading(false);}).catch(function(){setLoading(false);});
-    else if(tab === 'results') api('/ojt/training-results').then(function(d){setTrainingResults(d.data);setLoading(false);}).catch(function(){setLoading(false);});
-    else if(tab === 'management') { api('/ojt/training-results').then(function(d){setTrainingResults(d.data);setLoading(false);}).catch(function(){setLoading(false);}); }
-    else if(tab === 'preassign') api('/ojt/pre-assignments').then(function(d){setPreAssignments(d.data);setLoading(false);}).catch(function(){setLoading(false);});
+    if(tab === 'evaluations') { Promise.all([api('/ojt/evaluations'),api('/ojt/eval-templates')]).then(function(res){setOjtEvaluations(extractArr(res[0].data));setEvalTemplates(extractArr(res[1].data));setLoading(false);}).catch(function(){setLoading(false);}); }
+    else if(tab === 'venues') api('/ojt/venues').then(function(d){setVenues(extractArr(d.data));setLoading(false);}).catch(function(){setLoading(false);});
+    else if(tab === 'announcements') api('/ojt/announcements').then(function(d){setAnnouncements(extractArr(d.data));setLoading(false);}).catch(function(){setLoading(false);});
+    else if(tab === 'surveys') api('/ojt/survey-templates').then(function(d){setSurveyTemplates(extractArr(d.data));setLoading(false);}).catch(function(){setLoading(false);});
+    else if(tab === 'roadmap') { var promises = [api('/career-roadmap'),api('/career-roadmap/progress'),api('/users?role=trainee')]; var isInstructorRole = user && user.role === 'instructor'; if(isInstructorRole) promises.push(api('/career-roadmap/progress?trainee_id='+user.id)); Promise.all(promises).then(function(res){setRoadmaps(extractArr(res[0].data));setRoadmapProgress(extractArr(res[1].data));setAllTrainees(extractArr(res[2].data));if(res[3]) setMyRoadmapProgress(extractArr(res[3].data));setLoading(false);}).catch(function(){setLoading(false);}); }
+    else if(tab === 'specs') { Promise.all([api('/ojt/training-specs'),api('/ojt/eval-specs')]).then(function(res){setTrainingSpecs(extractArr(res[0].data));setEvalSpecs(extractArr(res[1].data));setLoading(false);}).catch(function(){setLoading(false);}); }
+    else if(tab === 'schedules') api('/ojt/schedules').then(function(d){setOjtSchedules(extractArr(d.data));setLoading(false);}).catch(function(){setLoading(false);});
+    else if(tab === 'results') api('/ojt/training-results').then(function(d){setTrainingResults(extractArr(d.data));setLoading(false);}).catch(function(){setLoading(false);});
+    else if(tab === 'management') { api('/ojt/training-results').then(function(d){setTrainingResults(extractArr(d.data));setLoading(false);}).catch(function(){setLoading(false);}); }
+    else if(tab === 'preassign') api('/ojt/pre-assignments').then(function(d){setPreAssignments(extractArr(d.data));setLoading(false);}).catch(function(){setLoading(false);});
     else if(tab === 'leaders') { var promises = programs.map(function(p){return api('/ojt/programs/'+p.id+'/leaders').then(function(d){return {program_id:p.id,program_name:p.name,leaders:d.data};}).catch(function(){return {program_id:p.id,program_name:p.name,leaders:[]};});}); Promise.all(promises).then(function(res){setLeaders(res);setLoading(false);}).catch(function(){setLoading(false);}); }
     else setLoading(false);
   },[tab]);
@@ -3341,14 +3354,14 @@ function OJTPage() {
     if(!formData.name) return showToast('\uC7A5\uC18C\uBA85 \uD544\uC218','error');
     api('/ojt/venues',{method:'POST',body:JSON.stringify(formData)}).then(function(){
       showToast('\uD6C8\uB828\uC7A5\uC18C \uB4F1\uB85D'); setShowForm(false); setFormData({});
-      api('/ojt/venues').then(function(d){setVenues(d.data);});
+      api('/ojt/venues').then(function(d){setVenues(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleAddAnnouncement = function() {
     if(!formData.title) return showToast('\uC81C\uBAA9 \uD544\uC218','error');
     api('/ojt/announcements',{method:'POST',body:JSON.stringify(formData)}).then(function(){
       showToast('\uACF5\uC9C0\uC0AC\uD56D \uB4F1\uB85D'); setShowForm(false); setFormData({});
-      api('/ojt/announcements').then(function(d){setAnnouncements(d.data);});
+      api('/ojt/announcements').then(function(d){setAnnouncements(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleAddProgram = function() {
@@ -3362,29 +3375,29 @@ function OJTPage() {
     var url = type === 'ts' ? '/ojt/training-specs' : '/ojt/eval-specs';
     api(url,{method:'POST',body:JSON.stringify(formData)}).then(function(){
       showToast((type==='ts'?'TS':'ES')+' \uB4F1\uB85D'); setShowModal(null); setFormData({});
-      api('/ojt/training-specs').then(function(d){setTrainingSpecs(d.data);});
-      api('/ojt/eval-specs').then(function(d){setEvalSpecs(d.data);});
+      api('/ojt/training-specs').then(function(d){setTrainingSpecs(extractArr(d.data));});
+      api('/ojt/eval-specs').then(function(d){setEvalSpecs(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleAddSchedule = function() {
     if(!formData.title) return showToast('\uC81C\uBAA9 \uD544\uC218','error');
     api('/ojt/schedules',{method:'POST',body:JSON.stringify(formData)}).then(function(){
       showToast('\uC77C\uC815 \uB4F1\uB85D'); setShowModal(null); setFormData({});
-      api('/ojt/schedules').then(function(d){setOjtSchedules(d.data);});
+      api('/ojt/schedules').then(function(d){setOjtSchedules(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleAddSurvey = function() {
     if(!formData.title) return showToast('\uC81C\uBAA9 \uD544\uC218','error');
     api('/ojt/survey-templates',{method:'POST',body:JSON.stringify(formData)}).then(function(){
       showToast('\uC11C\uBCA0\uC774 \uB4F1\uB85D'); setShowModal(null); setFormData({});
-      api('/ojt/survey-templates').then(function(d){setSurveyTemplates(d.data);});
+      api('/ojt/survey-templates').then(function(d){setSurveyTemplates(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleAddRoadmap = function() {
     if(!formData.title || !formData.level) return showToast('\uC81C\uBAA9\uACFC \uB808\uBCA8 \uD544\uC218','error');
     api('/career-roadmap',{method:'POST',body:JSON.stringify(formData)}).then(function(){
       showToast('\uB85C\uB4DC\uB9F5 \uB4F1\uB85D'); setShowModal(null); setFormData({});
-      api('/career-roadmap').then(function(d){setRoadmaps(d.data);});
+      api('/career-roadmap').then(function(d){setRoadmaps(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
 
@@ -3392,7 +3405,7 @@ function OJTPage() {
     if(!formData.title || !formData.program_id) return showToast('\uC81C\uBAA9\uACFC \uD504\uB85C\uADF8\uB7A8 \uD544\uC218','error');
     api('/ojt/pre-assignments',{method:'POST',body:JSON.stringify(formData)}).then(function(){
       showToast('\uC0AC\uC804\uACFC\uC81C \uB4F1\uB85D'); setShowModal(null); setFormData({});
-      api('/ojt/pre-assignments').then(function(d){setPreAssignments(d.data);});
+      api('/ojt/pre-assignments').then(function(d){setPreAssignments(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleAddLeader = function() {
@@ -3407,7 +3420,7 @@ function OJTPage() {
     var body = Object.assign({},submitFormData);
     api('/ojt/pre-assignments/'+submitPreAssignment.id+'/submit',{method:'POST',body:JSON.stringify(body)}).then(function(){
       showToast('\uC81C\uCD9C \uC644\uB8CC','success'); setShowModal(null); setSubmitPreAssignment(null); setSubmitFormData({submission_text:'',file_url:''});
-      api('/ojt/pre-assignments').then(function(d){setPreAssignments(d.data);});
+      api('/ojt/pre-assignments').then(function(d){setPreAssignments(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleAddEvalTemplate = function() {
@@ -3416,7 +3429,7 @@ function OJTPage() {
     if(programFilter && programFilter !== 'all') body.program_id = parseInt(programFilter);
     api('/ojt/eval-templates',{method:'POST',body:JSON.stringify(body)}).then(function(){
       showToast('\uD3C9\uAC00 \uD15C\uD50C\uB9BF \uB4F1\uB85D'); setEvalTemplateModal(null); setEvalTemplateForm({name:'',description:'',criteria:'',max_score:100,template_data:''});
-      api('/ojt/eval-templates').then(function(d){setEvalTemplates(d.data);});
+      api('/ojt/eval-templates').then(function(d){setEvalTemplates(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
   var handleBulkApplyTemplate = function(templateId) {
@@ -3432,7 +3445,7 @@ function OJTPage() {
     if(!confirm('\uC774 \uD15C\uD50C\uB9BF\uC744 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?')) return;
     api('/ojt/eval-templates/'+id,{method:'DELETE'}).then(function(){
       showToast('\uD15C\uD50C\uB9BF \uC0AD\uC81C','success');
-      api('/ojt/eval-templates').then(function(d){setEvalTemplates(d.data);});
+      api('/ojt/eval-templates').then(function(d){setEvalTemplates(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
 
@@ -3467,7 +3480,7 @@ function OJTPage() {
       showToast('\uD6C8\uB828\uC0DD \uC815\uBCF4 \uC5C5\uB370\uC774\uD2B8 \uC644\uB8CC','success');
       setEditingTrainee(null);
       setTraineeFormData({});
-      api('/ojt/training-results').then(function(d){setTrainingResults(d.data);if(selectedProgramMgmt){loadMgmtTrainees(selectedProgramMgmt);}}).catch(function(){});
+      api('/ojt/training-results').then(function(d){setTrainingResults(extractArr(d.data));if(selectedProgramMgmt){loadMgmtTrainees(selectedProgramMgmt);}}).catch(function(){});
     }).catch(function(e){showToast(e.message||'\uC5C5\uB370\uC774\uD2B8 \uC2E4\uD328','error');});
   };
 
@@ -3881,7 +3894,7 @@ function OJTPage() {
 
       !loading && tab==='schedules' && React.createElement('div',{},
         isAdmin && React.createElement('div',{style:{marginBottom:16}},
-          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowModal('schedule');setFormData({});if(venues.length===0)api('/ojt/venues').then(function(d){setVenues(d.data);});}},'\u2795 \uC77C\uC815 \uB4F1\uB85D')
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:function(){setShowModal('schedule');setFormData({});if(venues.length===0)api('/ojt/venues').then(function(d){setVenues(extractArr(d.data));});}},'\u2795 \uC77C\uC815 \uB4F1\uB85D')
         ),
         React.createElement('div',{className:'card'},React.createElement('div',{className:'card-body'},React.createElement('div',{className:'table-wrapper'},React.createElement('table',{},
           React.createElement('thead',{},React.createElement('tr',{},React.createElement('th',{scope:'col'},'\uC81C\uBAA9'),React.createElement('th',{scope:'col'},'\uD504\uB85C\uADF8\uB7A8'),React.createElement('th',{scope:'col'},'\uB0A0\uC9DC'),React.createElement('th',{scope:'col'},'\uC2DC\uAC04'),React.createElement('th',{scope:'col'},'\uC7A5\uC18C'),React.createElement('th',{scope:'col'},'\uAC15\uC0AC'))),
@@ -3942,16 +3955,16 @@ function OJTPage() {
                     api('/ojt/survey-results/'+st.id).then(function(d){showToast('\uC751\uB2F5: '+(d.data.total_responses||0)+'\uAC74, \uD3C9\uADE0: '+(d.data.avg_rating||'-'),'success');}).catch(function(e){showToast(e.message,'error');});
                   }},'\uD83D\uDCCA \uACB0\uACFC'),
                   isAdmin && st.status==='active' && React.createElement('button',{className:'btn btn-warning btn-sm',style:{padding:'3px 8px',fontSize:11},onClick:function(){
-                    api('/ojt/survey-templates/'+st.id,{method:'PUT',body:JSON.stringify({status:'closed'})}).then(function(){showToast('\uC11C\uBCA0\uC774 \uC885\uB8CC','success');api('/ojt/survey-templates').then(function(d){setSurveyTemplates(d.data);});}).catch(function(e){showToast(e.message,'error');});
+                    api('/ojt/survey-templates/'+st.id,{method:'PUT',body:JSON.stringify({status:'closed'})}).then(function(){showToast('\uC11C\uBCA0\uC774 \uC885\uB8CC','success');api('/ojt/survey-templates').then(function(d){setSurveyTemplates(extractArr(d.data));});}).catch(function(e){showToast(e.message,'error');});
                   }},'\u23F9 \uC885\uB8CC'),
                   isAdmin && st.status==='active' && React.createElement('button',{className:'btn btn-danger btn-sm',style:{padding:'3px 8px',fontSize:11},onClick:function(){
-                    api('/ojt/survey-templates/'+st.id,{method:'PUT',body:JSON.stringify({status:'forced_close'})}).then(function(){showToast('\uC11C\uBCA0\uC774 \uAC15\uC81C \uC885\uB8CC','success');api('/ojt/survey-templates').then(function(d){setSurveyTemplates(d.data);});}).catch(function(e){showToast(e.message,'error');});
+                    api('/ojt/survey-templates/'+st.id,{method:'PUT',body:JSON.stringify({status:'forced_close'})}).then(function(){showToast('\uC11C\uBCA0\uC774 \uAC15\uC81C \uC885\uB8CC','success');api('/ojt/survey-templates').then(function(d){setSurveyTemplates(extractArr(d.data));});}).catch(function(e){showToast(e.message,'error');});
                   }},'\u26D4 \uAC15\uC81C\uC885\uB8CC'),
                   isAdmin && st.status==='draft' && React.createElement('button',{className:'btn btn-success btn-sm',style:{padding:'3px 8px',fontSize:11},onClick:function(){
-                    api('/ojt/survey-templates/'+st.id,{method:'PUT',body:JSON.stringify({status:'active'})}).then(function(){showToast('\uC11C\uBCA0\uC774 \uD65C\uC131\uD654','success');api('/ojt/survey-templates').then(function(d){setSurveyTemplates(d.data);});}).catch(function(e){showToast(e.message,'error');});
+                    api('/ojt/survey-templates/'+st.id,{method:'PUT',body:JSON.stringify({status:'active'})}).then(function(){showToast('\uC11C\uBCA0\uC774 \uD65C\uC131\uD654','success');api('/ojt/survey-templates').then(function(d){setSurveyTemplates(extractArr(d.data));});}).catch(function(e){showToast(e.message,'error');});
                   }},'\u2705 \uD65C\uC131\uD654'),
                   isAdmin && (st.status==='closed'||st.status==='forced_close') && React.createElement('button',{className:'btn btn-primary btn-sm',style:{padding:'3px 8px',fontSize:11},onClick:function(){
-                    api('/ojt/survey-templates/'+st.id,{method:'PUT',body:JSON.stringify({status:'active'})}).then(function(){showToast('\uC11C\uBCA0\uC774 \uC7AC\uD65C\uC131\uD654','success');api('/ojt/survey-templates').then(function(d){setSurveyTemplates(d.data);});}).catch(function(e){showToast(e.message,'error');});
+                    api('/ojt/survey-templates/'+st.id,{method:'PUT',body:JSON.stringify({status:'active'})}).then(function(){showToast('\uC11C\uBCA0\uC774 \uC7AC\uD65C\uC131\uD654','success');api('/ojt/survey-templates').then(function(d){setSurveyTemplates(extractArr(d.data));});}).catch(function(e){showToast(e.message,'error');});
                   }},'\u267B \uC7AC\uD65C\uC131\uD654')
                 )
               );}),
@@ -4866,20 +4879,20 @@ function ContentPage() {
     setLoading(true);
     var url = '/content';
     if(type && type !== 'all') url += '?content_type=' + type;
-    api(url).then(function(d){setItems(d.data);setLoading(false);}).catch(function(e){showToast(e.message,'error');setLoading(false);});
+    api(url).then(function(d){setItems(extractArr(d.data));setLoading(false);}).catch(function(e){showToast(e.message,'error');setLoading(false);});
   };
 
   var loadAssignments = function() {
-    api('/content?content_type=assignment').then(function(d){setAssignmentList(d.data);}).catch(function(){});
+    api('/content?content_type=assignment').then(function(d){setAssignmentList(extractArr(d.data));}).catch(function(){});
   };
 
   useEffect(function(){
     if(tab !== 'wrapup' && tab !== 'submissions') loadContent(tab);
-    api('/courses').then(function(d){setCourses(d.data);}).catch(function(){});
-    if(tab === 'wrapup') { setLoading(true); api('/wrapup-tests').then(function(d){setWrapUpTests(d.data);setLoading(false);}).catch(function(){setLoading(false);}); }
+    api('/courses').then(function(d){var raw=d.data;setCourses(Array.isArray(raw)?raw:(raw&&raw.courses?raw.courses:[]));}).catch(function(){});
+    if(tab === 'wrapup') { setLoading(true); api('/wrapup-tests').then(function(d){setWrapUpTests(extractArr(d.data));setLoading(false);}).catch(function(){setLoading(false);}); }
     if(tab === 'submissions') {
       setLoading(true);
-      api('/assignment-submissions').then(function(d){setSubmissions(d.data);setLoading(false);}).catch(function(){setLoading(false);});
+      api('/assignment-submissions').then(function(d){setSubmissions(extractArr(d.data));setLoading(false);}).catch(function(){setLoading(false);});
       loadAssignments();
     }
     if(tab === 'progress') {
@@ -4942,7 +4955,7 @@ function ContentPage() {
     if(!testForm.title || !testForm.course_id) return showToast('\uC81C\uBAA9\uACFC \uACFC\uC815 \uD544\uC218','error');
     api('/wrapup-tests',{method:'POST',body:JSON.stringify(testForm)}).then(function(){
       showToast('Wrap-up Test \uC0DD\uC131'); setShowTestModal(false); setTestForm({time_limit_minutes:30,status:'draft'});
-      api('/wrapup-tests').then(function(d){setWrapUpTests(d.data);});
+      api('/wrapup-tests').then(function(d){setWrapUpTests(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
 
@@ -4976,7 +4989,7 @@ function ContentPage() {
     api('/wrapup-tests/' + activeTest.id + '/submit', {method:'POST', body:JSON.stringify({answers: answers})}).then(function(d){
       showToast('\uC2DC\uD5D8 \uC81C\uCD9C \uC644\uB8CC! \uC810\uC218: ' + (d.data && d.data.total_score ? d.data.total_score : '-'),'success');
       setActiveTest(null); setTestAnswers({});
-      api('/wrapup-tests').then(function(d){setWrapUpTests(d.data);});
+      api('/wrapup-tests').then(function(d){setWrapUpTests(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
 
@@ -4989,7 +5002,7 @@ function ContentPage() {
     if(!gradeSubModal) return;
     api('/assignment-submissions/' + gradeSubModal.id + '/grade', {method:'PUT', body:JSON.stringify({score: parseInt(gradeSubForm.score), max_score: parseInt(gradeSubForm.max_score), feedback: gradeSubForm.feedback})}).then(function(){
       showToast('\uCC44\uC810 \uC644\uB8CC','success'); setGradeSubModal(null);
-      api('/assignment-submissions').then(function(d){setSubmissions(d.data);});
+      api('/assignment-submissions').then(function(d){setSubmissions(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
 
@@ -5273,7 +5286,7 @@ function ContentPage() {
               showToast('\uACFC\uC81C \uC81C\uCD9C \uc644\ub8cc','success');
               setShowSubmitForm(false);
               setSubmitFormData({});
-              api('/assignment-submissions').then(function(d){setSubmissions(d.data);});
+              api('/assignment-submissions').then(function(d){setSubmissions(extractArr(d.data));});
             }).catch(function(e){showToast('\uc81c\ucd9c \uc2e4\ud328','error');});
           }},'Submit')
         )
@@ -5441,11 +5454,11 @@ function ReportsPage() {
   var _ojtLdr = useState([]); var ojtLdrData = _ojtLdr[0]; var setOjtLdrData = _ojtLdr[1];
   var ctx = useApp(); var showToast = ctx.showToast; var user = ctx.user;
   useEffect(function(){
-    if(tab==='courses') api('/reports/courses').then(function(d){setCd(d.data);}).catch(function(e){showToast(e.message,'error');});
-    if(tab==='trainees') api('/reports/trainees').then(function(d){setTd(d.data);}).catch(function(e){showToast(e.message,'error');});
+    if(tab==='courses') api('/reports/courses').then(function(d){setCd(extractArr(d.data));}).catch(function(e){showToast(e.message,'error');});
+    if(tab==='trainees') api('/reports/trainees').then(function(d){setTd(extractArr(d.data));}).catch(function(e){showToast(e.message,'error');});
     if(tab==='trends') api('/reports/monthly').then(function(d){setMd(d.data);}).catch(function(e){showToast(e.message,'error');});
-    if(tab==='attendance') api('/reports/attendance').then(function(d){setAttData(d.data);}).catch(function(e){showToast(e.message,'error');});
-    if(tab==='module_attendance') api('/reports/module-attendance').then(function(d){setModAttData(d.data);}).catch(function(e){showToast(e.message,'error');});
+    if(tab==='attendance') api('/reports/attendance').then(function(d){setAttData(extractArr(d.data));}).catch(function(e){showToast(e.message,'error');});
+    if(tab==='module_attendance') api('/reports/module-attendance').then(function(d){setModAttData(extractArr(d.data));}).catch(function(e){showToast(e.message,'error');});
     if(tab==='ojt_task') api('/reports/ojt-task-completion').then(function(d){setOjtTaskData(d.data || []);}).catch(function(e){showToast(e.message,'error');});
     if(tab==='ojt_trainee') api('/reports/ojt-trainee-progress').then(function(d){setOjtProgData(d.data || []);}).catch(function(e){showToast(e.message,'error');});
     if(tab==='ojt_leader') api('/reports/ojt-leader-eval-summary').then(function(d){setOjtLdrData(d.data || []);}).catch(function(e){showToast(e.message,'error');});
@@ -5708,7 +5721,7 @@ function NotificationsPage() {
     {key:'ojt_task_complete',label:'OJT \uC644\uB8CC',icon:'\uD83C\uDFC6',color:'#D97706'},
     {key:'ojt_survey_submit',label:'\uC124\uBB38 \uC81C\uCD9C',icon:'\uD83D\uDCCA',color:'#EC4899'}
   ];
-  const load = () => api('/notifications').then(d=>setData(d.data)).catch(e=>showToast(e.message,'error'));
+  const load = () => api('/notifications').then(d=>setData(extractArr(d.data))).catch(e=>showToast(e.message,'error'));
   const loadPrefs = () => { setPrefsLoading(true); api('/notifications/preferences').then(d=>{setPreferences(d.data||[]);setPrefsLoading(false);}).catch(()=>setPrefsLoading(false)); };
   useEffect(()=>{load(); loadPrefs();},[]);
   const markRead = async id => { try{await api(`/notifications/${id}/read`,{method:'PUT'});load();}catch(e){showToast(e.message,'error');} };
@@ -6994,7 +7007,7 @@ function PilotPage() {
         api('/pilots/nationalities'), api('/pilots/weekly-uploads')
       ]);
       setPilots((p.data||[]).filter(x=>x.status==='active'));
-      setCourses(c.data||[]);
+      var rawC=c.data;setCourses(Array.isArray(rawC)?rawC:(rawC&&rawC.courses?rawC.courses:[]));
       setTrainingRecs(t.data||[]);
       setWeekly(w.data||[]);
       setNationalities(n.data||[]);
@@ -7898,7 +7911,7 @@ function DigitalSignaturesPage() {
 
   useEffect(function(){
     Promise.all([api('/digital-signatures'),api('/courses')]).then(function(res){
-      setSigs(res[0].data);setCourses(res[1].data);setLoading(false);
+      var rawSigs=res[0].data;setSigs(Array.isArray(rawSigs)?rawSigs:(rawSigs&&rawSigs.signatures?rawSigs.signatures:[]));var rawC=res[1].data;setCourses(Array.isArray(rawC)?rawC:(rawC&&rawC.courses?rawC.courses:[]));setLoading(false);
     }).catch(function(e){showToast(e.message,'error');setLoading(false);});
   },[]);
 
@@ -7937,7 +7950,7 @@ function DigitalSignaturesPage() {
     var data = canvasRef.current.toDataURL('image/jpeg');
     api('/digital-signatures',{method:'POST',body:JSON.stringify({course_id:selectedCourse,signature_data:data,purpose:'course_completion'})})
       .then(function(){showToast('\uC11C\uBA85 \uC81C\uCD9C \uC644\uB8CC'); setShowSign(false);
-        api('/digital-signatures').then(function(d){setSigs(d.data);});
+        api('/digital-signatures').then(function(d){setSigs(extractArr(d.data));});
       }).catch(function(e){showToast(e.message,'error');});
   };
 
@@ -7992,14 +8005,14 @@ function CounselingPage() {
   useEffect(function(){
     var url = '/counseling';
     if(isTraineeCounseling && user) url = '/counseling?trainee_id=' + user.id;
-    api(url).then(function(d){setRecords(d.data);setLoading(false);}).catch(function(e){showToast(e.message,'error');setLoading(false);});
+    api(url).then(function(d){setRecords(extractArr(d.data));setLoading(false);}).catch(function(e){showToast(e.message,'error');setLoading(false);});
   },[]);
 
   var handleAdd = function(){
     if(!formData.trainee_id||!formData.topic) return showToast('\uD6C8\uB828\uC0DD\uACFC \uC8FC\uC81C \uD544\uC218','error');
     api('/counseling',{method:'POST',body:JSON.stringify(formData)}).then(function(){
       showToast('\uC0C1\uB2F4\uAE30\uB85D \uB4F1\uB85D'); setShowForm(false); setFormData({});
-      api('/counseling').then(function(d){setRecords(d.data);});
+      api('/counseling').then(function(d){setRecords(extractArr(d.data));});
     }).catch(function(e){showToast(e.message,'error');});
   };
 
@@ -8049,7 +8062,7 @@ function SurveyManagementPage() {
   useEffect(function(){
     Promise.all([
       api('/surveys').then(function(d){setSurveys(Array.isArray(d.data)?d.data:(d.data.surveys||[]));}),
-      api('/courses').then(function(d){setCourses(d.data);})
+      api('/courses').then(function(d){var raw=d.data;setCourses(Array.isArray(raw)?raw:(raw&&raw.courses?raw.courses:[]));})
     ]).then(function(){setLoading(false);}).catch(function(){setLoading(false);});
   },[]);
 
