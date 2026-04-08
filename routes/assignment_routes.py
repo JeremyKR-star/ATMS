@@ -131,6 +131,21 @@ class AssignmentGradeHandler(BaseHandler):
         """Instructor grades an assignment"""
         body = self.get_json_body()
         db = get_db()
+        user = self.current_user_data
+
+        # Check instructor is assigned to this course
+        if user["role"] == "instructor":
+            sub_data = dict_from_row(db.execute("""
+                SELECT c.course_id FROM assignment_submissions asub
+                JOIN content c ON asub.content_id = c.id
+                WHERE asub.id = ?
+            """, (submission_id,)).fetchone())
+            if sub_data:
+                ci = db.execute("SELECT id FROM course_instructors WHERE course_id = ? AND instructor_id = ?",
+                                 (sub_data["course_id"], user["id"])).fetchone()
+                if not ci:
+                    db.close()
+                    return self.error("You are not assigned to this course", 403)
 
         db.execute("""
             UPDATE assignment_submissions SET score = ?, feedback = ?, status = ?,

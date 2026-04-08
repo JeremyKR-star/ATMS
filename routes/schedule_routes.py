@@ -61,6 +61,9 @@ class SchedulesHandler(BaseHandler):
         end = self.get_argument("end_date", None) or self.get_argument("date_to", None)
         instructor_id = self.get_argument("instructor_id", None)
         course_id = self.get_argument("course_id", None)
+        page = int(self.get_argument("page", 1))
+        per_page = int(self.get_argument("per_page", 50))
+        offset = (page - 1) * per_page
 
         db = get_db()
         query = """
@@ -84,10 +87,15 @@ class SchedulesHandler(BaseHandler):
             query += " AND s.course_id = ?"
             params.append(course_id)
 
-        query += " ORDER BY s.schedule_date, s.start_time"
+        # Count total before pagination
+        count_q = query.replace("SELECT s.*, c.name as course_name, u.name as instructor_name", "SELECT COUNT(*)")
+        total = db.execute(count_q, params).fetchone()[0]
+
+        query += " ORDER BY s.schedule_date, s.start_time LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         schedules = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(schedules)
+        self.success({"schedules": schedules, "pagination": {"page": page, "per_page": per_page, "total": total, "total_pages": (total + per_page - 1) // per_page}})
 
     @require_auth(roles=["admin", "ojt_admin"])
     def post(self):

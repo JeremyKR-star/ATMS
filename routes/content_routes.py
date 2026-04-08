@@ -15,6 +15,9 @@ class ContentHandler(BaseHandler):
         course_id = self.get_argument("course_id", None)
         content_type = self.get_argument("content_type", None)
         status = self.get_argument("status", "active")
+        page = int(self.get_argument("page", 1))
+        per_page = int(self.get_argument("per_page", 50))
+        offset = (page - 1) * per_page
 
         db = get_db()
         query = """
@@ -36,10 +39,16 @@ class ContentHandler(BaseHandler):
         if status:
             query += " AND ct.status = ?"
             params.append(status)
-        query += " ORDER BY ct.created_at DESC"
+
+        # Count total before pagination
+        count_q = query.replace("SELECT ct.*, c.name as course_name, u.name as uploader_name,\n                   cm.name as module_name", "SELECT COUNT(*)")
+        total = db.execute(count_q, params).fetchone()[0]
+
+        query += " ORDER BY ct.created_at DESC LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         items = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(items)
+        self.success({"content": items, "pagination": {"page": page, "per_page": per_page, "total": total, "total_pages": (total + per_page - 1) // per_page}})
 
     @require_auth(roles=["admin", "instructor", "ojt_admin"])
     def post(self):

@@ -13,6 +13,10 @@ class OJTProgramsHandler(BaseHandler):
     @require_auth()
     def get(self):
         status = self.get_argument("status", None)
+        page = int(self.get_argument("page", 1))
+        per_page = int(self.get_argument("per_page", 50))
+        offset = (page - 1) * per_page
+
         db = get_db()
         query = """
             SELECT p.*,
@@ -27,10 +31,16 @@ class OJTProgramsHandler(BaseHandler):
         if status:
             query += " AND p.status = ?"
             params.append(status)
-        query += " GROUP BY p.id ORDER BY p.created_at DESC"
+
+        # Count total before pagination
+        count_q = query.replace("SELECT p.*,\n                COUNT(DISTINCT oe.trainee_id) as trainee_count,\n                COUNT(DISTINCT ot.id) as task_count", "SELECT COUNT(DISTINCT p.id)")
+        total = db.execute(count_q, params).fetchone()[0]
+
+        query += " GROUP BY p.id ORDER BY p.created_at DESC LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         programs = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(programs)
+        self.success({"programs": programs, "pagination": {"page": page, "per_page": per_page, "total": total, "total_pages": (total + per_page - 1) // per_page}})
 
     @require_auth(roles=["admin", "ojt_admin"])
     def post(self):

@@ -1212,6 +1212,12 @@ def init_db():
             task_id INTEGER NOT NULL REFERENCES ojt_tasks(id) ON DELETE CASCADE,
             attendance_status TEXT DEFAULT 'present' CHECK(attendance_status IN ('present','absent','late','excused')),
             completion_status TEXT DEFAULT 'pending' CHECK(completion_status IN ('pending','in_progress','completed','failed')),
+            approval_status TEXT DEFAULT 'draft' CHECK(approval_status IN ('draft','submitted','leader_approved','admin_approved','rejected')),
+            submitted_at TIMESTAMP,
+            leader_approved_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            leader_approved_at TIMESTAMP,
+            admin_approved_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            admin_approved_at TIMESTAMP,
             score REAL,
             notes TEXT,
             result_date TEXT,
@@ -1232,6 +1238,30 @@ def init_db():
             created_by INTEGER REFERENCES users(id),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ── Notification Preferences ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS notification_preferences (
+            id {get_pk_syntax()},
+            user_id INTEGER NOT NULL,
+            notification_type TEXT NOT NULL DEFAULT 'all',
+            muted INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, notification_type)
+        )
+    """)
+
+    # ── Attendance QR Tokens ──
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS attendance_qr_tokens (
+            id {get_pk_syntax()},
+            schedule_id INTEGER NOT NULL,
+            token TEXT NOT NULL UNIQUE,
+            expires_at TIMESTAMP NOT NULL,
+            created_by INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 

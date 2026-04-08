@@ -119,6 +119,63 @@ class ResetPasswordHandler(BaseHandler):
         self.success(None, "Password reset successfully")
 
 
+class BulkUserImportHandler(BaseHandler):
+    """Bulk import users from JSON array (from Excel parsed on frontend)"""
+    @require_auth(roles=["admin", "ojt_admin"])
+    def post(self):
+        body = self.get_json_body()
+        users_data = body.get("users", [])
+        if not users_data:
+            return self.error("No users provided")
+
+        db = get_db()
+        results = {"success": 0, "failed": 0, "errors": []}
+        required_fields = ["employee_id", "name", "role"]
+
+        for idx, u in enumerate(users_data):
+            try:
+                # Validate required fields
+                missing = [f for f in required_fields if not u.get(f)]
+                if missing:
+                    results["errors"].append({"row": idx + 1, "employee_id": u.get("employee_id", ""), "error": f"Missing fields: {', '.join(missing)}"})
+                    results["failed"] += 1
+                    continue
+
+                # Check duplicate
+                existing = db.execute("SELECT id FROM users WHERE employee_id = ?", (u["employee_id"],)).fetchone()
+                if existing:
+                    results["errors"].append({"row": idx + 1, "employee_id": u["employee_id"], "error": "Employee ID already exists"})
+                    results["failed"] += 1
+                    continue
+
+                # Validate role
+                valid_roles = ["admin", "instructor", "trainee", "ojt_admin", "manager", "staff", "customer"]
+                role = u.get("role", "trainee").lower()
+                if role not in valid_roles:
+                    role = "trainee"
+
+                # Default password if not provided
+                password = u.get("password", u["employee_id"] + "1234")
+                pw_hash = hash_password(password)
+
+                db.execute(
+                    """INSERT INTO users (employee_id, password_hash, name, email, phone, role, title, department, specialty, status)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')""",
+                    (u["employee_id"], pw_hash, u["name"], u.get("email", ""),
+                     u.get("phone", ""), role, u.get("title", ""),
+                     u.get("department", ""), u.get("specialty", ""))
+                )
+                results["success"] += 1
+            except Exception as ex:
+                results["errors"].append({"row": idx + 1, "employee_id": u.get("employee_id", ""), "error": str(ex)})
+                results["failed"] += 1
+
+        db.commit()
+        db.close()
+        log_audit(self, 'bulk_import', 'users', 0, {"total": len(users_data), "success": results["success"], "failed": results["failed"]})
+        self.success(results, f"Imported {results['success']} users, {results['failed']} failed")
+
+
 class InstructorsHandler(BaseHandler):
     @require_auth()
     def get(self):

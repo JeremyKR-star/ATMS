@@ -194,14 +194,187 @@ class MonthlyStatsHandler(BaseHandler):
             self.error(f"Monthly stats error: {str(ex)}", 500)
 
 
+class ModuleAttendanceReportHandler(BaseHandler):
+    """Attendance breakdown by Course/Module/Class per the PDF spec (p.6)"""
+    @require_auth(roles=["admin", "instructor", "ojt_admin", "manager"])
+    def get(self):
+        course_id = self.get_argument("course_id", None)
+        db = get_db()
+        try:
+            query = """
+                SELECT c.name as course_name, c.id as course_id,
+                       cm.name as module_name, cm.id as module_id,
+                       s.title as session_title, s.schedule_date, s.start_time, s.end_time,
+                       u.name as trainee_name, u.employee_id,
+                       a.status as attendance_status, a.check_in_time
+                FROM attendance a
+                JOIN users u ON a.trainee_id = u.id
+                JOIN schedules s ON a.schedule_id = s.id
+                LEFT JOIN courses c ON s.course_id = c.id
+                LEFT JOIN course_modules cm ON s.module_id = cm.id
+            """
+            params = []
+            if course_id:
+                query += " WHERE s.course_id = ?"
+                params.append(course_id)
+            query += " ORDER BY c.name, cm.order_num, s.schedule_date, u.name"
+
+            records = dicts_from_rows(db.execute(query, params).fetchall())
+
+            # Aggregate by course/module
+            summary = {}
+            for r in records:
+                ckey = str(r.get("course_id", "none"))
+                if ckey not in summary:
+                    summary[ckey] = {"course_name": r.get("course_name", "-"), "modules": {}, "total": 0, "present": 0, "absent": 0, "late": 0, "excused": 0}
+                summary[ckey]["total"] += 1
+                status = r.get("attendance_status", "")
+                if status in ("present", "absent", "late", "excused"):
+                    summary[ckey][status] += 1
+
+                mkey = str(r.get("module_id", "none"))
+                if mkey not in summary[ckey]["modules"]:
+                    summary[ckey]["modules"][mkey] = {"module_name": r.get("module_name", "-"), "total": 0, "present": 0, "absent": 0, "late": 0, "excused": 0}
+                summary[ckey]["modules"][mkey]["total"] += 1
+                if status in ("present", "absent", "late", "excused"):
+                    summary[ckey]["modules"][mkey][status] += 1
+
+            # Convert to list
+            result = []
+            for ckey, cdata in summary.items():
+                modules_list = []
+                for mkey, mdata in cdata["modules"].items():
+                    rate = round(mdata["present"] / mdata["total"] * 100, 1) if mdata["total"] > 0 else 0
+                    mdata["attendance_rate"] = rate
+                    modules_list.append(mdata)
+                rate = round(cdata["present"] / cdata["total"] * 100, 1) if cdata["total"] > 0 else 0
+                result.append({
+                    "course_name": cdata["course_name"],
+                    "total": cdata["total"], "present": cdata["present"],
+                    "absent": cdata["absent"], "late": cdata["late"], "excused": cdata["excused"],
+                    "attendance_rate": rate,
+                    "modules": modules_list
+                })
+
+            db.close()
+            self.success({"summary": result, "details": records[:500]})
+        except Exception as ex:
+            db.close()
+            print(f"[ModuleAttendanceReportHandler ERROR] {ex}\n{traceback.format_exc()}")
+            self.error(f"Module attendance report error: {str(ex)}", 500)
+
+
+class OJTTaskCompletionReportHandler(BaseHandler):
+    """OJT task completion report by program (PDF spec p.12)"""
+    @require_auth(roles=["admin", "ojt_admin", "manager", "instructor"])
+    def get(self):
+        program_id = self.get_argument("program_id", None)
+        db = get_db()
+        try:
+            query = """
+                SELECT p.id as program_id, p.name as program_name, p.status as program_status,
+                       t.id as task_id, t.name as task_name, t.order_num,
+                       COUNT(DISTINCT tr.id) as total_results,
+                       SUM(CASE WHEN tr.completion_status='completed' THEN 1 ELSE 0 END) as completed_count,
+                       SUM(CASE WHEN tr.completion_status='in_progress' THEN 1 ELSE 0 END) as in_progress_count,
+                       SUM(CASE WHEN tr.completion_status='pending' THEN 1 ELSE 0 END) as pending_count,
+                       SUM(CASE WHEN tr.completion_status='failed' THEN 1 ELSE 0 END) as failed_count,
+                       ROUND(CAST(AVG(CASE WHEN tr.score IS NOT NULL THEN CAST(tr.score AS FLOAT) END) AS NUMERIC), 1) as avg_score
+                FROM ojt_programs p
+                LEFT JOIN ojt_tasks t ON t.program_id = p.id
+                LEFT JOIN ojt_training_results tr ON tr.task_id = t.id
+            """
+            params = []
+            if program_id:
+                query += " WHERE p.id = ?"
+                params.append(program_id)
+            query += " GROUP BY p.id, p.name, p.status, t.id, t.name, t.order_num ORDER BY p.name, t.order_num"
+            data = dicts_from_rows(db.execute(query, params).fetchall())
+            db.close()
+            self.success(data)
+        except Exception as ex:
+            db.close()
+            self.error(f"OJT task completion report error: {str(ex)}", 500)
+
+
+class OJTTraineeProgressReportHandler(BaseHandler):
+    """OJT trainee progress by level (PDF spec p.14)"""
+    @require_auth(roles=["admin", "ojt_admin", "manager", "instructor"])
+    def get(self):
+        program_id = self.get_argument("program_id", None)
+        db = get_db()
+        try:
+            query = """
+                SELECT u.id as trainee_id, u.name as trainee_name, u.employee_id,
+                       p.name as program_name, p.id as program_id,
+                       oe.status as enrollment_status, oe.progress,
+                       COUNT(DISTINCT tr.id) as total_tasks,
+                       SUM(CASE WHEN tr.completion_status='completed' THEN 1 ELSE 0 END) as completed_tasks,
+                       ROUND(CAST(AVG(CASE WHEN tr.score IS NOT NULL THEN CAST(tr.score AS FLOAT) END) AS NUMERIC), 1) as avg_score,
+                       COUNT(DISTINCT oev.id) as total_evaluations,
+                       SUM(CASE WHEN oev.status='pass' THEN 1 ELSE 0 END) as passed_evaluations
+                FROM ojt_enrollments oe
+                JOIN users u ON oe.trainee_id = u.id
+                JOIN ojt_programs p ON oe.program_id = p.id
+                LEFT JOIN ojt_training_results tr ON tr.enrollment_id = oe.id
+                LEFT JOIN ojt_evaluations oev ON oev.enrollment_id = oe.id
+            """
+            params = []
+            if program_id:
+                query += " WHERE oe.program_id = ?"
+                params.append(program_id)
+            query += " GROUP BY u.id, u.name, u.employee_id, p.name, p.id, oe.status, oe.progress ORDER BY p.name, u.name"
+            data = dicts_from_rows(db.execute(query, params).fetchall())
+            db.close()
+            self.success(data)
+        except Exception as ex:
+            db.close()
+            self.error(f"OJT trainee progress report error: {str(ex)}", 500)
+
+
+class OJTLeaderEvalSummaryHandler(BaseHandler):
+    """OJT leader evaluation summaries (PDF spec p.12)"""
+    @require_auth(roles=["admin", "ojt_admin", "manager"])
+    def get(self):
+        program_id = self.get_argument("program_id", None)
+        db = get_db()
+        try:
+            query = """
+                SELECT ev.name as evaluator_name, ev.id as evaluator_id,
+                       p.name as program_name, p.id as program_id,
+                       COUNT(DISTINCT oev.id) as total_evaluations,
+                       SUM(CASE WHEN oev.status='pass' THEN 1 ELSE 0 END) as pass_count,
+                       SUM(CASE WHEN oev.status='fail' THEN 1 ELSE 0 END) as fail_count,
+                       SUM(CASE WHEN oev.status='needs_improvement' THEN 1 ELSE 0 END) as needs_improvement_count,
+                       ROUND(CAST(AVG(CASE WHEN oev.score IS NOT NULL THEN CAST(oev.score AS FLOAT) / CAST(oev.max_score AS FLOAT) * 100 END) AS NUMERIC), 1) as avg_score_pct,
+                       COUNT(DISTINCT oe.trainee_id) as trainees_evaluated
+                FROM ojt_evaluations oev
+                JOIN ojt_enrollments oe ON oev.enrollment_id = oe.id
+                JOIN ojt_programs p ON oe.program_id = p.id
+                LEFT JOIN users ev ON oev.evaluator_id = ev.id
+            """
+            params = []
+            if program_id:
+                query += " WHERE oe.program_id = ?"
+                params.append(program_id)
+            query += " GROUP BY ev.name, ev.id, p.name, p.id ORDER BY p.name, ev.name"
+            data = dicts_from_rows(db.execute(query, params).fetchall())
+            db.close()
+            self.success(data)
+        except Exception as ex:
+            db.close()
+            self.error(f"OJT leader eval summary error: {str(ex)}", 500)
+
+
 class ReportExportHandler(BaseHandler):
     @require_auth(roles=["admin", "instructor", "ojt_admin", "manager"])
     def get(self):
         report_type = self.get_argument("type", None)
         db = get_db()
         try:
-            if not report_type or report_type not in ["courses", "trainees", "attendance"]:
-                self.error("Invalid report type. Must be 'courses', 'trainees', or 'attendance'", 400)
+            valid_types = ["courses", "trainees", "attendance", "ojt_results", "ojt_evaluations"]
+            if not report_type or report_type not in valid_types:
+                self.error(f"Invalid report type. Must be one of: {', '.join(valid_types)}", 400)
                 return
 
             # Generate CSV data
@@ -251,6 +424,50 @@ class ReportExportHandler(BaseHandler):
                     GROUP BY u.id, u.name, u.employee_id ORDER BY u.name
                 """).fetchall())
                 filename = "attendance_report.csv"
+
+            elif report_type == "ojt_results":
+                program_id = self.get_argument("program_id", None)
+                query = """
+                    SELECT tr.id, u.name as trainee_name, u.employee_id,
+                           p.name as program_name, t.name as task_name,
+                           tr.attendance_status, tr.completion_status, tr.score,
+                           tr.notes, tr.result_date
+                    FROM ojt_training_results tr
+                    JOIN ojt_enrollments oe ON tr.enrollment_id = oe.id
+                    JOIN users u ON oe.trainee_id = u.id
+                    JOIN ojt_programs p ON oe.program_id = p.id
+                    LEFT JOIN ojt_tasks t ON tr.task_id = t.id
+                """
+                params_ojt = []
+                if program_id:
+                    query += " WHERE oe.program_id = ?"
+                    params_ojt.append(program_id)
+                query += " ORDER BY u.name, t.order_num"
+                data = dicts_from_rows(db.execute(query, params_ojt).fetchall())
+                filename = "ojt_results_report.csv"
+
+            elif report_type == "ojt_evaluations":
+                program_id = self.get_argument("program_id", None)
+                query = """
+                    SELECT oe_eval.id, u.name as trainee_name, u.employee_id,
+                           p.name as program_name, t.name as task_name,
+                           ev.name as evaluator_name,
+                           oe_eval.score, oe_eval.max_score, oe_eval.status,
+                           oe_eval.feedback, oe_eval.eval_date
+                    FROM ojt_evaluations oe_eval
+                    JOIN ojt_enrollments oe ON oe_eval.enrollment_id = oe.id
+                    JOIN users u ON oe.trainee_id = u.id
+                    JOIN ojt_programs p ON oe.program_id = p.id
+                    LEFT JOIN ojt_tasks t ON oe_eval.task_id = t.id
+                    LEFT JOIN users ev ON oe_eval.evaluator_id = ev.id
+                """
+                params_ojt = []
+                if program_id:
+                    query += " WHERE oe.program_id = ?"
+                    params_ojt.append(program_id)
+                query += " ORDER BY u.name, oe_eval.eval_date DESC"
+                data = dicts_from_rows(db.execute(query, params_ojt).fetchall())
+                filename = "ojt_evaluations_report.csv"
 
             # Convert to CSV
             if data:

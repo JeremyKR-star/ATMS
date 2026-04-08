@@ -232,6 +232,17 @@ class WrapUpGradeHandler(BaseHandler):
     def put(self, test_id, trainee_id):
         body = self.get_json_body()
         db = get_db()
+        user = self.current_user_data
+
+        # Check instructor is assigned to this course
+        if user["role"] == "instructor":
+            test_data = dict_from_row(db.execute("SELECT course_id FROM wrap_up_tests WHERE id = ?", (test_id,)).fetchone())
+            if test_data:
+                ci = db.execute("SELECT id FROM course_instructors WHERE course_id = ? AND instructor_id = ?",
+                                 (test_data["course_id"], user["id"])).fetchone()
+                if not ci:
+                    db.close()
+                    return self.error("You are not assigned to this course", 403)
 
         # Update individual question scores if provided
         if body.get("question_scores"):

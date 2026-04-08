@@ -17,6 +17,9 @@ class EvaluationsHandler(BaseHandler):
         evaluator_id = self.get_argument("evaluator_id", None)
         status = self.get_argument("status", None)
         eval_type = self.get_argument("eval_type", None)
+        page = int(self.get_argument("page", 1))
+        per_page = int(self.get_argument("per_page", 50))
+        offset = (page - 1) * per_page
 
         db = get_db()
         query = """
@@ -46,10 +49,15 @@ class EvaluationsHandler(BaseHandler):
             query += " AND ev.eval_type = ?"
             params.append(eval_type)
 
-        query += " ORDER BY ev.created_at DESC"
+        # Count total before pagination
+        count_q = query.replace("SELECT ev.*, c.name as course_name, u.name as trainee_name,\n                   u2.name as evaluator_name, cm.name as module_name", "SELECT COUNT(*)")
+        total = db.execute(count_q, params).fetchone()[0]
+
+        query += " ORDER BY ev.created_at DESC LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         evals = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(evals)
+        self.success({"evaluations": evals, "pagination": {"page": page, "per_page": per_page, "total": total, "total_pages": (total + per_page - 1) // per_page}})
 
     @require_auth(roles=["admin", "instructor", "ojt_admin"])
     def post(self):
@@ -97,15 +105,26 @@ class EvaluationDetailHandler(BaseHandler):
         if not updates:
             return self.error("No valid fields")
 
+        db = get_db()
+        user = self.current_user_data
+
+        # Check instructor is assigned to this course
+        if user["role"] == "instructor":
+            eval_data = dict_from_row(db.execute("SELECT course_id FROM evaluations WHERE id = ?", (eval_id,)).fetchone())
+            if eval_data:
+                ci = db.execute("SELECT id FROM course_instructors WHERE course_id = ? AND instructor_id = ?",
+                                 (eval_data["course_id"], user["id"])).fetchone()
+                if not ci:
+                    db.close()
+                    return self.error("You are not assigned to this course", 403)
+
         if "status" in updates and updates["status"] == "graded":
             set_clause = ", ".join(f"{k} = ?" for k in updates)
             values = list(updates.values()) + [eval_id]
-            db = get_db()
             db.execute(f"UPDATE evaluations SET {set_clause}, graded_at = CURRENT_TIMESTAMP WHERE id = ?", values)
         else:
             set_clause = ", ".join(f"{k} = ?" for k in updates)
             values = list(updates.values()) + [eval_id]
-            db = get_db()
             db.execute(f"UPDATE evaluations SET {set_clause} WHERE id = ?", values)
 
         db.commit()

@@ -5,7 +5,7 @@ import json
 import tornado.ioloop
 import tornado.web
 from routes.auth_routes import BaseHandler
-from database import get_db, dicts_from_rows
+from database import get_db, dicts_from_rows, dict_from_row
 from auth import require_auth, decode_token
 
 try:
@@ -269,3 +269,151 @@ class SurveyHandler(BaseHandler):
         db.commit()
         db.close()
         self.success(None, "Survey submitted")
+
+
+class NotificationPreferencesHandler(BaseHandler):
+    @require_auth()
+    def get(self):
+        db = get_db()
+        prefs = dicts_from_rows(db.execute(
+            "SELECT * FROM notification_preferences WHERE user_id = ?",
+            (self.current_user_data["user_id"],)
+        ).fetchall())
+        db.close()
+        self.success(prefs)
+
+    @require_auth()
+    def put(self):
+        body = self.get_json_body()
+        ntype = body.get("notification_type", "all")
+        muted = 1 if body.get("muted") else 0
+        db = get_db()
+        # Upsert
+        existing = db.execute(
+            "SELECT id FROM notification_preferences WHERE user_id = ? AND notification_type = ?",
+            (self.current_user_data["user_id"], ntype)
+        ).fetchone()
+        if existing:
+            db.execute(
+                "UPDATE notification_preferences SET muted = ? WHERE user_id = ? AND notification_type = ?",
+                (muted, self.current_user_data["user_id"], ntype)
+            )
+        else:
+            db.execute(
+                "INSERT INTO notification_preferences (user_id, notification_type, muted) VALUES (?, ?, ?)",
+                (self.current_user_data["user_id"], ntype, muted)
+            )
+        db.commit()
+        db.close()
+        self.success(None, "Preference updated")
+
+
+class SurveyAnalyticsHandler(BaseHandler):
+    @require_auth()
+    def get(self):
+        db = get_db()
+        # Per-course averages
+        course_stats = dicts_from_rows(db.execute("""
+            SELECT c.name as course_name, c.id as course_id,
+                   COUNT(s.id) as response_count,
+                   ROUND(AVG(s.overall_rating), 2) as avg_overall,
+                   ROUND(AVG(s.instructor_rating), 2) as avg_instructor,
+                   ROUND(AVG(s.content_rating), 2) as avg_content,
+                   ROUND(AVG(s.facility_rating), 2) as avg_facility
+            FROM surveys s
+            JOIN courses c ON s.course_id = c.id
+            GROUP BY c.id, c.name
+            ORDER BY avg_overall DESC
+        """).fetchall())
+
+        # Overall averages
+        overall = db.execute("""
+            SELECT COUNT(*) as total_responses,
+                   ROUND(AVG(overall_rating), 2) as avg_overall,
+                   ROUND(AVG(instructor_rating), 2) as avg_instructor,
+                   ROUND(AVG(content_rating), 2) as avg_content,
+                   ROUND(AVG(facility_rating), 2) as avg_facility
+            FROM surveys
+        """).fetchone()
+        overall_dict = dict_from_row(overall) if overall else {}
+
+        # Monthly trends (last 12 months)
+        monthly = dicts_from_rows(db.execute("""
+            SELECT SUBSTR(CAST(created_at AS TEXT), 1, 7) as month,
+                   COUNT(*) as response_count,
+                   ROUND(AVG(overall_rating), 2) as avg_overall,
+                   ROUND(AVG(instructor_rating), 2) as avg_instructor
+            FROM surveys
+            GROUP BY SUBSTR(CAST(created_at AS TEXT), 1, 7)
+            ORDER BY month DESC
+            LIMIT 12
+        """).fetchall())
+
+        db.close()
+        self.success({
+            "course_stats": course_stats,
+            "overall": overall_dict,
+            "monthly_trends": monthly
+        })
+
+
+import uuid
+import datetime as _dt
+
+class QRAttendanceHandler(BaseHandler):
+    @require_auth(roles=["admin", "ojt_admin", "instructor"])
+    def post(self):
+        """Generate QR token for a schedule."""
+        body = self.get_json_body()
+        schedule_id = body.get("schedule_id")
+        if not schedule_id:
+            return self.error("schedule_id is required")
+        token = str(uuid.uuid4())
+        expires_at = (_dt.datetime.now() + _dt.timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S")
+        db = get_db()
+        db.execute(
+            "INSERT INTO attendance_qr_tokens (schedule_id, token, expires_at, created_by) VALUES (?, ?, ?, ?)",
+            (schedule_id, token, expires_at, self.current_user_data["user_id"])
+        )
+        db.commit()
+        db.close()
+        self.success({"token": token, "expires_at": expires_at, "schedule_id": schedule_id})
+
+    @require_auth()
+    def put(self):
+        """Check in via QR token."""
+        body = self.get_json_body()
+        token = body.get("token")
+        if not token:
+            return self.error("token is required")
+        db = get_db()
+        row = db.execute(
+            "SELECT * FROM attendance_qr_tokens WHERE token = ?", (token,)
+        ).fetchone()
+        if not row:
+            db.close()
+            return self.error("Invalid QR code")
+        row_dict = dict_from_row(row)
+        # Check expiry
+        now = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if now > row_dict["expires_at"]:
+            db.close()
+            return self.error("QR code has expired")
+        schedule_id = row_dict["schedule_id"]
+        user_id = self.current_user_data["user_id"]
+        # Check if already checked in
+        existing = db.execute(
+            "SELECT id FROM attendance WHERE schedule_id = ? AND trainee_id = ?",
+            (schedule_id, user_id)
+        ).fetchone()
+        if existing:
+            db.close()
+            return self.error("Already checked in")
+        check_in_time = _dt.datetime.now().strftime("%H:%M:%S")
+        db.execute(
+            "INSERT INTO attendance (schedule_id, trainee_id, status, check_in_time, notes) VALUES (?, ?, ?, ?, ?)",
+            (schedule_id, user_id, "present", check_in_time, "QR check-in")
+        )
+        db.commit()
+        db.close()
+        self.success(None, "Checked in successfully via QR")

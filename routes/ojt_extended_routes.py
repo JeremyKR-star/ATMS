@@ -888,6 +888,119 @@ class OJTTrainingResultDetailHandler(BaseHandler):
         self.success(None, "Training result deleted")
 
 
+class OJTApprovalHandler(BaseHandler):
+    """Multi-step approval: Trainee submit -> Leader review -> Admin approve"""
+
+    @require_auth()
+    def put(self, result_id):
+        body = self.get_json_body()
+        action = body.get("action")
+        user = self.current_user
+
+        if not action:
+            return self.error("action is required")
+
+        db = get_db()
+        try:
+            result = db.execute("""SELECT tr.*, oe.trainee_id, oe.program_id
+                FROM ojt_training_results tr
+                JOIN ojt_enrollments oe ON tr.enrollment_id = oe.id
+                WHERE tr.id = ?""", (result_id,)).fetchone()
+            if not result:
+                db.close()
+                return self.error("Training result not found", 404)
+
+            current_status = result.get("approval_status") or "draft"
+
+            if action == "submit":
+                # Trainee submits their task completion
+                if user["id"] != result["trainee_id"] and user["role"] not in ("admin", "ojt_admin"):
+                    db.close()
+                    return self.error("Only the trainee or admin can submit", 403)
+                if current_status not in ("draft", "rejected"):
+                    db.close()
+                    return self.error("Can only submit from draft or rejected status", 400)
+                db.execute("""UPDATE ojt_training_results SET approval_status = 'submitted',
+                    completion_status = 'in_progress', submitted_at = CURRENT_TIMESTAMP,
+                    notes = COALESCE(?, notes) WHERE id = ?""",
+                    (body.get("notes"), result_id))
+                db.commit()
+                # Notify leaders
+                if broadcast_to_user:
+                    leaders = db.execute("""SELECT user_id FROM ojt_leaders WHERE program_id = ?""", (result["program_id"],)).fetchall()
+                    for leader in leaders:
+                        try:
+                            broadcast_to_user(leader["user_id"], {"type": "notification", "data": {"title": "OJT 훈련 결과 승인 요청", "message": "Trainee has submitted a task for approval", "notification_type": "info"}})
+                        except Exception:
+                            pass
+                db.close()
+                self.success(None, "Task submitted for leader review")
+
+            elif action == "leader_approve":
+                # Leader approves
+                if user["role"] not in ("admin", "ojt_admin", "instructor"):
+                    is_leader = db.execute("SELECT id FROM ojt_leaders WHERE program_id = ? AND user_id = ?", (result["program_id"], user["id"])).fetchone()
+                    if not is_leader:
+                        db.close()
+                        return self.error("Only leaders can approve at this stage", 403)
+                if current_status != "submitted":
+                    db.close()
+                    return self.error("Can only leader-approve from submitted status", 400)
+                db.execute("""UPDATE ojt_training_results SET approval_status = 'leader_approved',
+                    leader_approved_by = ?, leader_approved_at = CURRENT_TIMESTAMP,
+                    notes = COALESCE(?, notes) WHERE id = ?""",
+                    (user["id"], body.get("notes"), result_id))
+                db.commit()
+                db.close()
+                self.success(None, "Leader approved")
+
+            elif action == "admin_approve":
+                # Admin final approval
+                if user["role"] not in ("admin", "ojt_admin"):
+                    db.close()
+                    return self.error("Only admins can give final approval", 403)
+                if current_status != "leader_approved":
+                    db.close()
+                    return self.error("Requires leader approval first", 400)
+                db.execute("""UPDATE ojt_training_results SET approval_status = 'admin_approved',
+                    completion_status = 'completed', admin_approved_by = ?, admin_approved_at = CURRENT_TIMESTAMP,
+                    score = COALESCE(?, score), notes = COALESCE(?, notes) WHERE id = ?""",
+                    (user["id"], body.get("score"), body.get("notes"), result_id))
+                db.commit()
+                # Notify trainee
+                if broadcast_to_user:
+                    try:
+                        broadcast_to_user(result["trainee_id"], {"type": "notification", "data": {"title": "OJT 훈련 결과 최종 승인", "message": "Your task has been approved", "notification_type": "success"}})
+                    except Exception:
+                        pass
+                db.close()
+                self.success(None, "Final approval granted")
+
+            elif action in ("leader_reject", "admin_reject"):
+                if user["role"] not in ("admin", "ojt_admin", "instructor"):
+                    is_leader = db.execute("SELECT id FROM ojt_leaders WHERE program_id = ? AND user_id = ?", (result["program_id"], user["id"])).fetchone()
+                    if not is_leader:
+                        db.close()
+                        return self.error("Not authorized to reject", 403)
+                db.execute("""UPDATE ojt_training_results SET approval_status = 'rejected',
+                    notes = COALESCE(?, notes) WHERE id = ?""",
+                    (body.get("notes", "Rejected"), result_id))
+                db.commit()
+                if broadcast_to_user:
+                    try:
+                        broadcast_to_user(result["trainee_id"], {"type": "notification", "data": {"title": "OJT 훈련 결과 반려", "message": body.get("notes", "Your task was rejected"), "notification_type": "warning"}})
+                    except Exception:
+                        pass
+                db.close()
+                self.success(None, "Task rejected")
+            else:
+                db.close()
+                self.error("Invalid action", 400)
+        except Exception as e:
+            db.close()
+            self.error(str(e), 500)
+
+
 # ── OJT Program Admins ──
 class OJTProgramAdminsHandler(BaseHandler):
     @require_auth(roles=["admin", "ojt_admin"])

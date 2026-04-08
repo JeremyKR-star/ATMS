@@ -16,6 +16,9 @@ class CoursesHandler(BaseHandler):
         status = self.get_argument("status", None)
         ctype = self.get_argument("type", None)
         search = self.get_argument("search", None)
+        page = int(self.get_argument("page", 1))
+        per_page = int(self.get_argument("per_page", 50))
+        offset = (page - 1) * per_page
 
         db = get_db()
         query = """
@@ -39,10 +42,15 @@ class CoursesHandler(BaseHandler):
             query += " AND (c.name LIKE ? OR c.code LIKE ?)"
             params.extend([f"%{search}%", f"%{search}%"])
 
-        query += " GROUP BY c.id ORDER BY c.start_date DESC"
+        # Count total before pagination
+        count_q = query.replace("SELECT c.*,\n                GROUP_CONCAT(DISTINCT u.name) as instructor_names,\n                COUNT(DISTINCT e.trainee_id) as enrolled_count", "SELECT COUNT(DISTINCT c.id)")
+        total = db.execute(count_q, params).fetchone()[0]
+
+        query += " GROUP BY c.id ORDER BY c.start_date DESC LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         courses = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(courses)
+        self.success({"courses": courses, "pagination": {"page": page, "per_page": per_page, "total": total, "total_pages": (total + per_page - 1) // per_page}})
 
     @require_auth(roles=["admin", "ojt_admin"])
     def post(self):

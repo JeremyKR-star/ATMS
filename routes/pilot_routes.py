@@ -845,10 +845,36 @@ class WeeklyUploadHandler(BaseHandler):
                 "SELECT id, filename, original_filename, uploaded_by, report_date, file_size, row_count, notes, created_at FROM weekly_uploads WHERE id=?",
                 (upload_id,)
             ).fetchone())
-            matched = sum(1 for r in parsed_rows if any(
-                (p['short_name'] and p['short_name'].lower() == r['name'].lower()) or
-                (p['name'] and p['name'].lower() == r['name'].lower()) for p in pilots
-            ))
+            matched_names = []
+            unmatched_names = []
+            for r in parsed_rows:
+                r_lower = r['name'].lower().strip()
+                found = False
+                matched_to = None
+                for p in pilots:
+                    sn = (p.get('short_name') or '').lower().strip()
+                    fn = (p.get('name') or '').lower().strip()
+                    if (sn and sn == r_lower) or (fn and fn == r_lower):
+                        found = True
+                        matched_to = p.get('name') or p.get('short_name')
+                        break
+                if not found:
+                    # Try contains match (same logic as insertion above)
+                    for p in pilots:
+                        sn = (p.get('short_name') or '').lower().strip()
+                        fn = (p.get('name') or '').lower().strip()
+                        if (sn and (sn in r_lower or r_lower in sn)) or \
+                           (fn and (fn in r_lower or r_lower in fn)):
+                            found = True
+                            matched_to = p.get('name') or p.get('short_name')
+                            break
+                if found:
+                    matched_names.append({'excel_name': r['name'], 'db_name': matched_to})
+                else:
+                    # Collect DB pilot names for suggestion
+                    all_db_names = [p.get('name') or p.get('short_name') or '' for p in pilots]
+                    unmatched_names.append({'excel_name': r['name'], 'db_pilots': all_db_names[:10]})
+            matched = len(matched_names)
 
             # --- Parse Individual Status sheet and sync to pilot_training ---
             individual_synced = 0
@@ -891,6 +917,7 @@ class WeeklyUploadHandler(BaseHandler):
             if ind_error:
                 msg += f" (Individual Status error: {ind_error})"
             self.success({'upload': upload, 'parsed_rows': parsed_rows, 'matched': matched,
+                          'unmatched_names': unmatched_names, 'matched_names': matched_names,
                           'individual_synced': individual_synced, 'courses_created': courses_created,
                           'ind_debug': ind_debug},
                          msg)

@@ -16,14 +16,14 @@ from auth import get_current_user, require_auth
 
 # Route imports
 from routes.auth_routes import LoginHandler, RegisterHandler, VerifyIdHandler, ProfileHandler, ChangePasswordHandler, BaseHandler
-from routes.user_routes import UsersHandler, UserDetailHandler, ResetPasswordHandler, InstructorsHandler
+from routes.user_routes import UsersHandler, UserDetailHandler, ResetPasswordHandler, InstructorsHandler, BulkUserImportHandler
 from routes.course_routes import CoursesHandler, CourseDetailHandler, ModulesHandler, EnrollmentHandler
 from routes.schedule_routes import SchedulesHandler, ScheduleDetailHandler, AttendanceHandler, ScheduleConflictCheckHandler, ScheduleEnrollmentsHandler, ScheduleOptimizeHandler
 from routes.evaluation_routes import EvaluationsHandler, EvaluationDetailHandler, SubmitEvaluationHandler, BulkCreateEvaluationsHandler
 from routes.ojt_routes import OJTProgramsHandler, OJTProgramDetailHandler, OJTTasksHandler, OJTEnrollHandler, OJTEvaluationsHandler
 from routes.content_routes import ContentHandler, ContentDetailHandler
-from routes.report_routes import DashboardHandler, CourseReportHandler, TraineeReportHandler, AttendanceReportHandler, MonthlyStatsHandler, ReportExportHandler
-from routes.notification_routes import NotificationsHandler, NotificationReadHandler, NotificationReadAllHandler, SurveyHandler, SSEHandler
+from routes.report_routes import DashboardHandler, CourseReportHandler, TraineeReportHandler, AttendanceReportHandler, MonthlyStatsHandler, ReportExportHandler, ModuleAttendanceReportHandler, OJTTaskCompletionReportHandler, OJTTraineeProgressReportHandler, OJTLeaderEvalSummaryHandler
+from routes.notification_routes import NotificationsHandler, NotificationReadHandler, NotificationReadAllHandler, SurveyHandler, SSEHandler, NotificationPreferencesHandler, SurveyAnalyticsHandler, QRAttendanceHandler
 from routes.photo_routes import PhotoUploadHandler
 from routes.pilot_routes import (PilotsHandler, PilotDetailHandler, PilotPhotoHandler,
                                   PilotCoursesHandler, PilotTrainingHandler, PilotWeeklyHandler,
@@ -57,7 +57,7 @@ from routes.ojt_extended_routes import (
     CareerRoadmapHandler, CareerRoadmapDetailHandler,
     CareerRoadmapTasksHandler, CareerRoadmapSubTasksHandler,
     CareerRoadmapProgressHandler,
-    OJTTrainingResultsHandler, OJTTrainingResultDetailHandler,
+    OJTTrainingResultsHandler, OJTTrainingResultDetailHandler, OJTApprovalHandler,
     OJTProgramAdminsHandler, OJTProgramAdminDetailHandler,
     OJTEvalTemplateHandler, OJTEvalTemplateDetailHandler, OJTEvalTemplateBulkApplyHandler
 )
@@ -347,6 +347,7 @@ def make_app():
         (r"/api/users", UsersHandler),
         (r"/api/users/(\d+)", UserDetailHandler),
         (r"/api/users/(\d+)/reset-password", ResetPasswordHandler),
+        (r"/api/users/bulk-import", BulkUserImportHandler),
         (r"/api/instructors", InstructorsHandler),
 
         # ── Courses ──
@@ -385,14 +386,21 @@ def make_app():
         (r"/api/reports/courses", CourseReportHandler),
         (r"/api/reports/trainees", TraineeReportHandler),
         (r"/api/reports/attendance", AttendanceReportHandler),
+        (r"/api/reports/module-attendance", ModuleAttendanceReportHandler),
         (r"/api/reports/monthly", MonthlyStatsHandler),
+        (r"/api/reports/ojt-task-completion", OJTTaskCompletionReportHandler),
+        (r"/api/reports/ojt-trainee-progress", OJTTraineeProgressReportHandler),
+        (r"/api/reports/ojt-leader-eval-summary", OJTLeaderEvalSummaryHandler),
         (r"/api/reports/export", ReportExportHandler),
 
         # ── Notifications & Surveys ──
         (r"/api/notifications", NotificationsHandler),
         (r"/api/notifications/(\d+)/read", NotificationReadHandler),
         (r"/api/notifications/read-all", NotificationReadAllHandler),
+        (r"/api/notifications/preferences", NotificationPreferencesHandler),
         (r"/api/surveys", SurveyHandler),
+        (r"/api/surveys/analytics", SurveyAnalyticsHandler),
+        (r"/api/attendance/qr", QRAttendanceHandler),
 
         # ── Server-Sent Events (SSE fallback) ──
         (r"/api/sse", SSEHandler),
@@ -467,6 +475,7 @@ def make_app():
         (r"/api/ojt/schedules", OJTSchedulesHandler),
         (r"/api/ojt/schedules/(\d+)", OJTScheduleDetailHandler),
         (r"/api/ojt/training-results", OJTTrainingResultsHandler),
+        (r"/api/ojt/training-results/(\d+)/approve", OJTApprovalHandler),
         (r"/api/ojt/training-results/(\d+)", OJTTrainingResultDetailHandler),
         (r"/api/ojt/programs/(\d+)/admins", OJTProgramAdminsHandler),
         (r"/api/ojt/program-admins/(\d+)", OJTProgramAdminDetailHandler),

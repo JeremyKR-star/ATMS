@@ -1,0 +1,29 @@
+# Testing Dependencies for ATMS Project
+
+# Core testing framework
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+
+# Tornado testing support
+tornado>=6.0.0
+
+# Mock and patching
+pytest-mock>=3.10.0
+
+# Coverage reporting
+coverage>=7.0.0
+
+# Test runners and plugins
+pytest-xdist>=3.0.0  # For parallel test execution
+pytest-timeout>=2.1.0  # For test timeouts
+
+# Database testing
+sqlite3-python>=1.0.0  # For SQLite support (usually built-in)
+
+# Optional: Better test output
+pytest-pretty>=1.1.0
+pytest-html>=3.2.0
+
+# Optional: Performance testing
+pytest-benchmark>=4.0.0
