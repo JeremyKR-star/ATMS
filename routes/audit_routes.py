@@ -1,5 +1,6 @@
 """Audit Log Routes - Track all user actions and changes"""
 import json
+import math
 from datetime import datetime
 from routes.auth_routes import BaseHandler
 from database import get_db, dicts_from_rows
@@ -63,8 +64,8 @@ class AuditLogHandler(BaseHandler):
         - user_name: filter by user
         - date_from: filter from date (YYYY-MM-DD)
         - date_to: filter to date (YYYY-MM-DD)
-        - limit: max records (default 100)
-        - offset: skip records (default 0)
+        - page: page number (default 1)
+        - per_page: records per page (default 20)
         """
         # Get query parameters
         target_type = self.get_argument("target_type", None)
@@ -72,13 +73,20 @@ class AuditLogHandler(BaseHandler):
         user_name = self.get_argument("user_name", None)
         date_from = self.get_argument("date_from", None)
         date_to = self.get_argument("date_to", None)
-        
+
         try:
-            limit = int(self.get_argument("limit", "100"))
-            offset = int(self.get_argument("offset", "0"))
+            page = int(self.get_argument("page", "1"))
+            per_page = int(self.get_argument("per_page", "20"))
         except ValueError:
-            limit = 100
-            offset = 0
+            page = 1
+            per_page = 20
+
+        # Ensure valid pagination values
+        page = max(1, page)
+        per_page = max(1, per_page)
+
+        # Calculate offset
+        offset = (page - 1) * per_page
         
         db = get_db()
         
@@ -109,14 +117,14 @@ class AuditLogHandler(BaseHandler):
         # Count total
         count_query = f"SELECT COUNT(*) as cnt FROM ({query})"
         total = db.execute(count_query, params).fetchone()['cnt']
-        
+
         # Add ordering and limit
         query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-        params.extend([limit, offset])
-        
+        params.extend([per_page, offset])
+
         logs = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        
+
         # Parse details JSON if present
         for log in logs:
             if log.get('details'):
@@ -124,10 +132,16 @@ class AuditLogHandler(BaseHandler):
                     log['details'] = json.loads(log['details'])
                 except json.JSONDecodeError:
                     pass
-        
+
+        # Calculate total pages
+        total_pages = math.ceil(total / per_page) if per_page > 0 else 0
+
         self.success({
-            "logs": logs,
-            "total": total,
-            "limit": limit,
-            "offset": offset
+            "data": logs,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "total_pages": total_pages
+            }
         })

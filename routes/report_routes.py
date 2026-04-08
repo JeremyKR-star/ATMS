@@ -2,14 +2,52 @@
 import traceback
 import csv
 import io
+import time
 from routes.auth_routes import BaseHandler
 from database import get_db, dicts_from_rows
 from auth import require_auth
 
 
+class SimpleCache:
+    """Simple in-memory cache with TTL support"""
+    def __init__(self):
+        self._cache = {}
+
+    def get(self, key):
+        if key in self._cache:
+            value, expiry = self._cache[key]
+            if time.time() < expiry:
+                return value
+            del self._cache[key]
+        return None
+
+    def set(self, key, value, ttl=300):
+        self._cache[key] = (value, time.time() + ttl)
+
+    def invalidate(self, key=None):
+        if key:
+            self._cache.pop(key, None)
+        else:
+            self._cache.clear()
+
+
+_dashboard_cache = SimpleCache()
+
+
+def invalidate_dashboard_cache():
+    """Invalidate dashboard cache. Call this when data changes (enrollments, courses, users)."""
+    _dashboard_cache.invalidate('dashboard')
+
+
 class DashboardHandler(BaseHandler):
     @require_auth()
     def get(self):
+        # Check cache first
+        cached = _dashboard_cache.get('dashboard')
+        if cached is not None:
+            self.success(cached)
+            return
+
         db = get_db()
         try:
             stats = {}
@@ -70,6 +108,9 @@ class DashboardHandler(BaseHandler):
             stats["ojt_enrollments"] = db.execute("SELECT COUNT(*) FROM ojt_enrollments").fetchone()[0]
 
             db.close()
+
+            # Cache the result for 5 minutes (300 seconds)
+            _dashboard_cache.set('dashboard', stats, ttl=300)
             self.success(stats)
         except Exception as ex:
             db.close()
@@ -82,6 +123,20 @@ class CourseReportHandler(BaseHandler):
     def get(self):
         db = get_db()
         try:
+            # Pagination parameters
+            page = int(self.get_argument('page', '1'))
+            per_page = int(self.get_argument('per_page', '50'))
+            offset = (page - 1) * per_page
+
+            # Count total records
+            total = db.execute("""
+                SELECT COUNT(DISTINCT c.id) as count
+                FROM courses c
+                LEFT JOIN enrollments e ON c.id = e.course_id
+                LEFT JOIN surveys s ON c.id = s.course_id
+            """).fetchone()[0]
+
+            # Fetch paginated courses
             courses = dicts_from_rows(db.execute("""
                 SELECT c.id, c.name, c.code, c.type, c.status, c.start_date, c.end_date,
                        c.max_trainees, c.description, c.created_at,
@@ -95,9 +150,21 @@ class CourseReportHandler(BaseHandler):
                 GROUP BY c.id, c.name, c.code, c.type, c.status, c.start_date, c.end_date,
                          c.max_trainees, c.description, c.created_at
                 ORDER BY c.start_date DESC
-            """).fetchall())
+                LIMIT ? OFFSET ?
+            """, (per_page, offset)).fetchall())
+
+            total_pages = (total + per_page - 1) // per_page
+
             db.close()
-            self.success(courses)
+            self.success({
+                "data": courses,
+                "pagination": {
+                    "page": page,
+                    "per_page": per_page,
+                    "total": total,
+                    "total_pages": total_pages
+                }
+            })
         except Exception as ex:
             db.close()
             print(f"[CourseReportHandler ERROR] {ex}\n{traceback.format_exc()}")
@@ -109,6 +176,21 @@ class TraineeReportHandler(BaseHandler):
     def get(self):
         db = get_db()
         try:
+            # Pagination parameters
+            page = int(self.get_argument('page', '1'))
+            per_page = int(self.get_argument('per_page', '50'))
+            offset = (page - 1) * per_page
+
+            # Count total records
+            total = db.execute("""
+                SELECT COUNT(DISTINCT u.id) as count
+                FROM users u
+                LEFT JOIN enrollments e ON u.id = e.trainee_id
+                LEFT JOIN evaluations ev ON u.id = ev.trainee_id AND ev.max_score > 0
+                WHERE u.role = 'trainee'
+            """).fetchone()[0]
+
+            # Fetch paginated trainees
             trainees = dicts_from_rows(db.execute("""
                 SELECT u.id, u.employee_id, u.name, u.department, u.status,
                        COUNT(DISTINCT e.course_id) as courses_enrolled,
@@ -120,9 +202,21 @@ class TraineeReportHandler(BaseHandler):
                 WHERE u.role = 'trainee'
                 GROUP BY u.id, u.employee_id, u.name, u.department, u.status
                 ORDER BY u.name
-            """).fetchall())
+                LIMIT ? OFFSET ?
+            """, (per_page, offset)).fetchall())
+
+            total_pages = (total + per_page - 1) // per_page
+
             db.close()
-            self.success(trainees)
+            self.success({
+                "data": trainees,
+                "pagination": {
+                    "page": page,
+                    "per_page": per_page,
+                    "total": total,
+                    "total_pages": total_pages
+                }
+            })
         except Exception as ex:
             db.close()
             print(f"[TraineeReportHandler ERROR] {ex}\n{traceback.format_exc()}")
@@ -135,6 +229,31 @@ class AttendanceReportHandler(BaseHandler):
         course_id = self.get_argument("course_id", None)
         db = get_db()
         try:
+            # Pagination parameters
+            page = int(self.get_argument('page', '1'))
+            per_page = int(self.get_argument('per_page', '50'))
+            offset = (page - 1) * per_page
+
+            # Build WHERE clause
+            where_clause = ""
+            count_params = []
+            query_params = []
+            if course_id:
+                where_clause = " WHERE s.course_id = ?"
+                count_params.append(course_id)
+                query_params.append(course_id)
+
+            # Count total records with same WHERE clause
+            count_query = """
+                SELECT COUNT(DISTINCT u.id) as count
+                FROM attendance a
+                JOIN users u ON a.trainee_id = u.id
+                JOIN schedules s ON a.schedule_id = s.id
+            """ + where_clause
+
+            total = db.execute(count_query, count_params).fetchone()[0]
+
+            # Fetch paginated records
             query = """
                 SELECT u.id as trainee_id, u.name as trainee_name, u.employee_id,
                        COUNT(a.id) as total_sessions,
@@ -145,16 +264,24 @@ class AttendanceReportHandler(BaseHandler):
                 FROM attendance a
                 JOIN users u ON a.trainee_id = u.id
                 JOIN schedules s ON a.schedule_id = s.id
+            """ + where_clause + """ GROUP BY u.id, u.name, u.employee_id ORDER BY u.name
+                LIMIT ? OFFSET ?
             """
-            params = []
-            if course_id:
-                query += " WHERE s.course_id = ?"
-                params.append(course_id)
-            query += " GROUP BY u.id, u.name, u.employee_id ORDER BY u.name"
+            query_params.extend([per_page, offset])
 
-            records = dicts_from_rows(db.execute(query, params).fetchall())
+            records = dicts_from_rows(db.execute(query, query_params).fetchall())
+            total_pages = (total + per_page - 1) // per_page
+
             db.close()
-            self.success(records)
+            self.success({
+                "data": records,
+                "pagination": {
+                    "page": page,
+                    "per_page": per_page,
+                    "total": total,
+                    "total_pages": total_pages
+                }
+            })
         except Exception as ex:
             db.close()
             print(f"[AttendanceReportHandler ERROR] {ex}\n{traceback.format_exc()}")

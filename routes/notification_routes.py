@@ -147,23 +147,49 @@ class NotificationsHandler(BaseHandler):
     @require_auth()
     def get(self):
         unread_only = self.get_argument("unread_only", "false") == "true"
-        limit = int(self.get_argument("limit", 50))
+        page = int(self.get_argument("page", 1))
+        per_page = int(self.get_argument("per_page", 50))
 
         db = get_db()
-        query = "SELECT * FROM notifications WHERE user_id = ?"
-        params = [self.current_user_data["user_id"]]
-        if unread_only:
-            query += " AND is_read = 0"
-        query += " ORDER BY created_at DESC LIMIT ?"
-        params.append(limit)
 
-        items = dicts_from_rows(db.execute(query, params).fetchall())
+        # Build base query
+        base_query = "SELECT * FROM notifications WHERE user_id = ?"
+        count_query = "SELECT COUNT(*) FROM notifications WHERE user_id = ?"
+        params = [self.current_user_data["user_id"]]
+
+        if unread_only:
+            base_query += " AND is_read = 0"
+            count_query += " AND is_read = 0"
+
+        # Get total count
+        total = db.execute(count_query, params).fetchone()[0]
+
+        # Calculate pagination
+        offset = (page - 1) * per_page
+        total_pages = (total + per_page - 1) // per_page
+
+        # Fetch paginated items
+        base_query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.append(per_page)
+        params.append(offset)
+
+        items = dicts_from_rows(db.execute(base_query, params).fetchall())
         unread_count = db.execute(
             "SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0",
             (self.current_user_data["user_id"],)
         ).fetchone()[0]
         db.close()
-        self.success({"notifications": items, "unread_count": unread_count})
+
+        self.success({
+            "notifications": items,
+            "unread_count": unread_count,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "total_pages": total_pages
+            }
+        })
 
     @require_auth(roles=["admin", "ojt_admin", "instructor"])
     def post(self):
@@ -227,21 +253,50 @@ class SurveyHandler(BaseHandler):
     @require_auth()
     def get(self):
         course_id = self.get_argument("course_id", None)
+        page = int(self.get_argument("page", 1))
+        per_page = int(self.get_argument("per_page", 50))
+
         db = get_db()
-        query = """
+
+        # Build base query
+        base_query = """
             SELECT s.*, u.name as trainee_name, c.name as course_name
             FROM surveys s
             JOIN users u ON s.trainee_id = u.id
             LEFT JOIN courses c ON s.course_id = c.id
         """
+        count_query = "SELECT COUNT(s.id) FROM surveys s"
+
         params = []
         if course_id:
-            query += " WHERE s.course_id = ?"
+            base_query += " WHERE s.course_id = ?"
+            count_query += " WHERE s.course_id = ?"
             params.append(course_id)
-        query += " ORDER BY s.created_at DESC"
-        items = dicts_from_rows(db.execute(query, params).fetchall())
+
+        # Get total count
+        total = db.execute(count_query, params).fetchone()[0]
+
+        # Calculate pagination
+        offset = (page - 1) * per_page
+        total_pages = (total + per_page - 1) // per_page
+
+        # Fetch paginated items
+        base_query += " ORDER BY s.created_at DESC LIMIT ? OFFSET ?"
+        params.append(per_page)
+        params.append(offset)
+
+        items = dicts_from_rows(db.execute(base_query, params).fetchall())
         db.close()
-        self.success(items)
+
+        self.success({
+            "surveys": items,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "total_pages": total_pages
+            }
+        })
 
     @require_auth()
     def post(self):

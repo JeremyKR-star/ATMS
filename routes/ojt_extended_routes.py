@@ -110,6 +110,10 @@ class OJTTrainingSpecsHandler(BaseHandler):
     @require_auth()
     def get(self):
         program_id = self.get_argument("program_id", None)
+        page = int(self.get_argument("page", "1"))
+        per_page = int(self.get_argument("per_page", "50"))
+        offset = (page - 1) * per_page
+
         db = get_db()
         query = """
             SELECT ts.*, op.name as program_name, u.name as created_by_name
@@ -121,10 +125,28 @@ class OJTTrainingSpecsHandler(BaseHandler):
         if program_id:
             query += " AND ts.program_id = ?"
             params.append(program_id)
-        query += " ORDER BY ts.created_at DESC"
+
+        # Count total records
+        count_query = query.replace(
+            "SELECT ts.*, op.name as program_name, u.name as created_by_name",
+            "SELECT COUNT(*) as count"
+        )
+        total = db.execute(count_query, params).fetchone()[0]
+
+        query += " ORDER BY ts.created_at DESC LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         specs = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(specs)
+
+        self.success({
+            "specs": specs,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
 
     @require_auth(roles=["admin", "ojt_admin"])
     def post(self):
@@ -167,6 +189,10 @@ class OJTEvalSpecsHandler(BaseHandler):
     @require_auth()
     def get(self):
         program_id = self.get_argument("program_id", None)
+        page = int(self.get_argument("page", "1"))
+        per_page = int(self.get_argument("per_page", "50"))
+        offset = (page - 1) * per_page
+
         db = get_db()
         query = """
             SELECT es.*, op.name as program_name, u.name as created_by_name
@@ -178,10 +204,28 @@ class OJTEvalSpecsHandler(BaseHandler):
         if program_id:
             query += " AND es.program_id = ?"
             params.append(program_id)
-        query += " ORDER BY es.created_at DESC"
+
+        # Count total records
+        count_query = query.replace(
+            "SELECT es.*, op.name as program_name, u.name as created_by_name",
+            "SELECT COUNT(*) as count"
+        )
+        total = db.execute(count_query, params).fetchone()[0]
+
+        query += " ORDER BY es.created_at DESC LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         specs = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(specs)
+
+        self.success({
+            "specs": specs,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
 
     @require_auth(roles=["admin", "ojt_admin"])
     def post(self):
@@ -224,6 +268,10 @@ class OJTPreAssignmentsHandler(BaseHandler):
     @require_auth()
     def get(self):
         program_id = self.get_argument("program_id", None)
+        page = int(self.get_argument("page", "1"))
+        per_page = int(self.get_argument("per_page", "50"))
+        offset = (page - 1) * per_page
+
         db = get_db()
         query = """
             SELECT pa.*, op.name as program_name, u.name as created_by_name
@@ -235,10 +283,28 @@ class OJTPreAssignmentsHandler(BaseHandler):
         if program_id:
             query += " AND pa.program_id = ?"
             params.append(program_id)
-        query += " ORDER BY pa.created_at DESC"
+
+        # Count total records
+        count_query = query.replace(
+            "SELECT pa.*, op.name as program_name, u.name as created_by_name",
+            "SELECT COUNT(*) as count"
+        )
+        total = db.execute(count_query, params).fetchone()[0]
+
+        query += " ORDER BY pa.created_at DESC LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         items = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(items)
+
+        self.success({
+            "items": items,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
 
     @require_auth(roles=["admin", "ojt_admin"])
     def post(self):
@@ -247,26 +313,70 @@ class OJTPreAssignmentsHandler(BaseHandler):
             return self.error("program_id and title are required")
         db = get_db()
         cur = db.execute("""
-            INSERT INTO ojt_pre_assignments (program_id, title, description, file_path, due_date, created_by)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO ojt_pre_assignments (program_id, title, description, file_path, due_date, created_by, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (body["program_id"], body["title"], body.get("description", ""),
               body.get("file_path", ""), body.get("due_date", ""),
-              self.current_user_data["user_id"]))
+              self.current_user_data["user_id"], "pending"))
         db.commit()
         pid = cur.lastrowid
         db.close()
         self.success({"id": pid}, "Pre-assignment created")
 
 
+class OJTPreAssignmentSubmitHandler(BaseHandler):
+    @require_auth()
+    def post(self, pre_assignment_id):
+        body = self.get_json_body()
+        submission_text = body.get("submission_text", "")
+        file_url = body.get("file_url", "")
+
+        db = get_db()
+        # Check if pre-assignment exists
+        pa = db.execute("SELECT * FROM ojt_pre_assignments WHERE id = ?", (pre_assignment_id,)).fetchone()
+        if not pa:
+            db.close()
+            return self.error("Pre-assignment not found", 404)
+
+        # Update the pre-assignment with submission data
+        import datetime
+        db.execute("""
+            UPDATE ojt_pre_assignments
+            SET status = 'submitted',
+                submission_text = ?,
+                file_url = ?,
+                submitted_at = ?
+            WHERE id = ?
+        """, (submission_text, file_url, datetime.datetime.now().isoformat(), pre_assignment_id))
+        db.commit()
+        db.close()
+        self.success(None, "Pre-assignment submitted successfully")
+
+
 # ── OJT Venues ──
 class OJTVenuesHandler(BaseHandler):
     @require_auth()
     def get(self):
+        page = int(self.get_argument("page", "1"))
+        per_page = int(self.get_argument("per_page", "50"))
+        offset = (page - 1) * per_page
+
         db = get_db()
+        total = db.execute("SELECT COUNT(*) as count FROM ojt_venues").fetchone()[0]
         venues = dicts_from_rows(db.execute(
-            "SELECT * FROM ojt_venues ORDER BY name").fetchall())
+            "SELECT * FROM ojt_venues ORDER BY name LIMIT ? OFFSET ?",
+            (per_page, offset)).fetchall())
         db.close()
-        self.success(venues)
+
+        self.success({
+            "venues": venues,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
 
     @require_auth(roles=["admin", "ojt_admin"])
     def post(self):
@@ -316,6 +426,10 @@ class OJTAnnouncementsHandler(BaseHandler):
     @require_auth()
     def get(self):
         program_id = self.get_argument("program_id", None)
+        page = int(self.get_argument("page", "1"))
+        per_page = int(self.get_argument("per_page", "50"))
+        offset = (page - 1) * per_page
+
         db = get_db()
         query = """
             SELECT a.*, u.name as created_by_name, op.name as program_name
@@ -328,10 +442,28 @@ class OJTAnnouncementsHandler(BaseHandler):
         if program_id:
             query += " AND a.program_id = ?"
             params.append(program_id)
-        query += " ORDER BY a.created_at DESC"
+
+        # Count total records
+        count_query = query.replace(
+            "SELECT a.*, u.name as created_by_name, op.name as program_name",
+            "SELECT COUNT(*) as count"
+        )
+        total = db.execute(count_query, params).fetchone()[0]
+
+        query += " ORDER BY a.created_at DESC LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         items = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(items)
+
+        self.success({
+            "items": items,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
 
     @require_auth(roles=["admin", "ojt_admin"])
     def post(self):
@@ -380,6 +512,10 @@ class OJTSurveyTemplatesHandler(BaseHandler):
     @require_auth()
     def get(self):
         program_id = self.get_argument("program_id", None)
+        page = int(self.get_argument("page", "1"))
+        per_page = int(self.get_argument("per_page", "50"))
+        offset = (page - 1) * per_page
+
         db = get_db()
         query = """
             SELECT st.*, op.name as program_name, u.name as created_by_name,
@@ -392,10 +528,34 @@ class OJTSurveyTemplatesHandler(BaseHandler):
         if program_id:
             query += " AND st.program_id = ?"
             params.append(program_id)
-        query += " ORDER BY st.created_at DESC"
+
+        # Count total records
+        count_query = """
+            SELECT COUNT(*) as count
+            FROM ojt_survey_templates st
+            LEFT JOIN ojt_programs op ON st.program_id = op.id
+            LEFT JOIN users u ON st.created_by = u.id WHERE 1=1
+        """
+        count_params = []
+        if program_id:
+            count_query += " AND st.program_id = ?"
+            count_params.append(program_id)
+        total = db.execute(count_query, count_params).fetchone()[0]
+
+        query += " ORDER BY st.created_at DESC LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         templates = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(templates)
+
+        self.success({
+            "templates": templates,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
 
     @require_auth(roles=["admin", "ojt_admin"])
     def post(self):
@@ -482,6 +642,10 @@ class OJTSurveyResponsesHandler(BaseHandler):
     @require_auth()
     def get(self):
         template_id = self.get_argument("template_id", None)
+        page = int(self.get_argument("page", "1"))
+        per_page = int(self.get_argument("per_page", "50"))
+        offset = (page - 1) * per_page
+
         db = get_db()
         query = """
             SELECT sr.*, u.name as trainee_name, si.question
@@ -494,10 +658,35 @@ class OJTSurveyResponsesHandler(BaseHandler):
         if template_id:
             query += " AND sr.template_id = ?"
             params.append(template_id)
-        query += " ORDER BY sr.created_at DESC"
+
+        # Count total records
+        count_query = """
+            SELECT COUNT(*) as count
+            FROM ojt_survey_responses sr
+            JOIN users u ON sr.trainee_id = u.id
+            JOIN ojt_survey_items si ON sr.item_id = si.id
+            WHERE 1=1
+        """
+        count_params = []
+        if template_id:
+            count_query += " AND sr.template_id = ?"
+            count_params.append(template_id)
+        total = db.execute(count_query, count_params).fetchone()[0]
+
+        query += " ORDER BY sr.created_at DESC LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         responses = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(responses)
+
+        self.success({
+            "responses": responses,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
 
     @require_auth()
     def post(self):
@@ -574,6 +763,10 @@ class OJTSchedulesHandler(BaseHandler):
     @require_auth()
     def get(self):
         program_id = self.get_argument("program_id", None)
+        page = int(self.get_argument("page", "1"))
+        per_page = int(self.get_argument("per_page", "50"))
+        offset = (page - 1) * per_page
+
         db = get_db()
         query = """
             SELECT os.*, op.name as program_name, v.name as venue_name, u.name as instructor_name
@@ -586,10 +779,35 @@ class OJTSchedulesHandler(BaseHandler):
         if program_id:
             query += " AND os.program_id = ?"
             params.append(program_id)
-        query += " ORDER BY os.schedule_date, os.start_time"
+
+        # Count total records
+        count_query = """
+            SELECT COUNT(*) as count
+            FROM ojt_schedules os
+            LEFT JOIN ojt_programs op ON os.program_id = op.id
+            LEFT JOIN ojt_venues v ON os.venue_id = v.id
+            LEFT JOIN users u ON os.instructor_id = u.id WHERE 1=1
+        """
+        count_params = []
+        if program_id:
+            count_query += " AND os.program_id = ?"
+            count_params.append(program_id)
+        total = db.execute(count_query, count_params).fetchone()[0]
+
+        query += " ORDER BY os.schedule_date, os.start_time LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         items = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(items)
+
+        self.success({
+            "items": items,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
 
     @require_auth(roles=["admin", "ojt_admin"])
     def post(self):
@@ -639,13 +857,27 @@ class CareerRoadmapHandler(BaseHandler):
     @require_auth()
     def get(self):
         level = self.get_argument("level", None)
+        page = int(self.get_argument("page", "1"))
+        per_page = int(self.get_argument("per_page", "50"))
+        offset = (page - 1) * per_page
+
         db = get_db()
         query = "SELECT * FROM career_roadmap WHERE 1=1"
         params = []
         if level:
             query += " AND level = ?"
             params.append(level)
-        query += " ORDER BY level"
+
+        # Count total records
+        count_query = "SELECT COUNT(*) as count FROM career_roadmap WHERE 1=1"
+        count_params = []
+        if level:
+            count_query += " AND level = ?"
+            count_params.append(level)
+        total = db.execute(count_query, count_params).fetchone()[0]
+
+        query += " ORDER BY level LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         roadmaps = dicts_from_rows(db.execute(query, params).fetchall())
 
         # Include tasks for each roadmap
@@ -659,7 +891,15 @@ class CareerRoadmapHandler(BaseHandler):
                     (task["id"],)).fetchall())
 
         db.close()
-        self.success(roadmaps)
+        self.success({
+            "roadmaps": roadmaps,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
 
     @require_auth(roles=["admin", "ojt_admin"])
     def post(self):
@@ -737,6 +977,10 @@ class CareerRoadmapProgressHandler(BaseHandler):
     def get(self):
         trainee_id = self.get_argument("trainee_id", None)
         roadmap_id = self.get_argument("roadmap_id", None)
+        page = int(self.get_argument("page", "1"))
+        per_page = int(self.get_argument("per_page", "50"))
+        offset = (page - 1) * per_page
+
         db = get_db()
         query = """
             SELECT crp.*, u.name as trainee_name, cr.title as roadmap_title,
@@ -755,10 +999,40 @@ class CareerRoadmapProgressHandler(BaseHandler):
         if roadmap_id:
             query += " AND crp.roadmap_id = ?"
             params.append(roadmap_id)
-        query += " ORDER BY cr.level, crp.task_id"
+
+        # Count total records
+        count_query = """
+            SELECT COUNT(*) as count
+            FROM career_roadmap_progress crp
+            JOIN users u ON crp.trainee_id = u.id
+            JOIN career_roadmap cr ON crp.roadmap_id = cr.id
+            LEFT JOIN career_roadmap_tasks crt ON crp.task_id = crt.id
+            LEFT JOIN career_roadmap_sub_tasks crst ON crp.sub_task_id = crst.id
+            WHERE 1=1
+        """
+        count_params = []
+        if trainee_id:
+            count_query += " AND crp.trainee_id = ?"
+            count_params.append(trainee_id)
+        if roadmap_id:
+            count_query += " AND crp.roadmap_id = ?"
+            count_params.append(roadmap_id)
+        total = db.execute(count_query, count_params).fetchone()[0]
+
+        query += " ORDER BY cr.level, crp.task_id LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         items = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(items)
+
+        self.success({
+            "items": items,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
 
     @require_auth(roles=["admin", "ojt_admin", "instructor"])
     def post(self):
@@ -786,6 +1060,10 @@ class OJTTrainingResultsHandler(BaseHandler):
     def get(self):
         enrollment_id = self.get_argument("enrollment_id", None)
         program_id = self.get_argument("program_id", None)
+        page = int(self.get_argument("page", "1"))
+        per_page = int(self.get_argument("per_page", "50"))
+        offset = (page - 1) * per_page
+
         db = get_db()
         query = """
             SELECT tr.*, ot.name as task_name, u.name as trainee_name, op.name as program_name
@@ -803,10 +1081,40 @@ class OJTTrainingResultsHandler(BaseHandler):
         if program_id:
             query += " AND oe.program_id = ?"
             params.append(program_id)
-        query += " ORDER BY tr.result_date DESC"
+
+        # Count total records
+        count_query = """
+            SELECT COUNT(*) as count
+            FROM ojt_training_results tr
+            JOIN ojt_tasks ot ON tr.task_id = ot.id
+            JOIN ojt_enrollments oe ON tr.enrollment_id = oe.id
+            JOIN users u ON oe.trainee_id = u.id
+            JOIN ojt_programs op ON oe.program_id = op.id
+            WHERE 1=1
+        """
+        count_params = []
+        if enrollment_id:
+            count_query += " AND tr.enrollment_id = ?"
+            count_params.append(enrollment_id)
+        if program_id:
+            count_query += " AND oe.program_id = ?"
+            count_params.append(program_id)
+        total = db.execute(count_query, count_params).fetchone()[0]
+
+        query += " ORDER BY tr.result_date DESC LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         results = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(results)
+
+        self.success({
+            "results": results,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
 
     @require_auth(roles=["admin", "ojt_admin", "instructor"])
     def post(self):
@@ -1054,6 +1362,10 @@ class OJTEvalTemplateHandler(BaseHandler):
     @require_auth()
     def get(self):
         program_id = self.get_argument("program_id", None)
+        page = int(self.get_argument("page", "1"))
+        per_page = int(self.get_argument("per_page", "50"))
+        offset = (page - 1) * per_page
+
         db = get_db()
         query = """
             SELECT et.*, u.name as created_by_name, op.name as program_name
@@ -1066,10 +1378,35 @@ class OJTEvalTemplateHandler(BaseHandler):
         if program_id:
             query += " AND et.program_id = ?"
             params.append(program_id)
-        query += " ORDER BY et.created_at DESC"
+
+        # Count total records
+        count_query = """
+            SELECT COUNT(*) as count
+            FROM ojt_eval_templates et
+            LEFT JOIN users u ON et.created_by = u.id
+            LEFT JOIN ojt_programs op ON et.program_id = op.id
+            WHERE 1=1
+        """
+        count_params = []
+        if program_id:
+            count_query += " AND et.program_id = ?"
+            count_params.append(program_id)
+        total = db.execute(count_query, count_params).fetchone()[0]
+
+        query += " ORDER BY et.created_at DESC LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
         templates = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(templates)
+
+        self.success({
+            "templates": templates,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
 
     @require_auth(roles=["admin", "ojt_admin", "instructor"])
     def post(self):

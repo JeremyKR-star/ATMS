@@ -8,6 +8,11 @@ try:
 except ImportError:
     broadcast_to_user = None
 
+try:
+    from email_utils import send_notification_email
+except ImportError:
+    send_notification_email = None
+
 
 class EvaluationsHandler(BaseHandler):
     @require_auth()
@@ -200,3 +205,81 @@ class BulkCreateEvaluationsHandler(BaseHandler):
         db.commit()
         db.close()
         self.success({"created": created}, f"Created {created} evaluations")
+
+
+class TransferEvaluationHandler(BaseHandler):
+    """Transfer/send evaluation results to a recipient (manager, officer, etc.)."""
+    @require_auth(roles=["admin", "instructor", "manager", "ojt_admin"])
+    def post(self, eval_id):
+        body = self.get_json_body()
+        recipient_id = body.get("recipient_id")
+
+        if not recipient_id:
+            return self.error("recipient_id is required")
+
+        db = get_db()
+
+        # Get evaluation details
+        ev = dict_from_row(db.execute("""
+            SELECT ev.*, c.name as course_name, u.name as trainee_name, u2.name as evaluator_name, u3.name as recipient_name
+            FROM evaluations ev
+            JOIN courses c ON ev.course_id = c.id
+            JOIN users u ON ev.trainee_id = u.id
+            LEFT JOIN users u2 ON ev.evaluator_id = u2.id
+            LEFT JOIN users u3 ON u3.id = ?
+            WHERE ev.id = ?
+        """, (recipient_id, eval_id)).fetchone())
+
+        if not ev:
+            db.close()
+            return self.error("Evaluation not found", 404)
+
+        # Update evaluation status to 'transferred'
+        current_user = self.current_user_data
+        db.execute("""
+            UPDATE evaluations
+            SET status = 'transferred', transferred_at = CURRENT_TIMESTAMP, transferred_by = ?
+            WHERE id = ?
+        """, (current_user["user_id"], eval_id))
+        db.commit()
+
+        # Create notification for recipient
+        try:
+            notification_message = f"평가 '{ev['title']}'이(가) 전송되었습니다. 훈련생: {ev['trainee_name']}"
+            db.execute("""
+                INSERT INTO notifications (user_id, type, title, message, related_table, related_id, is_read)
+                VALUES (?, ?, ?, ?, ?, ?, 0)
+            """, (recipient_id, "evaluation_transfer", "평가 결과 전송", notification_message, "evaluations", eval_id))
+            db.commit()
+        except Exception as e:
+            print(f"[TransferEvaluation] Notification creation failed: {e}")
+
+        # Broadcast to recipient if available
+        if broadcast_to_user:
+            try:
+                broadcast_to_user(recipient_id, {
+                    "type": "notification",
+                    "data": {
+                        "title": "평가 결과 전송",
+                        "message": notification_message,
+                        "notification_type": "info"
+                    }
+                })
+            except Exception:
+                pass
+
+        # Send email if available
+        if send_notification_email:
+            try:
+                recipient = db.execute("SELECT email, name FROM users WHERE id = ?", (recipient_id,)).fetchone()
+                if recipient and recipient.get("email"):
+                    send_notification_email(
+                        recipient["email"],
+                        "평가 결과 전송",
+                        f"평가 '{ev['title']}'이(가) 전송되었습니다.\n훈련생: {ev['trainee_name']}\n점수: {ev['score']}/{ev['max_score']}\n등급: {ev['grade'] or '-'}"
+                    )
+            except Exception as e:
+                print(f"[TransferEvaluation] Email send failed: {e}")
+
+        db.close()
+        self.success(None, f"평가가 {ev.get('recipient_name', 'recipient')}에게 전송되었습니다")

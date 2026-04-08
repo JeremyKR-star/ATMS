@@ -18,6 +18,8 @@ class AssignmentSubmissionsHandler(BaseHandler):
         trainee_id = self.get_argument("trainee_id", None)
         course_id = self.get_argument("course_id", None)
         status = self.get_argument("status", None)
+        page = int(self.get_argument("page", "1"))
+        per_page = int(self.get_argument("per_page", "50"))
 
         db = get_db()
         query = """
@@ -45,10 +47,40 @@ class AssignmentSubmissionsHandler(BaseHandler):
         if status:
             query += " AND asub.status = ?"
             params.append(status)
+
+        # Get total count
+        count_query = "SELECT COUNT(*) as total FROM assignment_submissions asub JOIN content c ON asub.content_id = c.id JOIN users u ON asub.trainee_id = u.id LEFT JOIN users u2 ON asub.graded_by = u2.id LEFT JOIN courses co ON c.course_id = co.id WHERE 1=1"
+        if content_id:
+            count_query += " AND asub.content_id = ?"
+        if trainee_id:
+            count_query += " AND asub.trainee_id = ?"
+        if course_id:
+            count_query += " AND c.course_id = ?"
+        if status:
+            count_query += " AND asub.status = ?"
+
+        total = db.execute(count_query, params).fetchone()[0]
+        total_pages = (total + per_page - 1) // per_page
+
+        # Add pagination
         query += " ORDER BY asub.submitted_at DESC"
+        offset = (page - 1) * per_page
+        query += " LIMIT ? OFFSET ?"
+        params.append(per_page)
+        params.append(offset)
+
         subs = dicts_from_rows(db.execute(query, params).fetchall())
         db.close()
-        self.success(subs)
+
+        self.success({
+            "submissions": subs,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "total_pages": total_pages
+            }
+        })
 
     @require_auth()
     def post(self):

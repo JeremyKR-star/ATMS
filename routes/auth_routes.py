@@ -38,6 +38,9 @@ class BaseHandler(tornado.web.RequestHandler):
         self.set_header("X-XSS-Protection", "1; mode=block")
         self.set_header("Referrer-Policy", "strict-origin-when-cross-origin")
         self.set_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        # Cache control for GET requests on list endpoints
+        if self.request.method == "GET":
+            self.set_header("Cache-Control", "public, max-age=60")
 
     def options(self, *args):
         self.set_status(204)
