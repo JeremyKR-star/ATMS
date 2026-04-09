@@ -399,12 +399,14 @@ body.dark-mode .sidebar { background: linear-gradient(180deg, rgba(10,14,39,0.9)
   background: rgba(255,255,255,0.95); border-radius: 12px; padding: 20px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.3); border: 1.5px solid rgba(37,99,235,0.2); animation: slideUpBounce 0.5s ease; }
 .pilot-photo { width: 160px; height: 160px; border-radius: 50%; margin: 0 auto 20px;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); display: flex; align-items: center;
-  justify-content: center; font-size: 56px; font-weight: 800; color: var(--primary-dark);
-  box-shadow: 0 8px 32px rgba(37,99,235,0.2); border: 4px solid #fff; overflow: hidden;
-  transition: all 0.4s; }
+  display: flex; align-items: center; justify-content: center; font-size: 56px; font-weight: 800;
+  color: #fff; box-shadow: 0 8px 32px rgba(37,99,235,0.2); border: 4px solid #fff; overflow: hidden;
+  transition: all 0.4s; position: relative; }
 .pilot-photo:hover { transform: scale(1.08); box-shadow: 0 12px 40px rgba(37,99,235,0.3); animation: glow 0.3s ease; }
 .pilot-photo img { width: 100%; height: 100%; object-fit: cover; }
+.pilot-progress-ring { position: relative; width: 180px; height: 180px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; }
+.pilot-progress-ring svg { position: absolute; }
+.pilot-stat-box { background: rgba(37,99,235,0.08); border-radius: 12px; padding: 8px 12px; display: flex; gap: 16px; justify-content: center; margin-top: 12px; }
 .pilot-name { font-size: 24px; font-weight: 800; color: var(--gray-900); margin-bottom: 4px; }
 .pilot-rank { font-size: 14px; color: var(--gray-500); margin-bottom: 16px; }
 .pilot-stats { display: flex; justify-content: center; gap: 24px; margin-top: 16px; }
@@ -7754,6 +7756,25 @@ function PilotPage() {
   var natLabelMap = {'Malaysia':'\uB9D0\uB808\uC774\uC2DC\uC544','Poland':'\uD3F4\uB780\uB4DC','Iraq':'\uC774\uB77C\uD06C'};
   nationalities.forEach(function(n){ natLabelMap[n.code] = n.label_ko; });
 
+  // Get flag emoji for nationality
+  var getNatFlag = function(code) {
+    var flags = {'Malaysia':'🇲🇾', 'Poland':'🇵🇱', 'Iraq':'🇮🇶'};
+    return flags[code] || '🌍';
+  };
+
+  // Get pilot color by index (cycling through color array)
+  var pilotColors = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316'];
+  var getPilotColor = function(index) {
+    return pilotColors[index % pilotColors.length];
+  };
+
+  // Get progress color based on percentage
+  var getProgressColor = function(pct) {
+    if (pct >= 70) return '#10b981';
+    if (pct >= 40) return '#f59e0b';
+    return '#ef4444';
+  };
+
   // Compat: also map old 'Malaysian' -> Malaysia
   var normalizeNat = function(val) {
     if (val === 'Malaysian') return 'Malaysia';
@@ -8104,7 +8125,7 @@ function PilotPage() {
             <button className={'nat-chip'+(natFilter==='all'?' active':'')} onClick={function(){setNatFilter('all');}}>{t('전체')}</button>
             {nationalities.map(function(n){return (
               <button key={n.id} className={'nat-chip'+(natFilter===n.code?' active':'')} onClick={function(){setNatFilter(n.code);}}>
-                {t(n.label_ko)}</button>
+                {getNatFlag(n.code)} {t(n.label_ko)}</button>
             );})}
             {!showNatAdd && <button className="nat-add-btn" onClick={function(){setShowNatAdd(true);}}>{t('+ 국적 추가')}</button>}
             {showNatAdd && (
@@ -8130,7 +8151,7 @@ function PilotPage() {
             return (
               <div className={'nat-section ' + getNatCss(nat.code)} key={nat.code}>
                 <div className="nat-section-title">
-                  <h3>{t(nat.label_ko)} Pilots</h3>
+                  <h3>{getNatFlag(nat.code)} {t(nat.label_ko)} Pilots</h3>
                   <span className="badge badge-blue">{groupPilots.length}명</span>
                 </div>
                 <div className="card" style={{marginBottom:0}}>
@@ -8139,26 +8160,36 @@ function PilotPage() {
                       {totalPages > 1 && <button className="carousel-nav carousel-prev" onClick={function(){goToGroup(nat.code, pageIdx-1 < 0 ? totalPages-1 : pageIdx-1, totalPages);}}>&#8249;</button>}
                       {totalPages > 1 && <button className="carousel-nav carousel-next" onClick={function(){goToGroup(nat.code, pageIdx+1 >= totalPages ? 0 : pageIdx+1, totalPages);}}>&#8250;</button>}
                       <div className="pilot-carousel-track" style={{transform:'translateX(-'+pageIdx*100+'%)'}}>
-                        {groupPilots.map(function(p){
+                        {groupPilots.map(function(p,pIdx){
                           var tp=getPilotTotalPlan(p.id); var done=getPilotDone(p.id); var pct=tp?Math.round((done/tp)*100):0;
                           var sd=getPilotSimDone(p.id); var fd=getPilotFltDone(p.id);
                           var sp=getPilotSimPlan(p.id); var fp=getPilotFltPlan(p.id);
+                          var bgColor = getPilotColor(pIdx);
+                          var progColor = getProgressColor(pct);
+                          var circleRadius = 84; var strokeWidth = 6; var circumference = 2 * Math.PI * circleRadius;
+                          var strokeDashoffset = circumference - (pct / 100) * circumference;
                           return (
                             <div className="pilot-card" key={p.id}>
                               <div className="pilot-profile">
-                                <div className="pilot-photo" onClick={function(){if(isAdmin){setPhotoTarget(p.id);if(photoRef.current)photoRef.current.click();}}}>
-                                  {p.photo_url ? <img src={p.photo_url} alt={p.short_name}/> :
-                                    <>{(p.short_name||'?')[0]}{(p.short_name||'?').slice(-1)}</>}
+                                <div className="pilot-progress-ring">
+                                  <svg width="180" height="180" style={{transform:'rotate(-90deg)'}}>
+                                    <circle cx="90" cy="90" r={circleRadius} stroke="rgba(0,0,0,0.1)" strokeWidth={strokeWidth} fill="none"/>
+                                    <circle cx="90" cy="90" r={circleRadius} stroke={progColor} strokeWidth={strokeWidth} fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} style={{transition:'stroke-dashoffset 0.3s'}}/>
+                                  </svg>
+                                  <div className="pilot-photo" style={{background:bgColor}} onClick={function(){if(isAdmin){setPhotoTarget(p.id);if(photoRef.current)photoRef.current.click();}}}>
+                                    {p.photo_url ? <img src={p.photo_url} alt={p.short_name}/> :
+                                      <>{(p.short_name||'?')[0]}{(p.short_name||'?').slice(-1)}</>}
+                                  </div>
                                 </div>
                                 <div className="pilot-name">{p.name}</div>
                                 <div className="pilot-rank">{p.rank} &middot; {p.callsign||p.service_number||'N/A'}</div>
                                 <div style={{margin:'0 auto',maxWidth:300}}>
                                   <div className="flex-between" style={{fontSize:12,marginBottom:4}}>
-                                    <span>{t('훈련 진도')}</span><span style={{fontWeight:700,color:'var(--primary)'}}>{pct}%</span></div>
+                                    <span>{t('훈련 진도')}</span><span style={{fontWeight:700,color:progColor}}>{pct}%</span></div>
                                   <div className="progress-bar" style={{height:10}}>
-                                    <div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg,#2563eb,#7c3aed)'}}/></div>
+                                    <div className="progress-fill" style={{width:pct+'%',background:progColor}}/></div>
                                 </div>
-                                <div className="pilot-stats">
+                                <div className="pilot-stat-box">
                                   <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--primary)'}}>{sd}/{sp}</div>
                                     <div className="pilot-stat-lbl">SIM Sorties</div></div>
                                   <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--success)'}}>{fd}/{fp}</div>
@@ -8190,7 +8221,7 @@ function PilotPage() {
             var pageIdx = Math.min(activeIdx, totalPages - 1);
             return (
             <div className={'nat-section ' + getNatCss(natFilter)}>
-              <div className="nat-section-title"><h3>{t(natLabelMap[natFilter]||natFilter)} T-50 Transition Course Pilots</h3>
+              <div className="nat-section-title"><h3>{getNatFlag(natFilter)} {t(natLabelMap[natFilter]||natFilter)} T-50 Transition Course Pilots</h3>
                 <span className="badge badge-blue">{filteredPilots.length}명</span></div>
               <div className="card" style={{marginBottom:0}}>
                 <div className="card-body">
@@ -8198,26 +8229,36 @@ function PilotPage() {
                     {totalPages > 1 && <button className="carousel-nav carousel-prev" onClick={function(){goTo(pageIdx-1 < 0 ? totalPages-1 : pageIdx-1);}}>&#8249;</button>}
                     {totalPages > 1 && <button className="carousel-nav carousel-next" onClick={function(){goTo(pageIdx+1 >= totalPages ? 0 : pageIdx+1);}}>&#8250;</button>}
                     <div className="pilot-carousel-track" style={{transform:'translateX(-'+pageIdx*100+'%)'}}>
-                      {filteredPilots.map(function(p){
+                      {filteredPilots.map(function(p,pIdx){
                         var tp=getPilotTotalPlan(p.id); var done=getPilotDone(p.id); var pct=tp?Math.round((done/tp)*100):0;
                         var sd=getPilotSimDone(p.id); var fd=getPilotFltDone(p.id);
                         var sp=getPilotSimPlan(p.id); var fp=getPilotFltPlan(p.id);
+                        var bgColor = getPilotColor(pIdx);
+                        var progColor = getProgressColor(pct);
+                        var circleRadius = 84; var strokeWidth = 6; var circumference = 2 * Math.PI * circleRadius;
+                        var strokeDashoffset = circumference - (pct / 100) * circumference;
                         return (
                           <div className="pilot-card" key={p.id}>
                             <div className="pilot-profile">
-                              <div className="pilot-photo" onClick={function(){if(isAdmin){setPhotoTarget(p.id);if(photoRef.current)photoRef.current.click();}}}>
-                                {p.photo_url ? <img src={p.photo_url} alt={p.short_name}/> :
-                                  <>{(p.short_name||'?')[0]}{(p.short_name||'?').slice(-1)}</>}
+                              <div className="pilot-progress-ring">
+                                <svg width="180" height="180" style={{transform:'rotate(-90deg)'}}>
+                                  <circle cx="90" cy="90" r={circleRadius} stroke="rgba(0,0,0,0.1)" strokeWidth={strokeWidth} fill="none"/>
+                                  <circle cx="90" cy="90" r={circleRadius} stroke={progColor} strokeWidth={strokeWidth} fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} style={{transition:'stroke-dashoffset 0.3s'}}/>
+                                </svg>
+                                <div className="pilot-photo" style={{background:bgColor}} onClick={function(){if(isAdmin){setPhotoTarget(p.id);if(photoRef.current)photoRef.current.click();}}}>
+                                  {p.photo_url ? <img src={p.photo_url} alt={p.short_name}/> :
+                                    <>{(p.short_name||'?')[0]}{(p.short_name||'?').slice(-1)}</>}
+                                </div>
                               </div>
                               <div className="pilot-name">{p.name}</div>
                               <div className="pilot-rank">{p.rank} &middot; {p.callsign||p.service_number||'N/A'}</div>
                               <div style={{margin:'0 auto',maxWidth:300}}>
                                 <div className="flex-between" style={{fontSize:12,marginBottom:4}}>
-                                  <span>{t('훈련 진도')}</span><span style={{fontWeight:700,color:'var(--primary)'}}>{pct}%</span></div>
+                                  <span>{t('훈련 진도')}</span><span style={{fontWeight:700,color:progColor}}>{pct}%</span></div>
                                 <div className="progress-bar" style={{height:10}}>
-                                  <div className="progress-fill" style={{width:pct+'%',background:'linear-gradient(90deg,#2563eb,#7c3aed)'}}/></div>
+                                  <div className="progress-fill" style={{width:pct+'%',background:progColor}}/></div>
                               </div>
-                              <div className="pilot-stats">
+                              <div className="pilot-stat-box">
                                 <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--primary)'}}>{sd}/{sp}</div>
                                   <div className="pilot-stat-lbl">SIM Sorties</div></div>
                                 <div className="pilot-stat"><div className="pilot-stat-val" style={{color:'var(--success)'}}>{fd}/{fp}</div>
