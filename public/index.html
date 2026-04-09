@@ -394,7 +394,7 @@ body.dark-mode .sidebar { background: linear-gradient(180deg, rgba(10,14,39,0.9)
 /* ── Pilot Carousel ── */
 .pilot-carousel { position: relative; overflow: hidden; width: 100%; max-width: 100%; }
 .pilot-carousel-track { display: flex; transition: transform 0.5s cubic-bezier(0.4,0,0.2,1); width: 100%; }
-.pilot-card { min-width: 100%; width: 100%; flex-shrink: 0; display: flex; justify-content: center; padding: 12px 20px; }
+.pilot-card { min-width: 33.333%; width: 33.333%; flex-shrink: 0; display: flex; justify-content: center; padding: 12px 20px; }
 .pilot-profile { text-align: center; width: 100%; max-width: 400px;
   background: rgba(255,255,255,0.95); border-radius: 12px; padding: 20px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.3); border: 1.5px solid rgba(37,99,235,0.2); animation: slideUpBounce 0.5s ease; }
@@ -534,7 +534,7 @@ body.dark-mode .sidebar { background: linear-gradient(180deg, rgba(10,14,39,0.9)
   .pilot-name { font-size: 18px; }
   .pilot-rank { font-size: 12px; margin-bottom: 10px; }
   .pilot-profile { max-width: 300px; padding: 14px; border-radius: 10px; }
-  .pilot-card { padding: 8px 10px; }
+  .pilot-card { min-width: 100%; width: 100%; padding: 8px 10px; }
   .pilot-stats { gap: 12px; margin-top: 10px; }
   .pilot-stat-val { font-size: 16px; }
   .pilot-stat-lbl { font-size: 10px; }
@@ -750,7 +750,7 @@ body.dark-mode .sidebar { background: linear-gradient(180deg, rgba(10,14,39,0.9)
   .toast { left: 12px; right: 12px; top: 12px; text-align: center; font-size: 12px; padding: 12px 16px; }
 
   /* Pilot Elements */
-  .pilot-card { padding: 8px 10px; }
+  .pilot-card { min-width: 100%; width: 100%; padding: 8px 10px; }
   .pilot-profile { max-width: 280px; padding: 12px; }
 
   /* Avatar */
@@ -7892,6 +7892,14 @@ function PilotPage() {
   // Reset carousel index when filter changes
   useEffect(function(){setActiveIdx(0);setIdxMap({});},[natFilter]);
 
+  // Re-render on resize so perPage adapts (3 on desktop, 1 on mobile ≤768px)
+  const [winW, setWinW] = useState(window.innerWidth);
+  useEffect(function(){
+    var onResize = function(){ setWinW(window.innerWidth); };
+    window.addEventListener('resize', onResize);
+    return function(){ window.removeEventListener('resize', onResize); };
+  },[]);
+
   const goTo = function(idx){setActiveIdx(Math.max(0,Math.min(idx,filteredPilots.length-1)));};
   var goToGroup = function(code, idx, max) {
     var clamped = Math.max(0, Math.min(idx, max - 1));
@@ -8111,11 +8119,14 @@ function PilotPage() {
             )}
           </div>
 
-          {/* ── "\uC804\uCCB4" → grouped by nationality ── */}
+          {/* ── "전체" → grouped by nationality, 3 per page (1 on mobile) ── */}
           {natFilter==='all' && nationalities.map(function(nat){
             var groupPilots = pilots.filter(function(p){ return normalizeNat(p.nationality) === nat.code; });
             if (groupPilots.length === 0) return null;
             var gIdx = getGroupIdx(nat.code);
+            var perPage = window.innerWidth <= 768 ? 1 : 3;
+            var totalPages = Math.ceil(groupPilots.length / perPage);
+            var pageIdx = Math.min(gIdx, totalPages - 1);
             return (
               <div className={'nat-section ' + getNatCss(nat.code)} key={nat.code}>
                 <div className="nat-section-title">
@@ -8125,9 +8136,9 @@ function PilotPage() {
                 <div className="card" style={{marginBottom:0}}>
                   <div className="card-body">
                     <div className="pilot-carousel">
-                      {groupPilots.length > 1 && <button className="carousel-nav carousel-prev" onClick={function(){goToGroup(nat.code, gIdx-1, groupPilots.length);}}>&#8249;</button>}
-                      {groupPilots.length > 1 && <button className="carousel-nav carousel-next" onClick={function(){goToGroup(nat.code, gIdx+1, groupPilots.length);}}>&#8250;</button>}
-                      <div className="pilot-carousel-track" style={{transform:'translateX(-'+gIdx*100+'%)'}}>
+                      {totalPages > 1 && <button className="carousel-nav carousel-prev" onClick={function(){goToGroup(nat.code, pageIdx-1 < 0 ? totalPages-1 : pageIdx-1, totalPages);}}>&#8249;</button>}
+                      {totalPages > 1 && <button className="carousel-nav carousel-next" onClick={function(){goToGroup(nat.code, pageIdx+1 >= totalPages ? 0 : pageIdx+1, totalPages);}}>&#8250;</button>}
+                      <div className="pilot-carousel-track" style={{transform:'translateX(-'+pageIdx*100+'%)'}}>
                         {groupPilots.map(function(p){
                           var tp=getPilotTotalPlan(p.id); var done=getPilotDone(p.id); var pct=tp?Math.round((done/tp)*100):0;
                           var sd=getPilotSimDone(p.id); var fd=getPilotFltDone(p.id);
@@ -8160,9 +8171,9 @@ function PilotPage() {
                           );
                         })}
                       </div>
-                      {groupPilots.length > 1 && (
+                      {totalPages > 1 && (
                         <div className="carousel-dots">
-                          {groupPilots.map(function(_,i){return <div key={i} className={'carousel-dot '+(i===gIdx?'active':'')} onClick={function(){goToGroup(nat.code, i, groupPilots.length);}}/> ;})}
+                          {Array.from({length:totalPages},function(_,i){return <div key={i} className={'carousel-dot '+(i===pageIdx?'active':'')} onClick={function(){goToGroup(nat.code, i, totalPages);}}/> ;})}
                         </div>
                       )}
                     </div>
@@ -8172,17 +8183,21 @@ function PilotPage() {
             );
           })}
 
-          {/* ── Single nationality filter → single carousel with bg ── */}
-          {natFilter!=='all' && filteredPilots.length > 0 && (
+          {/* ── Single nationality filter → 3-per-page carousel with bg (1 on mobile) ── */}
+          {natFilter!=='all' && filteredPilots.length > 0 && (function(){
+            var perPage = window.innerWidth <= 768 ? 1 : 3;
+            var totalPages = Math.ceil(filteredPilots.length / perPage);
+            var pageIdx = Math.min(activeIdx, totalPages - 1);
+            return (
             <div className={'nat-section ' + getNatCss(natFilter)}>
               <div className="nat-section-title"><h3>{t(natLabelMap[natFilter]||natFilter)} T-50 Transition Course Pilots</h3>
                 <span className="badge badge-blue">{filteredPilots.length}명</span></div>
               <div className="card" style={{marginBottom:0}}>
                 <div className="card-body">
                   <div className="pilot-carousel">
-                    {filteredPilots.length > 1 && <button className="carousel-nav carousel-prev" onClick={function(){goTo(activeIdx-1);}}>&#8249;</button>}
-                    {filteredPilots.length > 1 && <button className="carousel-nav carousel-next" onClick={function(){goTo(activeIdx+1);}}>&#8250;</button>}
-                    <div className="pilot-carousel-track" style={{transform:'translateX(-'+activeIdx*100+'%)'}}>
+                    {totalPages > 1 && <button className="carousel-nav carousel-prev" onClick={function(){goTo(pageIdx-1 < 0 ? totalPages-1 : pageIdx-1);}}>&#8249;</button>}
+                    {totalPages > 1 && <button className="carousel-nav carousel-next" onClick={function(){goTo(pageIdx+1 >= totalPages ? 0 : pageIdx+1);}}>&#8250;</button>}
+                    <div className="pilot-carousel-track" style={{transform:'translateX(-'+pageIdx*100+'%)'}}>
                       {filteredPilots.map(function(p){
                         var tp=getPilotTotalPlan(p.id); var done=getPilotDone(p.id); var pct=tp?Math.round((done/tp)*100):0;
                         var sd=getPilotSimDone(p.id); var fd=getPilotFltDone(p.id);
@@ -8215,16 +8230,17 @@ function PilotPage() {
                         );
                       })}
                     </div>
-                    {filteredPilots.length > 1 && (
+                    {totalPages > 1 && (
                       <div className="carousel-dots">
-                        {filteredPilots.map(function(_,i){return <div key={i} className={'carousel-dot '+(i===activeIdx?'active':'')} onClick={function(){goTo(i);}}/> ;})}
+                        {Array.from({length:totalPages},function(_,i){return <div key={i} className={'carousel-dot '+(i===pageIdx?'active':'')} onClick={function(){goTo(i);}}/> ;})}
                       </div>
                     )}
                   </div>
                 </div>
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {/* Empty state */}
           {natFilter!=='all' && filteredPilots.length === 0 && (
