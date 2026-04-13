@@ -396,23 +396,61 @@ body.dark-mode .sidebar { background: linear-gradient(180deg, rgba(10,14,39,0.9)
 .pilot-carousel-track { display: flex; transition: transform 0.5s cubic-bezier(0.4,0,0.2,1); width: 100%; }
 .pilot-card { min-width: 33.333%; width: 33.333%; flex-shrink: 0; display: flex; justify-content: center; padding: 12px 20px; }
 .pilot-profile { text-align: center; width: 100%; max-width: 400px;
-  background: rgba(255,255,255,0.95); border-radius: 12px; padding: 20px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3); border: 1.5px solid rgba(37,99,235,0.2); animation: slideUpBounce 0.5s ease; }
-.pilot-photo { width: 160px; height: 160px; border-radius: 50%; margin: 0 auto 20px;
-  display: flex; align-items: center; justify-content: center; font-size: 56px; font-weight: 800;
-  color: #fff; box-shadow: 0 8px 32px rgba(37,99,235,0.2); border: 4px solid #fff; overflow: hidden;
-  transition: all 0.4s; position: relative; }
-.pilot-photo:hover { transform: scale(1.08); box-shadow: 0 12px 40px rgba(37,99,235,0.3); animation: glow 0.3s ease; }
+  background: #ffffff; border-radius: 14px; padding: 20px;
+  border: none;
+  box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 8px 20px rgba(15,23,42,0.06);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  animation: slideUpBounce 0.5s ease;
+  /* --ring-size drives both the SVG ring and the photo so they always match */
+  --ring-size: 180px; --photo-inset: 10px;
+}
+.pilot-profile:hover { transform: translateY(-3px); }
+/* Per-card nationality glow: Malaysia=red, Poland=indigo, Iraq=green */
+.pilot-profile.nat-Malaysia,
+.pilot-profile.nat-Malaysian { box-shadow: 0 1px 2px rgba(204,0,1,0.08), 0 10px 28px rgba(204,0,1,0.25); }
+.pilot-profile.nat-Malaysia:hover,
+.pilot-profile.nat-Malaysian:hover { box-shadow: 0 2px 4px rgba(204,0,1,0.12), 0 16px 40px rgba(204,0,1,0.38); }
+.pilot-profile.nat-Poland { box-shadow: 0 1px 2px rgba(99,102,241,0.10), 0 10px 28px rgba(99,102,241,0.28); }
+.pilot-profile.nat-Poland:hover { box-shadow: 0 2px 4px rgba(99,102,241,0.14), 0 16px 40px rgba(99,102,241,0.42); }
+.pilot-profile.nat-Iraq { box-shadow: 0 1px 2px rgba(0,122,61,0.10), 0 10px 28px rgba(0,122,61,0.25); }
+.pilot-profile.nat-Iraq:hover { box-shadow: 0 2px 4px rgba(0,122,61,0.14), 0 16px 40px rgba(0,122,61,0.38); }
+
+.pilot-progress-ring { position: relative; width: var(--ring-size); height: var(--ring-size);
+  margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;
+  perspective: 700px; transform-style: preserve-3d; }
+.pilot-progress-ring svg { position: absolute; width: 100%; height: 100%;
+  pointer-events: none; z-index: 1; transform-origin: center;
+  /* Orbital tilt: slow 360° rotateY loop, composed with -90° start-from-top */
+  animation: pilotRingOrbital 12s linear infinite; }
+@keyframes pilotRingOrbital {
+  0%   { transform: rotate(-90deg) rotateY(0deg); }
+  100% { transform: rotate(-90deg) rotateY(360deg); }
+}
+.pilot-profile:hover .pilot-progress-ring svg { animation-duration: 5s; }
+
+.pilot-photo { position: relative; z-index: 2;
+  width: calc(var(--ring-size) - var(--photo-inset) * 2);
+  height: calc(var(--ring-size) - var(--photo-inset) * 2);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 56px; font-weight: 800;
+  color: #fff; box-shadow: 0 8px 32px rgba(37,99,235,0.2);
+  border: 4px solid #fff; overflow: hidden;
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+  cursor: pointer; }
+.pilot-photo:hover { transform: scale(1.08); box-shadow: 0 12px 40px rgba(37,99,235,0.5), 0 0 40px rgba(37,99,235,0.35); animation: glow 0.3s ease; }
 .pilot-photo img { width: 100%; height: 100%; object-fit: cover; }
-.pilot-progress-ring { position: relative; width: 180px; height: 180px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; }
-.pilot-progress-ring svg { position: absolute; }
-.pilot-stat-box { background: rgba(37,99,235,0.08); border-radius: 12px; padding: 8px 12px; display: flex; gap: 16px; justify-content: center; margin-top: 12px; }
+
+.pilot-stat-box { background: rgba(37,99,235,0.08); border-radius: 12px; padding: 10px 8px;
+  display: flex; gap: 8px; justify-content: space-around; align-items: center;
+  margin-top: 12px; width: 100%; box-sizing: border-box; }
 .pilot-name { font-size: 24px; font-weight: 800; color: var(--gray-900); margin-bottom: 4px; }
 .pilot-rank { font-size: 14px; color: var(--gray-500); margin-bottom: 16px; }
 .pilot-stats { display: flex; justify-content: center; gap: 24px; margin-top: 16px; }
-.pilot-stat { text-align: center; }
-.pilot-stat-val { font-size: 22px; font-weight: 800; }
-.pilot-stat-lbl { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+.pilot-stat { text-align: center; flex: 1 1 0; min-width: 0; padding: 0 2px; overflow: hidden; }
+.pilot-stat-val { font-size: clamp(13px, 1.6vw + 4px, 22px); font-weight: 800; line-height: 1.1; white-space: nowrap; }
+.pilot-stat-lbl { font-size: clamp(9px, 0.6vw + 6px, 11px); color: var(--gray-500); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .carousel-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px;
   border-radius: 50%; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3); cursor: pointer;
   display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--gray-600);
@@ -441,6 +479,11 @@ body.dark-mode .sidebar { background: linear-gradient(180deg, rgba(10,14,39,0.9)
 .cell-edit-popup .cell-btns { display: flex; gap: 6px; justify-content: flex-end; }
 .pilot-admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 768px) { .pilot-admin-grid { grid-template-columns: 1fr; } }
+/* Stack pilot cards 1-per-row earlier to prevent cramping at mid widths */
+@media (max-width: 1200px) {
+  .pilot-card { min-width: 100%; width: 100%; }
+  .pilot-profile { --ring-size: 170px; --photo-inset: 10px; max-width: 380px; }
+}
 .pilot-list-card { padding: 14px; border: 1.5px solid var(--gray-100); border-radius: 12px; display: flex; align-items: center;
   gap: 14px; cursor: pointer; transition: all 0.3s; }
 .pilot-list-card:hover { border-color: var(--primary); background: var(--primary-light); transform: translateY(-2px); }
@@ -457,19 +500,17 @@ body.dark-mode .sidebar { background: linear-gradient(180deg, rgba(10,14,39,0.9)
   border: 1.5px dashed var(--gray-300); background: transparent; color: var(--gray-400); transition: all 0.3s; }
 .nat-add-btn:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-2px); }
 .nat-section { position: relative; overflow: hidden; border-radius: 12px; margin-bottom: 24px;
-  border: 2px solid #333; box-shadow: 0 4px 20px rgba(0,0,0,0.25); width: 100%; max-width: 100%; }
+  border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+  background: #fafbfc; width: 100%; max-width: 100%; }
 .nat-canvas-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: block; }
 .nat-section > .card { position: relative; z-index: 1; background: transparent;
   border: none; border-radius: 0; margin: 0; padding: 0; box-shadow: none; backdrop-filter: none; }
 .nat-section > .card .card-body { padding: 10px 14px; background: transparent; backdrop-filter: none; }
 .nat-section > .card .card-header { padding: 8px 14px; }
-.nat-section.nat-MY { border-color: #cc0001; box-shadow: 0 6px 28px rgba(204,0,1,0.3); }
-.nat-section.nat-PL { border-color: #dc143c; box-shadow: 0 6px 28px rgba(220,20,60,0.3); }
-.nat-section.nat-IQ { border-color: #007a3d; box-shadow: 0 6px 28px rgba(0,122,61,0.3); }
 .nat-section-title { position: relative; z-index: 2; display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px 2px; color: #fff; font-weight: 700; font-size: 14px;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.7), 0 0 15px rgba(0,0,0,0.3); }
-.nat-section-title h3 { margin: 0; font-size: 16px; }
+  padding: 12px 14px 6px; color: #334155; font-weight: 600; font-size: 14px;
+  text-shadow: none; }
+.nat-section-title h3 { margin: 0; font-size: 16px; color: #0f172a; font-weight: 700; }
 .nat-section-title .badge { text-shadow: none; }
 
 /* ── Responsive: Tablet ── */
@@ -8277,7 +8318,7 @@ function PilotPage() {
             var groupPilots = pilots.filter(function(p){ return normalizeNat(p.nationality) === nat.code; });
             if (groupPilots.length === 0) return null;
             var gIdx = getGroupIdx(nat.code);
-            var perPage = window.innerWidth <= 768 ? 1 : 3;
+            var perPage = window.innerWidth <= 1200 ? 1 : 3;
             var totalPages = Math.ceil(groupPilots.length / perPage);
             var pageIdx = Math.min(gIdx, totalPages - 1);
             return (
@@ -8302,11 +8343,11 @@ function PilotPage() {
                           var strokeDashoffset = circumference - (pct / 100) * circumference;
                           return (
                             <div className="pilot-card" key={p.id}>
-                              <div className="pilot-profile">
+                              <div className={'pilot-profile nat-' + nat.code}>
                                 <div className="pilot-progress-ring">
-                                  <svg width="180" height="180" style={{transform:'rotate(-90deg)'}}>
+                                  <svg viewBox="0 0 180 180" style={{filter:'drop-shadow(0 0 3px '+progColor+'66)'}}>
                                     <circle cx="90" cy="90" r={circleRadius} stroke="rgba(0,0,0,0.1)" strokeWidth={strokeWidth} fill="none"/>
-                                    <circle cx="90" cy="90" r={circleRadius} stroke={progColor} strokeWidth={strokeWidth} fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} style={{transition:'stroke-dashoffset 0.3s'}}/>
+                                    <circle cx="90" cy="90" r={circleRadius} stroke={progColor} strokeWidth={strokeWidth} fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" style={{transition:'stroke-dashoffset 0.3s'}}/>
                                   </svg>
                                   <div className="pilot-photo" style={{background:bgColor}} onClick={function(){if(isAdmin){setPhotoTarget(p.id);if(photoRef.current)photoRef.current.click();}}}>
                                     {p.photo_url ? <img src={p.photo_url} alt={p.short_name}/> :
@@ -8348,7 +8389,7 @@ function PilotPage() {
 
           {/* ── Single nationality filter → 3-per-page carousel with bg (1 on mobile) ── */}
           {natFilter!=='all' && filteredPilots.length > 0 && (function(){
-            var perPage = window.innerWidth <= 768 ? 1 : 3;
+            var perPage = window.innerWidth <= 1200 ? 1 : 3;
             var totalPages = Math.ceil(filteredPilots.length / perPage);
             var pageIdx = Math.min(activeIdx, totalPages - 1);
             return (
@@ -8371,11 +8412,11 @@ function PilotPage() {
                         var strokeDashoffset = circumference - (pct / 100) * circumference;
                         return (
                           <div className="pilot-card" key={p.id}>
-                            <div className="pilot-profile">
+                            <div className={'pilot-profile nat-' + natFilter}>
                               <div className="pilot-progress-ring">
-                                <svg width="180" height="180" style={{transform:'rotate(-90deg)'}}>
+                                <svg viewBox="0 0 180 180" style={{filter:'drop-shadow(0 0 3px '+progColor+'66)'}}>
                                   <circle cx="90" cy="90" r={circleRadius} stroke="rgba(0,0,0,0.1)" strokeWidth={strokeWidth} fill="none"/>
-                                  <circle cx="90" cy="90" r={circleRadius} stroke={progColor} strokeWidth={strokeWidth} fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} style={{transition:'stroke-dashoffset 0.3s'}}/>
+                                  <circle cx="90" cy="90" r={circleRadius} stroke={progColor} strokeWidth={strokeWidth} fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" style={{transition:'stroke-dashoffset 0.3s'}}/>
                                 </svg>
                                 <div className="pilot-photo" style={{background:bgColor}} onClick={function(){if(isAdmin){setPhotoTarget(p.id);if(photoRef.current)photoRef.current.click();}}}>
                                   {p.photo_url ? <img src={p.photo_url} alt={p.short_name}/> :
