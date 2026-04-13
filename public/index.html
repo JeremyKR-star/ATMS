@@ -9551,4 +9551,31 @@ function App() {
             <div style={{display:'flex',alignItems:'center',gap:14}}>
               <div className="active-indicator"><div className="active-dot"/>{activeUsers} {t('접속중')}</div>
               <span className="desktop-date" style={{fontSize:14,color:'var(--gray-500)'}}>{new Date().toLocaleDateString(lang==='en'?'en-US':'ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'})}</span>
-              <button onClick={toggleLang} style={{background:lang==='en'?'rgba(59,130,246,0.15)':'none',border:lang==='en'?'1px solid rgba(59,130,246,0.3)':'1px solid transparent',fontSi
+              <button onClick={toggleLang} style={{background:lang==='en'?'rgba(59,130,246,0.15)':'none',border:lang==='en'?'1px solid rgba(59,130,246,0.3)':'1px solid transparent',fontSize:13,cursor:'pointer',padding:'4px 10px',borderRadius:6,fontWeight:600,color:lang==='en'?'#3b82f6':'var(--gray-500)',letterSpacing:0.5,transition:'all 0.2s'}} aria-label="Language" title="Language">
+                {lang==='ko'?'EN':'KR'}
+              </button>
+              <button className="btn-outline" style={{background:'none',border:'none',fontSize:20,cursor:'pointer',padding:'4px 8px'}} onClick={toggleDarkMode} aria-label={"\u{B2E4}\u{D06C}\u{BAA8}\u{B4DC} \u{D1A0}\u{AE00}"} title={"\u{B2E4}\u{D06C}\u{BAA8}\u{B4DC} \u{D1A0}\u{AE00}"}>
+                {darkMode ? '☀️' : '🌙'}
+              </button>
+              <div style={{position:'relative'}}>
+                <button className="btn-outline" style={{background:'none',border:'none',fontSize:20,cursor:'pointer',padding:'4px 8px'}} onClick={function(){navigate('notifications');}} aria-label={"\u{C54C}\u{B9BC}"} title={"\u{C54C}\u{B9BC}"}>
+                  🔔
+                </button>
+                {unreadNotifications > 0 && React.createElement('div', {className:'nav-item-badge'}, unreadNotifications)}
+              </div>
+              <Avatar src={user.photo_url} name={user.name} size="sm" onClick={function(){navigate('profile');}}/>
+            </div>
+          </div>
+          <PageTransition pageKey={page}>{renderPage()}</PageTransition>
+        </div>
+        {toast && <Toast message={toast.message} type={toast.type} onClose={()=>setToast(null)}/>}
+      </div>
+      </AppContext.Provider>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App/></ErrorBoundary>);
+</script>
+</body>
+</html>
