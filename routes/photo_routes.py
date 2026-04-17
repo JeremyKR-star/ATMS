@@ -1,15 +1,12 @@
-"""Photo Upload Routes"""
+"""Photo Upload Routes - stores photos in database for persistence across Render restarts"""
 import os
-import uuid
 import tornado.web
 from database import get_db
 from auth import require_auth
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public", "uploads")
-
 
 class PhotoUploadHandler(tornado.web.RequestHandler):
-    """Handle photo uploads (multipart/form-data)."""
+    """Handle photo uploads (multipart/form-data) - stores in DB."""
 
     def set_default_headers(self):
         self.set_header("Access-Control-Allow-Origin", "*")
@@ -50,29 +47,37 @@ class PhotoUploadHandler(tornado.web.RequestHandler):
             self.write({"error": "File too large. Max 5MB"})
             return
 
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        filename = f"user_{user_id}_{uuid.uuid4().hex[:8]}{ext}"
-        filepath = os.path.join(UPLOAD_DIR, filename)
-
-        with open(filepath, "wb") as f:
-            f.write(photo["body"])
-
-        photo_url = f"/uploads/{filename}"
+        mime_map = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+                    '.gif': 'image/gif', '.webp': 'image/webp'}
+        mime_type = mime_map.get(ext, 'image/jpeg')
+        photo_url = f"/api/users/{user_id}/photo"
 
         db = get_db()
-        # Delete old photo file if exists
-        old = db.execute("SELECT photo_url FROM users WHERE id = ?", (user_id,)).fetchone()
-        if old and old[0]:
-            old_path = os.path.join(UPLOAD_DIR, os.path.basename(old[0]))
-            if os.path.exists(old_path):
-                try:
-                    os.remove(old_path)
-                except OSError:
-                    pass
-
-        db.execute("UPDATE users SET photo_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (photo_url, user_id))
+        db.execute(
+            "UPDATE users SET photo_data=?, photo_mime=?, photo_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (photo["body"], mime_type, photo_url, user_id)
+        )
         db.commit()
         db.close()
 
         self.set_header("Content-Type", "application/json")
         self.write({"success": True, "data": {"photo_url": photo_url}, "message": "Photo uploaded"})
+
+
+class UserPhotoHandler(tornado.web.RequestHandler):
+    """GET serve user photo from database"""
+
+    def get(self, user_id):
+        db = get_db()
+        row = db.execute("SELECT photo_data, photo_mime FROM users WHERE id=?", (user_id,)).fetchone()
+        db.close()
+        if not row or not row[0]:
+            self.set_status(404)
+            return self.finish()
+        photo_data = row[0]
+        if isinstance(photo_data, memoryview):
+            photo_data = bytes(photo_data)
+        self.set_header("Content-Type", row[1] or "image/jpeg")
+        self.set_header("Cache-Control", "public, max-age=86400")
+        self.write(photo_data)
+        self.finish()

@@ -135,7 +135,7 @@ from routes.ojt_routes import OJTProgramsHandler, OJTProgramDetailHandler, OJTTa
 from routes.content_routes import ContentHandler, ContentDetailHandler
 from routes.report_routes import DashboardHandler, CourseReportHandler, TraineeReportHandler, AttendanceReportHandler, MonthlyStatsHandler, ReportExportHandler, ModuleAttendanceReportHandler, OJTTaskCompletionReportHandler, OJTTraineeProgressReportHandler, OJTLeaderEvalSummaryHandler
 from routes.notification_routes import NotificationsHandler, NotificationReadHandler, NotificationReadAllHandler, SurveyHandler, SSEHandler, NotificationPreferencesHandler, SurveyAnalyticsHandler, QRAttendanceHandler
-from routes.photo_routes import PhotoUploadHandler
+from routes.photo_routes import PhotoUploadHandler, UserPhotoHandler
 from routes.pilot_routes import (PilotsHandler, PilotDetailHandler, PilotPhotoHandler,
                                   PilotCoursesHandler, PilotTrainingHandler, PilotWeeklyHandler,
                                   PilotNationalitiesHandler, WeeklyUploadHandler,
@@ -571,6 +571,7 @@ def make_app():
 
         # ── Photo Upload (user photos) ──
         (r"/api/upload/photo", PhotoUploadHandler),
+        (r"/api/users/(\d+)/photo", UserPhotoHandler),
 
         # ── Pilots ──
         (r"/api/pilots", PilotsHandler),

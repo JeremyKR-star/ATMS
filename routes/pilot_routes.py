@@ -23,17 +23,22 @@ PILOT_FIELDS = [
 class PilotsHandler(BaseHandler):
     """GET list, POST create"""
 
+    # Columns to select (exclude photo_data binary for list queries)
+    PILOT_COLS = """id, name, short_name, rank, service_number, callsign, nationality,
+        squadron, date_of_birth, course_class, training_start_date, training_end_date,
+        phone, email, photo_url, notes, sort_order, status, created_at, updated_at"""
+
     @require_auth()
     def get(self):
         conn = get_db()
         status = self.get_argument("status", None)
         if status:
             pilots = dicts_from_rows(conn.execute(
-                "SELECT * FROM pilots WHERE status=? ORDER BY sort_order, id", (status,)
+                f"SELECT {self.PILOT_COLS} FROM pilots WHERE status=? ORDER BY sort_order, id", (status,)
             ).fetchall())
         else:
             pilots = dicts_from_rows(conn.execute(
-                "SELECT * FROM pilots ORDER BY sort_order, id"
+                f"SELECT {self.PILOT_COLS} FROM pilots ORDER BY sort_order, id"
             ).fetchall())
         conn.close()
         self.success(pilots)
@@ -61,7 +66,8 @@ class PilotsHandler(BaseHandler):
              body.get('notes', ''), body.get('sort_order', 0))
         )
         conn.commit()
-        pilot = dict_from_row(conn.execute("SELECT * FROM pilots WHERE id=?", (cur.lastrowid,)).fetchone())
+        pilot = dict_from_row(conn.execute(
+            f"SELECT {PilotsHandler.PILOT_COLS} FROM pilots WHERE id=?", (cur.lastrowid,)).fetchone())
         conn.close()
         self.success(pilot, "Pilot created")
 
@@ -72,7 +78,8 @@ class PilotDetailHandler(BaseHandler):
     @require_auth()
     def get(self, pilot_id):
         conn = get_db()
-        pilot = dict_from_row(conn.execute("SELECT * FROM pilots WHERE id=?", (pilot_id,)).fetchone())
+        pilot = dict_from_row(conn.execute(
+            f"SELECT {PilotsHandler.PILOT_COLS} FROM pilots WHERE id=?", (pilot_id,)).fetchone())
         conn.close()
         if not pilot:
             return self.error("Pilot not found", 404)
@@ -100,7 +107,8 @@ class PilotDetailHandler(BaseHandler):
         vals.append(pilot_id)
         conn.execute(f"UPDATE pilots SET {','.join(fields)} WHERE id=?", vals)
         conn.commit()
-        pilot = dict_from_row(conn.execute("SELECT * FROM pilots WHERE id=?", (pilot_id,)).fetchone())
+        pilot = dict_from_row(conn.execute(
+            f"SELECT {PilotsHandler.PILOT_COLS} FROM pilots WHERE id=?", (pilot_id,)).fetchone())
         conn.close()
         self.success(pilot, "Pilot updated")
 
@@ -118,7 +126,28 @@ class PilotDetailHandler(BaseHandler):
 
 
 class PilotPhotoHandler(BaseHandler):
-    """POST upload pilot photo"""
+    """GET serve photo, POST upload pilot photo (stored in DB)"""
+
+    def get(self, pilot_id):
+        """Serve pilot photo from database"""
+        conn = get_db()
+        row = conn.execute("SELECT photo_data, photo_mime FROM pilots WHERE id=?", (pilot_id,)).fetchone()
+        conn.close()
+        if not row:
+            self.set_status(404)
+            return self.finish()
+        photo_data = row[0] if row else None
+        photo_mime = row[1] if row else None
+        if not photo_data:
+            self.set_status(404)
+            return self.finish()
+        # Convert memoryview to bytes if needed
+        if isinstance(photo_data, memoryview):
+            photo_data = bytes(photo_data)
+        self.set_header("Content-Type", photo_mime or "image/jpeg")
+        self.set_header("Cache-Control", "public, max-age=86400")
+        self.write(photo_data)
+        self.finish()
 
     @require_auth(roles=['admin', 'ojt_admin'])
     def post(self, pilot_id):
@@ -142,17 +171,19 @@ class PilotPhotoHandler(BaseHandler):
             conn.close()
             return self.error("File too large (max 5MB)")
 
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        fname = f"pilot_{pilot_id}_{uuid.uuid4().hex[:8]}{ext}"
-        fpath = os.path.join(UPLOAD_DIR, fname)
-        with open(fpath, "wb") as fp:
-            fp.write(f["body"])
+        # Determine MIME type
+        mime_map = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+                    '.gif': 'image/gif', '.webp': 'image/webp'}
+        mime_type = mime_map.get(ext, 'image/jpeg')
 
-        photo_url = f"/uploads/{fname}"
-        conn.execute("UPDATE pilots SET photo_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?", (photo_url, pilot_id))
+        # Store binary data in database (persistent across Render restarts)
+        conn.execute(
+            "UPDATE pilots SET photo_data=?, photo_mime=?, photo_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (f["body"], mime_type, f"/api/pilots/{pilot_id}/photo", pilot_id)
+        )
         conn.commit()
         conn.close()
-        self.success({"photo_url": photo_url}, "Photo uploaded")
+        self.success({"photo_url": f"/api/pilots/{pilot_id}/photo"}, "Photo uploaded")
 
 
 class PilotCoursesHandler(BaseHandler):
@@ -261,7 +292,7 @@ class PilotWeeklyHandler(BaseHandler):
 
         # Fallback: compute from training records
         pilots = dicts_from_rows(conn.execute(
-            "SELECT * FROM pilots WHERE status='active' ORDER BY sort_order, id"
+            f"SELECT {PilotsHandler.PILOT_COLS} FROM pilots WHERE status='active' ORDER BY sort_order, id"
         ).fetchall())
 
         sim_total = conn.execute("SELECT COUNT(*) as cnt FROM pilot_courses WHERE category='sim'").fetchone()['cnt']

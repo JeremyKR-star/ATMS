@@ -29,17 +29,21 @@ MECHANIC_CERT_FIELDS = [
 class MechanicsHandler(BaseHandler):
     """GET list, POST create"""
 
+    MECH_COLS = """id, name, short_name, rank, employee_id, specialty, team,
+        date_of_birth, certification_date, phone, email, photo_url, notes,
+        sort_order, status, created_at, updated_at"""
+
     @require_auth()
     def get(self):
         conn = get_db()
         status = self.get_argument("status", None)
         if status:
             mechanics = dicts_from_rows(conn.execute(
-                "SELECT * FROM mechanics WHERE status=? ORDER BY sort_order, id", (status,)
+                f"SELECT {self.MECH_COLS} FROM mechanics WHERE status=? ORDER BY sort_order, id", (status,)
             ).fetchall())
         else:
             mechanics = dicts_from_rows(conn.execute(
-                "SELECT * FROM mechanics ORDER BY sort_order, id"
+                f"SELECT {self.MECH_COLS} FROM mechanics ORDER BY sort_order, id"
             ).fetchall())
         conn.close()
         self.success(mechanics)
@@ -65,7 +69,8 @@ class MechanicsHandler(BaseHandler):
              body.get('sort_order', 0))
         )
         conn.commit()
-        mechanic = dict_from_row(conn.execute("SELECT * FROM mechanics WHERE id=?", (cur.lastrowid,)).fetchone())
+        mechanic = dict_from_row(conn.execute(
+            f"SELECT {MechanicsHandler.MECH_COLS} FROM mechanics WHERE id=?", (cur.lastrowid,)).fetchone())
         conn.close()
         self.success(mechanic, "Mechanic created")
 
@@ -76,7 +81,8 @@ class MechanicDetailHandler(BaseHandler):
     @require_auth()
     def get(self, mechanic_id):
         conn = get_db()
-        mechanic = dict_from_row(conn.execute("SELECT * FROM mechanics WHERE id=?", (mechanic_id,)).fetchone())
+        mechanic = dict_from_row(conn.execute(
+            f"SELECT {MechanicsHandler.MECH_COLS} FROM mechanics WHERE id=?", (mechanic_id,)).fetchone())
         conn.close()
         if not mechanic:
             return self.error("Mechanic not found", 404)
@@ -104,7 +110,8 @@ class MechanicDetailHandler(BaseHandler):
         vals.append(mechanic_id)
         conn.execute(f"UPDATE mechanics SET {','.join(fields)} WHERE id=?", vals)
         conn.commit()
-        mechanic = dict_from_row(conn.execute("SELECT * FROM mechanics WHERE id=?", (mechanic_id,)).fetchone())
+        mechanic = dict_from_row(conn.execute(
+            f"SELECT {MechanicsHandler.MECH_COLS} FROM mechanics WHERE id=?", (mechanic_id,)).fetchone())
         conn.close()
         self.success(mechanic, "Mechanic updated")
 
@@ -122,7 +129,27 @@ class MechanicDetailHandler(BaseHandler):
 
 
 class MechanicPhotoHandler(BaseHandler):
-    """POST upload mechanic photo"""
+    """GET serve photo, POST upload mechanic photo (stored in DB)"""
+
+    def get(self, mechanic_id):
+        """Serve mechanic photo from database"""
+        conn = get_db()
+        row = conn.execute("SELECT photo_data, photo_mime FROM mechanics WHERE id=?", (mechanic_id,)).fetchone()
+        conn.close()
+        if not row:
+            self.set_status(404)
+            return self.finish()
+        photo_data = row[0] if row else None
+        photo_mime = row[1] if row else None
+        if not photo_data:
+            self.set_status(404)
+            return self.finish()
+        if isinstance(photo_data, memoryview):
+            photo_data = bytes(photo_data)
+        self.set_header("Content-Type", photo_mime or "image/jpeg")
+        self.set_header("Cache-Control", "public, max-age=86400")
+        self.write(photo_data)
+        self.finish()
 
     @require_auth(roles=['admin', 'ojt_admin'])
     def post(self, mechanic_id):
@@ -146,17 +173,18 @@ class MechanicPhotoHandler(BaseHandler):
             conn.close()
             return self.error("File too large (max 5MB)")
 
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        fname = f"mechanic_{mechanic_id}_{uuid.uuid4().hex[:8]}{ext}"
-        fpath = os.path.join(UPLOAD_DIR, fname)
-        with open(fpath, "wb") as fp:
-            fp.write(f["body"])
+        mime_map = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+                    '.gif': 'image/gif', '.webp': 'image/webp'}
+        mime_type = mime_map.get(ext, 'image/jpeg')
 
-        photo_url = f"/uploads/{fname}"
-        conn.execute("UPDATE mechanics SET photo_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?", (photo_url, mechanic_id))
+        # Store binary data in database (persistent across Render restarts)
+        conn.execute(
+            "UPDATE mechanics SET photo_data=?, photo_mime=?, photo_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (f["body"], mime_type, f"/api/mechanics/{mechanic_id}/photo", mechanic_id)
+        )
         conn.commit()
         conn.close()
-        self.success({"photo_url": photo_url}, "Photo uploaded")
+        self.success({"photo_url": f"/api/mechanics/{mechanic_id}/photo"}, "Photo uploaded")
 
 
 class MechanicOJTItemsHandler(BaseHandler):

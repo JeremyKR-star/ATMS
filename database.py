@@ -33,7 +33,9 @@ def _sanitize_value(val):
     if isinstance(val, decimal.Decimal):
         return float(val)
     if isinstance(val, memoryview):
-        return bytes(val).decode("utf-8", errors="replace")
+        return None  # skip binary data in JSON serialization
+    if isinstance(val, bytes):
+        return None  # skip binary data in JSON serialization
     return val
 
 
@@ -697,6 +699,20 @@ def init_db():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # ── Migrate: add photo_data columns for persistent storage ──
+    for tbl in ("pilots", "mechanics", "users"):
+        for col, ctype in [("photo_data", "BYTEA" if backend == "postgres" else "BLOB"),
+                           ("photo_mime", "TEXT")]:
+            try:
+                if backend == "postgres":
+                    c._cursor.execute(f"SAVEPOINT add_{tbl}_{col}")
+                    c._cursor.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {ctype}")
+                else:
+                    c._cursor.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {ctype}")
+            except Exception:
+                if backend == "postgres":
+                    c._cursor.execute(f"ROLLBACK TO SAVEPOINT add_{tbl}_{col}")
 
     # ── Migrate: Malaysian -> Malaysia ──
     try:
