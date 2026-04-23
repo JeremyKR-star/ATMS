@@ -129,20 +129,30 @@ class PilotPhotoHandler(BaseHandler):
     """GET serve photo, POST upload pilot photo (stored in DB)"""
 
     def get(self, pilot_id):
-        """Serve pilot photo from database"""
+        """Serve pilot photo from database.
+
+        Uses fetchone_raw() to bypass DictRow's sanitization which would
+        otherwise convert binary photo_data into None (it's designed to keep
+        binary out of JSON responses, but it also breaks binary serving).
+        """
         conn = get_db()
-        row = conn.execute("SELECT photo_data, photo_mime FROM pilots WHERE id=?", (pilot_id,)).fetchone()
+        cur = conn.execute("SELECT photo_data, photo_mime FROM pilots WHERE id=?", (pilot_id,))
+        raw = cur.fetchone_raw()
         conn.close()
-        if not row:
+        if not raw:
             self.set_status(404)
             return self.finish()
-        photo_data = row[0] if row else None
-        photo_mime = row[1] if row else None
-        # Convert memoryview to bytes if needed
+        # raw row shape differs by backend:
+        #   Postgres (RealDictCursor) -> dict-like {'photo_data': memoryview, 'photo_mime': str}
+        #   SQLite (sqlite3.Row)      -> indexable {0: bytes,        1: str}
+        try:
+            photo_data = raw["photo_data"]
+            photo_mime = raw["photo_mime"]
+        except (KeyError, TypeError):
+            photo_data = raw[0]
+            photo_mime = raw[1]
         if isinstance(photo_data, memoryview):
             photo_data = bytes(photo_data)
-        # Treat empty/tiny binary as no-photo (catches garbled rows from old uploads
-        # written before psycopg2.Binary() wrapping was added).
         if not photo_data or len(photo_data) < 100:
             self.set_status(404)
             return self.finish()
@@ -1092,10 +1102,19 @@ class WeeklyUploadDownloadHandler(BaseHandler):
             with open(fpath, 'rb') as fp:
                 file_data = fp.read()
         else:
-            # Fallback: load from DB (survives redeploys)
+            # Fallback: load from DB (survives redeploys).
+            # Use fetchone_raw() because DictRow sanitizes binary fields to None.
             conn2 = get_db()
-            row = conn2.execute("SELECT file_data FROM weekly_uploads WHERE id=?", (upload_id,)).fetchone()
+            cur2 = conn2.execute("SELECT file_data FROM weekly_uploads WHERE id=?", (upload_id,))
+            raw_row = cur2.fetchone_raw()
             conn2.close()
+            row = None
+            if raw_row:
+                try:
+                    fd = raw_row["file_data"]
+                except (KeyError, TypeError):
+                    fd = raw_row[0]
+                row = {"file_data": fd}
             if row and row['file_data']:
                 raw = row['file_data']
                 file_data = bytes(raw) if isinstance(raw, (memoryview, bytearray)) else raw

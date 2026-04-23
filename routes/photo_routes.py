@@ -80,15 +80,24 @@ class UserPhotoHandler(tornado.web.RequestHandler):
 
     def get(self, user_id):
         db = get_db()
-        row = db.execute("SELECT photo_data, photo_mime FROM users WHERE id=?", (user_id,)).fetchone()
+        cur = db.execute("SELECT photo_data, photo_mime FROM users WHERE id=?", (user_id,))
+        raw = cur.fetchone_raw()
         db.close()
-        if not row or not row[0]:
+        if not raw:
             self.set_status(404)
             return self.finish()
-        photo_data = row[0]
+        try:
+            photo_data = raw["photo_data"]
+            photo_mime = raw["photo_mime"]
+        except (KeyError, TypeError):
+            photo_data = raw[0]
+            photo_mime = raw[1]
         if isinstance(photo_data, memoryview):
             photo_data = bytes(photo_data)
-        self.set_header("Content-Type", row[1] or "image/jpeg")
+        if not photo_data or len(photo_data) < 100:
+            self.set_status(404)
+            return self.finish()
+        self.set_header("Content-Type", photo_mime or "image/jpeg")
         self.set_header("Cache-Control", "public, max-age=86400")
         self.write(photo_data)
         self.finish()

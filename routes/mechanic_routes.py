@@ -132,20 +132,25 @@ class MechanicPhotoHandler(BaseHandler):
     """GET serve photo, POST upload mechanic photo (stored in DB)"""
 
     def get(self, mechanic_id):
-        """Serve mechanic photo from database"""
+        """Serve mechanic photo from database (uses fetchone_raw to bypass DictRow sanitization)."""
         conn = get_db()
-        row = conn.execute("SELECT photo_data, photo_mime FROM mechanics WHERE id=?", (mechanic_id,)).fetchone()
+        cur = conn.execute("SELECT photo_data, photo_mime FROM mechanics WHERE id=?", (mechanic_id,))
+        raw = cur.fetchone_raw()
         conn.close()
-        if not row:
+        if not raw:
             self.set_status(404)
             return self.finish()
-        photo_data = row[0] if row else None
-        photo_mime = row[1] if row else None
-        if not photo_data:
-            self.set_status(404)
-            return self.finish()
+        try:
+            photo_data = raw["photo_data"]
+            photo_mime = raw["photo_mime"]
+        except (KeyError, TypeError):
+            photo_data = raw[0]
+            photo_mime = raw[1]
         if isinstance(photo_data, memoryview):
             photo_data = bytes(photo_data)
+        if not photo_data or len(photo_data) < 100:
+            self.set_status(404)
+            return self.finish()
         self.set_header("Content-Type", photo_mime or "image/jpeg")
         self.set_header("Cache-Control", "public, max-age=86400")
         self.write(photo_data)
