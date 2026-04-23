@@ -872,7 +872,10 @@ class WeeklyUploadHandler(BaseHandler):
     def get(self):
         conn = get_db()
         uploads = dicts_from_rows(conn.execute(
-            "SELECT id, filename, original_filename, uploaded_by, report_date, file_size, row_count, notes, created_at FROM weekly_uploads ORDER BY created_at DESC"
+            """SELECT id, filename, original_filename, uploaded_by, report_date,
+                      file_size, row_count, notes, created_at,
+                      CASE WHEN ai_parse_json IS NOT NULL AND ai_parse_json <> '' THEN 1 ELSE 0 END AS has_ai_preview
+               FROM weekly_uploads ORDER BY created_at DESC"""
         ).fetchall())
         conn.close()
         self.success(uploads)

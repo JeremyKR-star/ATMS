@@ -118,6 +118,39 @@ def _aggregate_rows(parsed_rows):
     return list(by_pilot.values())
 
 
+def _duration_from_slot(time_slot):
+    """Convert '9:30~10:30' or '10:10~11:04' into 'H:MM' duration string.
+    Returns '1:00' as a sensible default if parsing fails."""
+    if not time_slot:
+        return "1:00"
+    s = str(time_slot).strip()
+    # Normalize various tilde / dash separators
+    for sep in ("~", "-", "–", "—"):
+        if sep in s:
+            parts = s.split(sep, 1)
+            break
+    else:
+        return "1:00"
+    if len(parts) != 2:
+        return "1:00"
+    def _hm(t):
+        t = t.strip()
+        if ":" not in t:
+            return None
+        try:
+            h, m = t.split(":", 1)
+            return int(h) * 60 + int(m)
+        except (ValueError, TypeError):
+            return None
+    a = _hm(parts[0]); b = _hm(parts[1])
+    if a is None or b is None:
+        return "1:00"
+    diff = b - a
+    if diff <= 0:
+        return "1:00"
+    return f"{diff // 60}:{diff % 60:02d}"
+
+
 def _match_pilot_id(name, pilots):
     """Same matching strategy the Excel handler uses."""
     if not name:
@@ -345,6 +378,9 @@ class AIParseConfirmHandler(BaseHandler):
         # Approved new courses to insert into pilot_courses before save.
         # Each item: {subject: 'FD-3S', category: 'sim'|'flight', course_no?, contents?}
         approved_new_courses = payload.get("new_courses") or []
+        # Per-sortie rows from the AI parse — used to UPSERT pilot_training records
+        # so the 개인별 현황 tab shows the daily completion dates/times.
+        per_sortie_rows = payload.get("per_sortie_rows") or []
         raw_orig_name = payload.get("source_filename") or "ai_parsed_image"
         ext = payload.get("source_ext") or os.path.splitext(raw_orig_name)[1].lower() or ".png"
         source_b64 = payload.get("source_b64") or ""
@@ -444,26 +480,36 @@ class AIParseConfirmHandler(BaseHandler):
                     if key:
                         prev_by_pilot[key] = pr
 
+            # Snapshot of the AI parse for later 미리보기 re-rendering.
+            ai_parse_snapshot = json.dumps({
+                "report_date": report_date,
+                "special_notes": special_notes,
+                "model_used": payload.get("model_used") or CLAUDE_MODEL,
+                "per_sortie_rows": per_sortie_rows,
+                "aggregated_rows": aggregated,
+                "saved_at": datetime.datetime.utcnow().isoformat() + "Z",
+            }, ensure_ascii=False)
+
             if IS_POSTGRES and file_binary:
                 import psycopg2
                 cur = conn.execute(
                     """INSERT INTO weekly_uploads
                        (filename, original_filename, uploaded_by, report_date,
-                        file_size, row_count, notes, file_data)
-                       VALUES (?,?,?,?,?,?,?,?)""",
+                        file_size, row_count, notes, file_data, ai_parse_json)
+                       VALUES (?,?,?,?,?,?,?,?,?)""",
                     (fname, orig_name, uploader, report_date,
                      len(file_binary), len(aggregated), notes,
-                     psycopg2.Binary(file_binary)),
+                     psycopg2.Binary(file_binary), ai_parse_snapshot),
                 )
             else:
                 cur = conn.execute(
                     """INSERT INTO weekly_uploads
                        (filename, original_filename, uploaded_by, report_date,
-                        file_size, row_count, notes, file_data)
-                       VALUES (?,?,?,?,?,?,?,?)""",
+                        file_size, row_count, notes, file_data, ai_parse_json)
+                       VALUES (?,?,?,?,?,?,?,?,?)""",
                     (fname, orig_name, uploader, report_date,
                      len(file_binary), len(aggregated), notes,
-                     file_binary if file_binary else None),
+                     file_binary if file_binary else None, ai_parse_snapshot),
                 )
             upload_id = cur.lastrowid
 
@@ -571,6 +617,62 @@ class AIParseConfirmHandler(BaseHandler):
 
             conn.commit()
 
+            # ── Write pilot_training records so 개인별 현황 tab shows the daily
+            # completion dates/times. Each per-sortie row maps to one
+            # (pilot_id, course_id) UPSERT with completed_date = report_date.
+            training_inserted = 0
+            training_updated = 0
+            training_skipped = []
+            if per_sortie_rows:
+                # Build current course list (includes any new ones we just added)
+                courses_now = dicts_from_rows(conn.execute(
+                    "SELECT id, course_no, subject, category FROM pilot_courses"
+                ).fetchall())
+                # Index by upper-case subject and course_no
+                course_by_key = {}
+                for c in courses_now:
+                    for field in ("subject", "course_no"):
+                        v = (c.get(field) or "").strip().upper()
+                        if v and v not in course_by_key:
+                            course_by_key[v] = c
+
+                for r in per_sortie_rows:
+                    pname = (r.get("pilot_name") or "").strip()
+                    code = (r.get("sortie_code") or "").strip()
+                    if not pname or not code:
+                        continue
+                    pid = _match_pilot_id(pname, pilots)
+                    course = course_by_key.get(code.upper())
+                    if not pid or not course:
+                        training_skipped.append({
+                            "pilot_name": pname, "sortie_code": code,
+                            "reason": ("no pilot match" if not pid else "no course match"),
+                        })
+                        continue
+                    duration = _duration_from_slot(r.get("time_slot") or "")
+                    # UPSERT — does this row already exist?
+                    existing = conn.execute(
+                        "SELECT id FROM pilot_training WHERE pilot_id=? AND course_id=?",
+                        (pid, course["id"]),
+                    ).fetchone()
+                    if existing:
+                        conn.execute(
+                            """UPDATE pilot_training
+                               SET completed_date=?, completed_time=?, updated_at=CURRENT_TIMESTAMP
+                               WHERE pilot_id=? AND course_id=?""",
+                            (report_date, duration, pid, course["id"]),
+                        )
+                        training_updated += 1
+                    else:
+                        conn.execute(
+                            """INSERT INTO pilot_training
+                               (pilot_id, course_id, completed_date, completed_time, notes)
+                               VALUES (?,?,?,?,?)""",
+                            (pid, course["id"], report_date, duration, ""),
+                        )
+                        training_inserted += 1
+                conn.commit()
+
             upload = dict_from_row(conn.execute(
                 """SELECT id, filename, original_filename, uploaded_by, report_date,
                           file_size, row_count, notes, created_at
@@ -584,9 +686,14 @@ class AIParseConfirmHandler(BaseHandler):
                 "unmatched_names": unmatched_names,
                 "carried_over": carried_over,
                 "created_courses": created_courses,
+                "training_inserted": training_inserted,
+                "training_updated": training_updated,
+                "training_skipped": training_skipped,
             }, f"AI-parsed report saved: {len(aggregated)} rows updated, "
                f"{matched_count} matched, {carried_over} carried over, "
-               f"{len(created_courses)} new course(s) added")
+               f"{len(created_courses)} new course(s) added, "
+               f"{training_inserted} training records inserted, "
+               f"{training_updated} updated")
 
         except Exception as ex:
             conn.rollback()
@@ -650,6 +757,78 @@ class CleanupStalePhotoUrlsHandler(BaseHandler):
             self.error(f"Cleanup failed: {ex}", 500)
         finally:
             conn.close()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Endpoint: AI parse preview — re-render an AI upload as it looked at parse time
+# ──────────────────────────────────────────────────────────────────────
+class AIParsePreviewHandler(BaseHandler):
+    """GET: returns the saved AI parse snapshot + original image (base64) for an upload.
+    The frontend uses this to re-render the side-by-side image+table preview later.
+    """
+
+    @require_auth()
+    def get(self, upload_id):
+        conn = get_db()
+        try:
+            # Metadata row (no binary)
+            meta = dict_from_row(conn.execute(
+                """SELECT id, filename, original_filename, uploaded_by, report_date,
+                          file_size, row_count, notes, ai_parse_json, created_at
+                   FROM weekly_uploads WHERE id=?""",
+                (upload_id,),
+            ).fetchone())
+            if not meta:
+                return self.error("Upload not found", 404)
+            if not meta.get("ai_parse_json"):
+                return self.error("This upload doesn't have an AI parse snapshot (likely an Excel upload)", 400)
+
+            # Pull the binary image via fetchone_raw so DictRow doesn't strip it
+            cur = conn.execute(
+                "SELECT file_data FROM weekly_uploads WHERE id=?", (upload_id,)
+            )
+            raw = cur.fetchone_raw()
+            file_data = None
+            if raw:
+                try:
+                    file_data = raw["file_data"]
+                except (KeyError, TypeError):
+                    file_data = raw[0]
+                if isinstance(file_data, memoryview):
+                    file_data = bytes(file_data)
+
+            try:
+                parse_data = json.loads(meta["ai_parse_json"])
+            except Exception:
+                parse_data = {}
+
+            # Guess extension from the original filename
+            orig = meta.get("original_filename") or ""
+            ext = os.path.splitext(orig)[1].lower() or ".png"
+            mime_map = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                        ".gif": "image/gif", ".webp": "image/webp", ".pdf": "application/pdf"}
+            mime = mime_map.get(ext, "application/octet-stream")
+
+            source_b64 = base64.standard_b64encode(file_data).decode("utf-8") if file_data else ""
+
+            self.success({
+                "upload": {k: meta[k] for k in meta.keys() if k != "ai_parse_json"},
+                "parse": parse_data,
+                "source_b64": source_b64,
+                "source_ext": ext,
+                "source_mime": mime,
+                "source_size": len(file_data) if file_data else 0,
+            }, "AI parse preview")
+        except Exception as ex:
+            traceback.print_exc()
+            self.error(f"Failed to load preview: {ex}", 500)
+        finally:
+            conn.close()
+
+
+# Need memoryview in scope for the handler above
+import builtins as _b
+memoryview = _b.memoryview
 
 
 # ──────────────────────────────────────────────────────────────────────

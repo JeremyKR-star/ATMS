@@ -7969,6 +7969,9 @@ function PilotPage() {
   // unknownSubjects: [{subject, category, action: 'add'|'skip'|'rename', renameTo?}, ...]
   const [aiUnknownSubjects, setAiUnknownSubjects] = useState([]);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
+  // Preview-saved-AI-upload state
+  const [aiPreviewData, setAiPreviewData] = useState(null);
+  const [aiPreviewLoading, setAiPreviewLoading] = useState(false);
   const [natFilter, setNatFilter] = useState('all');
   const [showNatAdd, setShowNatAdd] = useState(false);
   const [newNatCode, setNewNatCode] = useState('');
@@ -8241,6 +8244,19 @@ function PilotPage() {
     } catch(err) { showToast(err.message, 'error'); }
   };
 
+  var openAiPreview = async function(uploadId) {
+    setAiPreviewLoading(true);
+    setAiPreviewData({loading:true});
+    try {
+      var data = await api('/pilots/weekly-uploads/' + uploadId + '/ai-preview', {method: 'GET'});
+      setAiPreviewData(data.data || data);
+    } catch (err) {
+      showToast(err.message, 'error');
+      setAiPreviewData(null);
+    }
+    setAiPreviewLoading(false);
+  };
+
   var handleWeeklyRename = async function(uploadId, currentName) {
     var newName = prompt(t('새 파일명을 입력하세요') || 'Enter new filename', currentName || '');
     if (newName === null) return; // user cancelled
@@ -8353,6 +8369,7 @@ function PilotPage() {
         report_date: aiReportDate || new Date().toISOString().slice(0, 10),
         special_notes: aiNotes,
         aggregated_rows: aiRows,
+        per_sortie_rows: aiResult.per_sortie_rows || [],
         source_filename: aiResult.source_filename,
         source_b64: aiResult.source_b64,
         source_ext: aiResult.source_ext,
@@ -8363,6 +8380,12 @@ function PilotPage() {
       var d = data.data || {};
       var msg = '저장 완료: ' + d.saved_rows + '건 (' + d.matched + '명 매칭)';
       if (d.created_courses && d.created_courses.length > 0) msg += ', 새 과목 ' + d.created_courses.length + '개 추가';
+      if (d.training_inserted || d.training_updated) {
+        msg += ', 개인별 훈련 ' + ((d.training_inserted||0) + (d.training_updated||0)) + '건 반영';
+      }
+      if (d.training_skipped && d.training_skipped.length > 0) {
+        msg += ' (조종사/과목 미매칭 ' + d.training_skipped.length + '건 건너뜀)';
+      }
       showToast(msg, 'success');
       resetAiState();
       await loadAll();
@@ -9260,6 +9283,127 @@ function PilotPage() {
             </Modal>
           )}
 
+          {/* ── AI Parse Preview Modal ── */}
+          {aiPreviewData && (
+            <Modal title={'🔍 AI 분석 결과 미리보기'} onClose={function(){setAiPreviewData(null);}}
+              footer={<button className="btn btn-primary" onClick={function(){setAiPreviewData(null);}}>{t('닫기')}</button>}>
+              {aiPreviewData.loading || aiPreviewLoading ? (
+                <div style={{padding:40,textAlign:'center',color:'var(--gray-500)'}}>로딩 중...</div>
+              ) : (function(){
+                var p = aiPreviewData.parse || {};
+                var u = aiPreviewData.upload || {};
+                var perSortie = p.per_sortie_rows || [];
+                var aggregated = p.aggregated_rows || [];
+                var ext = (aiPreviewData.source_ext || '.png').toLowerCase();
+                var isPdf = ext === '.pdf';
+                var imgSrc = aiPreviewData.source_b64
+                  ? (isPdf ? 'data:application/pdf;base64,' : 'data:image/'+ext.replace('.','')+';base64,') + aiPreviewData.source_b64
+                  : null;
+                return (
+                  <div>
+                    {/* Header info */}
+                    <div style={{display:'flex',gap:16,flexWrap:'wrap',marginBottom:12,padding:10,background:'#f1f5f9',borderRadius:6,fontSize:12}}>
+                      <div><strong>📄 파일명:</strong> {u.original_filename||'-'}</div>
+                      <div><strong>📅 보고일:</strong> {u.report_date||p.report_date||'-'}</div>
+                      <div><strong>👤 업로드자:</strong> {u.uploaded_by||'-'}</div>
+                      <div><strong>🤖 모델:</strong> {p.model_used||'-'}</div>
+                      <div><strong>💾 저장일시:</strong> {u.created_at ? new Date(u.created_at + 'Z').toLocaleString('ko-KR') : '-'}</div>
+                    </div>
+
+                    {p.special_notes && (
+                      <div style={{marginBottom:12,padding:10,background:'#fef3c7',border:'1px solid #f59e0b',borderRadius:6,fontSize:12}}>
+                        <strong>⚠ 특이사항:</strong> {p.special_notes}
+                      </div>
+                    )}
+
+                    <div style={{display:'flex',gap:16,flexWrap:'wrap',alignItems:'flex-start'}}>
+                      {/* Original image */}
+                      {imgSrc && !isPdf && (
+                        <div style={{flex:'1 1 380px',minWidth:280,maxWidth:'100%'}}>
+                          <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:6,display:'flex',justifyContent:'space-between'}}>
+                            <span>📷 원본 이미지</span>
+                            <a href={imgSrc} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:'var(--primary, #6366f1)'}}>🔍 새 탭에서 크게 보기</a>
+                          </div>
+                          <img src={imgSrc} alt="Saved AI report" style={{width:'100%',maxHeight:520,objectFit:'contain',border:'1.5px solid var(--gray-200)',borderRadius:8,background:'#fff',cursor:'zoom-in'}}
+                            onClick={function(){
+                              var w = window.open('','_blank');
+                              if (w) w.document.write('<title>'+(u.original_filename||'image')+'</title><body style="margin:0;background:#222;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="'+imgSrc+'" style="max-width:100%;max-height:100vh;"/></body>');
+                            }}/>
+                        </div>
+                      )}
+                      {imgSrc && isPdf && (
+                        <div style={{flex:'1 1 380px',minWidth:280}}>
+                          <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:6}}>📄 원본 PDF</div>
+                          <embed src={imgSrc} type="application/pdf" style={{width:'100%',height:520,border:'1.5px solid var(--gray-200)',borderRadius:8,background:'#fff'}}/>
+                        </div>
+                      )}
+
+                      {/* Parsed data tables */}
+                      <div style={{flex:'2 1 480px',minWidth:300}}>
+                        {/* Per-sortie detail */}
+                        <div style={{marginBottom:14}}>
+                          <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:6}}>📋 AI가 추출한 소티별 상세 ({perSortie.length}건)</div>
+                          <div className="table-wrapper" style={{maxHeight:240,overflow:'auto'}}>
+                            <table style={{fontSize:11}}>
+                              <thead><tr>
+                                <th>조종사</th><th>구분</th><th>과목</th><th>장비/SQ</th><th>교관</th><th>시간</th>
+                              </tr></thead>
+                              <tbody>
+                                {perSortie.map(function(r,i){
+                                  return (
+                                    <tr key={i}>
+                                      <td><strong>{r.pilot_name||'-'}</strong></td>
+                                      <td><span className="badge" style={{background: r.sortie_type==='sim'?'#dbeafe':'#dcfce7', color: r.sortie_type==='sim'?'#1e40af':'#15803d', fontSize:10}}>
+                                        {r.sortie_type==='sim'?'🖥 SIM':'✈ FLT'}</span></td>
+                                      <td><strong>{r.sortie_code||'-'}</strong></td>
+                                      <td>{r.device_or_squadron||'-'}</td>
+                                      <td>{r.instructor||'-'}</td>
+                                      <td>{r.time_slot||'-'}</td>
+                                    </tr>
+                                  );
+                                })}
+                                {perSortie.length===0 && (
+                                  <tr><td colSpan="6" style={{textAlign:'center',color:'var(--gray-400)',padding:20}}>소티 데이터 없음</td></tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* Aggregated per-pilot */}
+                        <div>
+                          <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:6}}>👥 조종사별 집계 ({aggregated.length}명)</div>
+                          <div className="table-wrapper" style={{maxHeight:240,overflow:'auto'}}>
+                            <table style={{fontSize:11}}>
+                              <thead><tr>
+                                <th>조종사</th><th>비행</th><th>SIM</th><th>비고</th>
+                              </tr></thead>
+                              <tbody>
+                                {aggregated.map(function(r,i){
+                                  return (
+                                    <tr key={i}>
+                                      <td><strong>{r.name||'-'}</strong></td>
+                                      <td className="text-center">{r.flt_done||0}</td>
+                                      <td className="text-center">{r.sim_done||0}</td>
+                                      <td style={{fontSize:10,color:'var(--gray-600)'}}>{r.remarks||'-'}</td>
+                                    </tr>
+                                  );
+                                })}
+                                {aggregated.length===0 && (
+                                  <tr><td colSpan="4" style={{textAlign:'center',color:'var(--gray-400)',padding:20}}>집계 데이터 없음</td></tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </Modal>
+          )}
+
           {/* Upload History */}
           <div className="card">
             <div className="card-header">
@@ -9301,6 +9445,11 @@ function PilotPage() {
                         <td style={{fontSize:12}}>{u.created_at ? new Date(u.created_at + 'Z').toLocaleString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}) : '-'}</td>
                         <td>
                           <div style={{display:'flex',gap:4}}>
+                            {u.has_ai_preview && (
+                              <button className="btn btn-outline btn-sm" style={{whiteSpace:'nowrap',background:'#e0e7ff',borderColor:'#6366f1',color:'#4338ca',fontWeight:600}}
+                                title="AI 분석 결과 미리보기" onClick={function(){openAiPreview(u.id);}}>
+                                🔍 미리보기</button>
+                            )}
                             <button className="btn btn-outline btn-sm" style={{whiteSpace:'nowrap'}} onClick={function(){handleWeeklyDownload(u.id, u.original_filename);}}>
                               {t('다운로드')}</button>
                             <button className="btn btn-outline btn-sm" style={{whiteSpace:'nowrap'}} title={t('파일명 수정')||'Rename'} onClick={function(){handleWeeklyRename(u.id, u.original_filename);}}>

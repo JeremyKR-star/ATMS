@@ -803,6 +803,26 @@ def init_db():
             except Exception:
                 pass
 
+    # Migration: add ai_parse_json column for storing AI parse details
+    # so the upload-history "preview" button can re-render the original parse view.
+    try:
+        if backend == "postgres":
+            c._cursor.execute("ALTER TABLE weekly_uploads ADD COLUMN IF NOT EXISTS ai_parse_json TEXT")
+            try: conn.commit()
+            except Exception: pass
+            print("[MIGRATE] weekly_uploads.ai_parse_json ✓")
+        else:
+            cols = [r[1] for r in c._cursor.execute("PRAGMA table_info(weekly_uploads)").fetchall()]
+            if "ai_parse_json" not in cols:
+                c._cursor.execute("ALTER TABLE weekly_uploads ADD COLUMN ai_parse_json TEXT")
+                try: conn.commit()
+                except Exception: pass
+                print("[MIGRATE] weekly_uploads.ai_parse_json ✓")
+    except Exception as ex:
+        print(f"[MIGRATE] weekly_uploads.ai_parse_json FAILED: {ex}")
+        try: conn.rollback()
+        except Exception: pass
+
     # ── Weekly Report Data (parsed from Excel) ──
     c.execute(f"""
         CREATE TABLE IF NOT EXISTS weekly_report_data (
