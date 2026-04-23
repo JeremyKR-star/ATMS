@@ -7910,6 +7910,7 @@ function PilotPage() {
   const [aiResult, setAiResult] = useState(null); // {report_date, special_notes, aggregated_rows, per_sortie_rows, source_filename, source_b64, source_ext}
   const [aiReportDate, setAiReportDate] = useState('');
   const [aiNotes, setAiNotes] = useState('');
+  const [aiFilename, setAiFilename] = useState('');
   const [aiRows, setAiRows] = useState([]);
   const [natFilter, setNatFilter] = useState('all');
   const [showNatAdd, setShowNatAdd] = useState(false);
@@ -8206,8 +8207,15 @@ function PilotPage() {
 
   // ── AI image-parsing handlers ──
   var resetAiState = function() {
-    setAiResult(null); setAiRows([]); setAiReportDate(''); setAiNotes('');
+    setAiResult(null); setAiRows([]); setAiReportDate(''); setAiNotes(''); setAiFilename('');
     if (aiImageFileRef.current) aiImageFileRef.current.value = '';
+  };
+
+  // Build auto-filename from report date + extension. Mirrors backend default.
+  var buildAutoFilename = function(reportDate, ext) {
+    var d = reportDate || new Date().toISOString().slice(0, 10);
+    var e = ext || '.png';
+    return d + ' 일일보고 (AI)' + e;
   };
 
   var handleAiImageUpload = async function(e) {
@@ -8231,8 +8239,10 @@ function PilotPage() {
       var d = data.data || {};
       setAiResult(d);
       setAiRows(d.aggregated_rows || []);
-      setAiReportDate(d.report_date || new Date().toISOString().slice(0, 10));
+      var rd = d.report_date || new Date().toISOString().slice(0, 10);
+      setAiReportDate(rd);
       setAiNotes(d.special_notes || '');
+      setAiFilename(buildAutoFilename(rd, d.source_ext));
       showToast('AI 분석 완료: ' + ((d.aggregated_rows || []).length) + '명', 'success');
     } catch (err) {
       showToast(err.message, 'error');
@@ -8270,7 +8280,8 @@ function PilotPage() {
         aggregated_rows: aiRows,
         source_filename: aiResult.source_filename,
         source_b64: aiResult.source_b64,
-        source_ext: aiResult.source_ext
+        source_ext: aiResult.source_ext,
+        custom_filename: aiFilename || null,
       };
       var data = await api('/pilots/ai-parse-confirm', {method: 'POST', body: JSON.stringify(payload)});
       var d = data.data || {};
@@ -8865,17 +8876,34 @@ function PilotPage() {
                   <div style={{display:'flex',gap:12,marginBottom:12,flexWrap:'wrap',alignItems:'flex-end'}}>
                     <div style={{flex:'0 0 auto'}}>
                       <label style={{fontSize:12,color:'var(--gray-500)',display:'block',marginBottom:4}}>보고일</label>
-                      <input type="date" value={aiReportDate} onChange={function(e){setAiReportDate(e.target.value);}}
+                      <input type="date" value={aiReportDate}
+                        onChange={function(e){
+                          var v = e.target.value;
+                          setAiReportDate(v);
+                          // Re-sync auto filename only if user hasn't deviated from the auto pattern
+                          var auto = buildAutoFilename(aiReportDate, aiResult && aiResult.source_ext);
+                          if (aiFilename === auto || !aiFilename) {
+                            setAiFilename(buildAutoFilename(v, aiResult && aiResult.source_ext));
+                          }
+                        }}
                         style={{padding:'6px 10px',borderRadius:6,border:'1.5px solid var(--gray-200)',fontSize:13}}/>
                     </div>
-                    <div style={{flex:1, minWidth:200}}>
+                    <div style={{flex:'1 1 280px', minWidth:200}}>
+                      <label style={{fontSize:12,color:'var(--gray-500)',display:'block',marginBottom:4}}>
+                        파일명 <span style={{color:'var(--gray-400)',fontWeight:400}}>(자동 생성 — 수정 가능)</span>
+                      </label>
+                      <input type="text" value={aiFilename} onChange={function(e){setAiFilename(e.target.value);}}
+                        placeholder="2026-04-22 일일보고 (AI).png"
+                        style={{width:'100%',padding:'6px 10px',borderRadius:6,border:'1.5px solid var(--gray-200)',fontSize:13}}/>
+                    </div>
+                    <div style={{flex:'1 1 200px', minWidth:200}}>
                       <label style={{fontSize:12,color:'var(--gray-500)',display:'block',marginBottom:4}}>특이사항</label>
                       <input type="text" value={aiNotes} onChange={function(e){setAiNotes(e.target.value);}}
                         placeholder="예: 기상 악화로 금일 오후 비행 취소"
                         style={{width:'100%',padding:'6px 10px',borderRadius:6,border:'1.5px solid var(--gray-200)',fontSize:13}}/>
                     </div>
-                    <div style={{fontSize:11,color:'var(--gray-400)'}}>
-                      📎 {aiResult.source_filename} · 모델: {aiResult.model_used}
+                    <div style={{fontSize:11,color:'var(--gray-400)',width:'100%'}}>
+                      📎 원본: {aiResult.source_filename} · 모델: {aiResult.model_used}
                     </div>
                   </div>
 

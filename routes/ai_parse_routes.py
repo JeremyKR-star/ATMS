@@ -296,9 +296,21 @@ class AIParseConfirmHandler(BaseHandler):
 
         report_date = payload.get("report_date") or datetime.date.today().isoformat()
         special_notes = (payload.get("special_notes") or "").strip()
-        orig_name = payload.get("source_filename") or "ai_parsed_image"
-        ext = payload.get("source_ext") or os.path.splitext(orig_name)[1].lower() or ".png"
+        raw_orig_name = payload.get("source_filename") or "ai_parsed_image"
+        ext = payload.get("source_ext") or os.path.splitext(raw_orig_name)[1].lower() or ".png"
         source_b64 = payload.get("source_b64") or ""
+
+        # ── Auto-rename: use the AI-detected report date as the canonical filename
+        # so the upload history shows meaningful names like
+        # "2026-04-22 일일보고 (AI).png" instead of "screenshot_2026.png".
+        # Honour an explicit override from the client (lets the UI offer custom names later).
+        client_override = (payload.get("custom_filename") or "").strip()
+        if client_override:
+            orig_name = client_override
+            if not os.path.splitext(orig_name)[1]:
+                orig_name = orig_name + ext
+        else:
+            orig_name = f"{report_date} 일일보고 (AI){ext}"
 
         # Decode the original image bytes (so it appears in upload history & download)
         try:
@@ -376,6 +388,10 @@ class AIParseConfirmHandler(BaseHandler):
 
             matched_count = 0
             unmatched_names = []
+            # Track which prev_keys have been consumed by today's AI rows so we
+            # don't double-insert the same pilot under different names during carry-over.
+            consumed_prev_keys = set()
+
             for row in aggregated:
                 name = (row.get("name") or "").strip()
                 if not name:
@@ -394,15 +410,25 @@ class AIParseConfirmHandler(BaseHandler):
                 today_sim = int(row.get("sim_done") or 0)
 
                 # Look up previous totals for this pilot (try exact name, then
-                # fall back to fuzzy match on prev rows since names may vary)
-                prev = prev_by_pilot.get(name.lower().strip())
+                # fall back to fuzzy match on prev rows since names may vary
+                # — Excel uses full names like "Mohd Jamil bin Awang", AI uses short "Jamil")
+                nl = name.lower().strip()
+                prev = prev_by_pilot.get(nl)
+                matched_prev_key = nl if prev else None
                 if prev is None:
-                    # Fallback: contains-match on prior rows
-                    nl = name.lower().strip()
                     for k, v in prev_by_pilot.items():
                         if k and (k in nl or nl in k):
                             prev = v
+                            matched_prev_key = k
                             break
+
+                # CRITICAL: use the prev row's canonical pilot_name when matched,
+                # so we don't end up with both "Jamil" AND "Mohd Jamil bin Awang"
+                # rows on the dashboard.
+                canonical_name = name
+                if prev and prev.get("pilot_name"):
+                    canonical_name = prev["pilot_name"]
+                    consumed_prev_keys.add(matched_prev_key)
 
                 if prev:
                     final_flt_plan = int(prev.get("flt_plan") or 0)
@@ -425,7 +451,7 @@ class AIParseConfirmHandler(BaseHandler):
                        (upload_id, pilot_id, pilot_name, flt_plan, flt_done, flt_remain,
                         sim_plan, sim_done, sim_remain, remarks)
                        VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                    (upload_id, pilot_id, name,
+                    (upload_id, pilot_id, canonical_name,
                      final_flt_plan, final_flt_done, final_flt_remain,
                      final_sim_plan, final_sim_done, final_sim_remain,
                      (row.get("remarks") or "")),
@@ -433,11 +459,12 @@ class AIParseConfirmHandler(BaseHandler):
 
             # ── Carry over pilots who didn't fly today, so the dashboard
             # (which reads the latest weekly_uploads only) still shows them.
-            today_keys = {(r.get("name") or "").lower().strip() for r in aggregated}
+            # Skip any prev_key that was already consumed by an AI row above
+            # (so we don't insert the same pilot twice under different names).
             carried_over = 0
             for prev_key, prev in prev_by_pilot.items():
-                if prev_key in today_keys:
-                    continue  # already inserted above
+                if prev_key in consumed_prev_keys:
+                    continue  # already inserted above as part of today's AI rows
                 # No fly today — preserve previous totals as-is
                 pname = prev.get("pilot_name") or prev_key
                 pid = _match_pilot_id(pname, pilots)

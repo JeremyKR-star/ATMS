@@ -155,10 +155,85 @@ def test_confirm_preserves_plan_and_adds_done():
         assert r["flt_plan"] > 0 and r["sim_plan"] > 0
 
 
+def test_no_duplicate_pilot_rows_when_short_vs_full_name():
+    """Excel uses 'Mohd Jamil bin Awang', AI uses 'Jamil' — same person.
+    Result should be ONE row using the canonical full name, not two.
+    """
+    prev_by_pilot = {
+        "mohd jamil bin awang": {
+            "pilot_name": "Mohd Jamil bin Awang",
+            "flt_plan": 13, "flt_done": 7, "flt_remain": 6,
+            "sim_plan": 18, "sim_done": 14, "sim_remain": 4,
+        },
+        "abdul samad bin daud": {
+            "pilot_name": "Abdul Samad bin Daud",
+            "flt_plan": 13, "flt_done": 8, "flt_remain": 5,
+            "sim_plan": 18, "sim_done": 17, "sim_remain": 1,
+        },
+    }
+    today = [
+        {"name": "Jamil", "flt_done": 0, "sim_done": 1},
+    ]
+
+    # Replicate the merge + canonical-name + carry-over logic
+    consumed = set()
+    inserted = []
+    for row in today:
+        nl = row["name"].lower().strip()
+        prev = prev_by_pilot.get(nl)
+        matched_key = nl if prev else None
+        if prev is None:
+            for k, v in prev_by_pilot.items():
+                if k and (k in nl or nl in k):
+                    prev = v
+                    matched_key = k
+                    break
+        canonical = row["name"]
+        if prev and prev.get("pilot_name"):
+            canonical = prev["pilot_name"]
+            consumed.add(matched_key)
+        # build final row
+        if prev:
+            inserted.append({
+                "pilot_name": canonical,
+                "flt_plan": prev["flt_plan"], "flt_done": prev["flt_done"] + row["flt_done"],
+                "sim_plan": prev["sim_plan"], "sim_done": prev["sim_done"] + row["sim_done"],
+            })
+        else:
+            inserted.append({"pilot_name": canonical,
+                             "flt_done": row["flt_done"], "sim_done": row["sim_done"]})
+    # carry-over
+    for k, prev in prev_by_pilot.items():
+        if k in consumed:
+            continue
+        inserted.append({
+            "pilot_name": prev["pilot_name"],
+            "flt_plan": prev["flt_plan"], "flt_done": prev["flt_done"],
+            "sim_plan": prev["sim_plan"], "sim_done": prev["sim_done"],
+        })
+
+    names = [r["pilot_name"] for r in inserted]
+    # Exactly one row per pilot — Jamil consolidated under full name
+    assert names.count("Mohd Jamil bin Awang") == 1, names
+    assert names.count("Jamil") == 0, "Should NOT have a separate 'Jamil' row"
+    assert names.count("Abdul Samad bin Daud") == 1, names
+    assert len(inserted) == 2, f"Expected 2 rows total, got {len(inserted)}: {names}"
+
+    # Jamil's merged row has +1 sim, plan preserved
+    jamil = next(r for r in inserted if r["pilot_name"] == "Mohd Jamil bin Awang")
+    assert jamil["sim_done"] == 15  # 14 + 1
+    assert jamil["sim_plan"] == 18
+    # Samad carried over unchanged
+    samad = next(r for r in inserted if r["pilot_name"] == "Abdul Samad bin Daud")
+    assert samad["sim_done"] == 17
+    assert samad["flt_done"] == 8
+
+
 if __name__ == "__main__":
     test_aggregate_counts()
     test_remarks_carry_source_detail()
     test_empty_pilot_name_skipped()
     test_match_pilot_exact_then_contains()
     test_confirm_preserves_plan_and_adds_done()
+    test_no_duplicate_pilot_rows_when_short_vs_full_name()
     print("✓ all tests passed")
