@@ -137,7 +137,8 @@ from routes.report_routes import DashboardHandler, CourseReportHandler, TraineeR
 from routes.notification_routes import NotificationsHandler, NotificationReadHandler, NotificationReadAllHandler, SurveyHandler, SSEHandler, NotificationPreferencesHandler, SurveyAnalyticsHandler, QRAttendanceHandler
 from routes.photo_routes import PhotoUploadHandler, UserPhotoHandler
 from routes.pilot_routes import (PilotsHandler, PilotDetailHandler, PilotPhotoHandler,
-                                  PilotCoursesHandler, PilotTrainingHandler, PilotWeeklyHandler,
+                                  PilotCoursesHandler, PilotCourseDetailHandler,
+                                  PilotTrainingHandler, PilotWeeklyHandler,
                                   PilotNationalitiesHandler, WeeklyUploadHandler,
                                   WeeklyUploadDetailHandler, WeeklyUploadDownloadHandler,
                                   WeeklyUploadLatestHandler)
@@ -579,6 +580,7 @@ def make_app():
         (r"/api/pilots/(\d+)", PilotDetailHandler),
         (r"/api/pilots/(\d+)/photo", PilotPhotoHandler),
         (r"/api/pilots/courses", PilotCoursesHandler),
+        (r"/api/pilots/courses/(\d+)", PilotCourseDetailHandler),
         (r"/api/pilots/training", PilotTrainingHandler),
         (r"/api/pilots/weekly", PilotWeeklyHandler),
         (r"/api/pilots/nationalities", PilotNationalitiesHandler),

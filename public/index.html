@@ -7903,6 +7903,59 @@ function PilotPage() {
   var uploadProgress = _uploadProgressState[0];
   var setUploadProgress = _uploadProgressState[1];
   const weeklyFileRef = useRef(null);
+  // ── Course management (과목 관리) ──
+  const [showCourseManager, setShowCourseManager] = useState(false);
+  const [courseFormSim, setCourseFormSim] = useState({subject:'', course_no:'', contents:''});
+  const [courseFormFlt, setCourseFormFlt] = useState({subject:'', course_no:'', contents:''});
+  const [editingCourseId, setEditingCourseId] = useState(null);
+  const [editingCourseDraft, setEditingCourseDraft] = useState({});
+
+  var addCourse = async function(category) {
+    var f = category === 'sim' ? courseFormSim : courseFormFlt;
+    if (!f.subject || !f.subject.trim()) {
+      showToast(t('과목명을 입력해주세요') || 'Subject required', 'error'); return;
+    }
+    try {
+      await api('/pilots/courses', {method: 'POST', body: JSON.stringify({
+        subject: f.subject.trim(),
+        category: category,
+        course_no: (f.course_no||'').trim() || null,
+        contents: f.contents || ''
+      })});
+      showToast('과목 추가 완료', 'success');
+      if (category === 'sim') setCourseFormSim({subject:'', course_no:'', contents:''});
+      else setCourseFormFlt({subject:'', course_no:'', contents:''});
+      loadAll();
+    } catch (err) { showToast(err.message, 'error'); }
+  };
+
+  var beginEditCourse = function(c) {
+    setEditingCourseId(c.id);
+    setEditingCourseDraft({subject: c.subject||'', course_no: c.course_no||'', contents: c.contents||'', category: c.category});
+  };
+
+  var saveEditCourse = async function() {
+    if (!editingCourseId) return;
+    if (!editingCourseDraft.subject || !editingCourseDraft.subject.trim()) {
+      showToast('과목명을 입력해주세요', 'error'); return;
+    }
+    try {
+      await api('/pilots/courses/' + editingCourseId, {method: 'PATCH', body: JSON.stringify(editingCourseDraft)});
+      showToast('과목 수정 완료', 'success');
+      setEditingCourseId(null); setEditingCourseDraft({});
+      loadAll();
+    } catch (err) { showToast(err.message, 'error'); }
+  };
+
+  var deleteCourse = async function(c) {
+    if (!confirm('"' + c.subject + '" 과목을 삭제하시겠습니까?\n관련 훈련 기록도 함께 삭제됩니다.')) return;
+    try {
+      await api('/pilots/courses/' + c.id, {method: 'DELETE'});
+      showToast('과목 삭제 완료', 'success');
+      loadAll();
+    } catch (err) { showToast(err.message, 'error'); }
+  };
+
   // ── AI image-parsing (non-standard daily report) ──
   const aiImageFileRef = useRef(null);
   const [aiParsing, setAiParsing] = useState(false);
@@ -7912,6 +7965,10 @@ function PilotPage() {
   const [aiNotes, setAiNotes] = useState('');
   const [aiFilename, setAiFilename] = useState('');
   const [aiRows, setAiRows] = useState([]);
+  // Unknown-subject approval state
+  // unknownSubjects: [{subject, category, action: 'add'|'skip'|'rename', renameTo?}, ...]
+  const [aiUnknownSubjects, setAiUnknownSubjects] = useState([]);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [natFilter, setNatFilter] = useState('all');
   const [showNatAdd, setShowNatAdd] = useState(false);
   const [newNatCode, setNewNatCode] = useState('');
@@ -8243,7 +8300,14 @@ function PilotPage() {
       setAiReportDate(rd);
       setAiNotes(d.special_notes || '');
       setAiFilename(buildAutoFilename(rd, d.source_ext));
-      showToast('AI 분석 완료: ' + ((d.aggregated_rows || []).length) + '명', 'success');
+      // Initialize unknown-subject approval state (default action: add)
+      var us = (d.unknown_subjects || []).map(function(u){
+        return Object.assign({}, u, {action:'add', renameTo: u.subject});
+      });
+      setAiUnknownSubjects(us);
+      var msg = 'AI 분석 완료: ' + ((d.aggregated_rows || []).length) + '명';
+      if (us.length > 0) msg += ', ⚠ 미등록 과목 ' + us.length + '개 발견';
+      showToast(msg, us.length > 0 ? 'warning' : 'success');
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -8267,12 +8331,23 @@ function PilotPage() {
     setAiRows(aiRows.concat([{name:'', flt_done:0, sim_done:0, flt_plan:0, sim_plan:0, flt_remain:0, sim_remain:0, remarks:'', matched:false, matched_pilot_id:null}]));
   };
 
-  var confirmAiSave = async function() {
+  // Save initiator — gate on unknown subjects
+  var initiateAiSave = function() {
     if (!aiResult || aiRows.length === 0) {
-      showToast(t('저장할 데이터가 없습니다') || 'Nothing to save', 'error');
+      showToast('저장할 데이터가 없습니다', 'error'); return;
+    }
+    if (aiUnknownSubjects && aiUnknownSubjects.length > 0) {
+      // Stop and prompt admin to decide what to do with unknown subjects
+      setShowApprovalModal(true);
       return;
     }
+    doAiSave([]);
+  };
+
+  // Actual save — called either directly or after approval modal
+  var doAiSave = async function(approvedNewCourses) {
     setAiSaving(true);
+    setShowApprovalModal(false);
     try {
       var payload = {
         report_date: aiReportDate || new Date().toISOString().slice(0, 10),
@@ -8282,16 +8357,41 @@ function PilotPage() {
         source_b64: aiResult.source_b64,
         source_ext: aiResult.source_ext,
         custom_filename: aiFilename || null,
+        new_courses: approvedNewCourses || [],
       };
       var data = await api('/pilots/ai-parse-confirm', {method: 'POST', body: JSON.stringify(payload)});
       var d = data.data || {};
-      showToast('저장 완료: ' + d.saved_rows + '건 (' + d.matched + '명 매칭)', 'success');
+      var msg = '저장 완료: ' + d.saved_rows + '건 (' + d.matched + '명 매칭)';
+      if (d.created_courses && d.created_courses.length > 0) msg += ', 새 과목 ' + d.created_courses.length + '개 추가';
+      showToast(msg, 'success');
       resetAiState();
       await loadAll();
     } catch (err) {
       showToast(err.message, 'error');
     }
     setAiSaving(false);
+  };
+
+  var confirmAiSave = initiateAiSave;
+
+  var updateUnknownSubjectAction = function(idx, key, value) {
+    var next = aiUnknownSubjects.slice();
+    next[idx] = Object.assign({}, next[idx], {[key]: value});
+    setAiUnknownSubjects(next);
+  };
+
+  var proceedWithApproval = function() {
+    var approved = aiUnknownSubjects
+      .filter(function(u){return u.action === 'add' || u.action === 'rename';})
+      .map(function(u){
+        return {
+          subject: (u.action === 'rename' ? (u.renameTo||u.subject) : u.subject).trim(),
+          category: u.category || 'sim',
+          contents: '',
+        };
+      })
+      .filter(function(u){return u.subject;});
+    doAiSave(approved);
   };
 
   var formatFileSize = function(bytes) {
@@ -8592,6 +8692,7 @@ function PilotPage() {
               {pilots.map(function(p){return <option key={p.id} value={p.id}>{p.short_name} ({p.name})</option>;})}
             </select>
             <button className="btn btn-primary btn-sm" onClick={downloadIndividualTraining} aria-label="\uD6C4\uBCF4 \uB2E8\uC5F0 \uD6C4\uBCF4 \uD30C\uC77C \uB2E4\uC6B4\uB85C\uB4DC">{t('📥 엑셀 다운로드')}</button>
+            {isAdmin && <button className="btn btn-outline btn-sm" style={{whiteSpace:'nowrap',background:'#fef3c7',borderColor:'#f59e0b',color:'#92400e',fontWeight:600}} onClick={function(){setShowCourseManager(true);}}>⚙ 과목 관리</button>}
             {canEditTraining && <span style={{fontSize:12,color:'var(--gray-400)'}}>{t('셀을 클릭하여 수정')}</span>}
           </div>
 
@@ -8693,6 +8794,88 @@ function PilotPage() {
               <button className="btn btn-primary btn-sm" onClick={saveCell}>{t('저장')}</button>
             </div>
           </div>}
+
+          {/* ── Course Management Modal ── */}
+          {showCourseManager && (
+            <Modal title={'⚙ 과목 관리 — 시뮬레이터 / 비행 과목 추가·수정·삭제'} onClose={function(){setShowCourseManager(false); setEditingCourseId(null);}}
+              footer={<button className="btn btn-primary" onClick={function(){setShowCourseManager(false); setEditingCourseId(null);}}>{t('닫기')}</button>}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,maxHeight:'70vh',overflow:'auto'}}>
+                {[{cat:'sim',label:'🖥 시뮬레이터 과목 (SIM/CPT)',color:'#dbeafe',headerColor:'#1e40af',form:courseFormSim,setForm:setCourseFormSim},
+                  {cat:'flight',label:'✈ 비행 과목 (T-50)',color:'#fef3c7',headerColor:'#92400e',form:courseFormFlt,setForm:setCourseFormFlt}].map(function(section){
+                  var list = courses.filter(function(c){return c.category===section.cat;});
+                  return (
+                    <div key={section.cat} style={{border:'1.5px solid var(--gray-200)',borderRadius:8,padding:12,background:'#fafafa'}}>
+                      <div style={{background:section.color,color:section.headerColor,padding:'6px 10px',borderRadius:6,fontSize:13,fontWeight:700,marginBottom:10}}>
+                        {section.label} <span style={{fontWeight:400,marginLeft:6}}>({list.length}개)</span>
+                      </div>
+                      {/* Add new course */}
+                      <div style={{display:'flex',gap:4,marginBottom:8,padding:8,background:'#fff',borderRadius:6,border:'1px dashed var(--gray-300)'}}>
+                        <input type="text" placeholder="과목명* (예: TR-1S)" value={section.form.subject}
+                          onChange={function(e){section.setForm(Object.assign({},section.form,{subject:e.target.value}));}}
+                          style={{flex:'1',padding:'4px 6px',fontSize:12,border:'1px solid var(--gray-200)',borderRadius:4}}/>
+                        <input type="text" placeholder="C-XX" value={section.form.course_no}
+                          onChange={function(e){section.setForm(Object.assign({},section.form,{course_no:e.target.value}));}}
+                          style={{width:60,padding:'4px 6px',fontSize:12,border:'1px solid var(--gray-200)',borderRadius:4}}/>
+                        <button className="btn btn-primary btn-sm" style={{whiteSpace:'nowrap',padding:'4px 10px',fontSize:12}}
+                          onClick={function(){addCourse(section.cat);}}>+ 추가</button>
+                      </div>
+                      <input type="text" placeholder="내용 (선택사항, 예: Normal Procedure/CRM)" value={section.form.contents}
+                        onChange={function(e){section.setForm(Object.assign({},section.form,{contents:e.target.value}));}}
+                        style={{width:'100%',padding:'4px 6px',fontSize:12,border:'1px solid var(--gray-200)',borderRadius:4,marginBottom:10}}/>
+                      {/* List existing */}
+                      <div style={{maxHeight:340,overflow:'auto',border:'1px solid var(--gray-200)',borderRadius:6,background:'#fff'}}>
+                        <table style={{width:'100%',fontSize:12}}>
+                          <thead><tr style={{background:'#f1f5f9',position:'sticky',top:0}}>
+                            <th style={{padding:'4px 6px',textAlign:'left',width:60}}>번호</th>
+                            <th style={{padding:'4px 6px',textAlign:'left',width:80}}>과목</th>
+                            <th style={{padding:'4px 6px',textAlign:'left'}}>내용</th>
+                            <th style={{padding:'4px 6px',width:100}}></th>
+                          </tr></thead>
+                          <tbody>
+                            {list.map(function(c){
+                              if (editingCourseId === c.id) {
+                                return (
+                                  <tr key={c.id} style={{background:'#fef9c3'}}>
+                                    <td style={{padding:'2px 4px'}}><input type="text" value={editingCourseDraft.course_no||''}
+                                      onChange={function(e){setEditingCourseDraft(Object.assign({},editingCourseDraft,{course_no:e.target.value}));}}
+                                      style={{width:'100%',padding:'2px 4px',fontSize:11,border:'1px solid var(--gray-300)'}}/></td>
+                                    <td style={{padding:'2px 4px'}}><input type="text" value={editingCourseDraft.subject||''}
+                                      onChange={function(e){setEditingCourseDraft(Object.assign({},editingCourseDraft,{subject:e.target.value}));}}
+                                      style={{width:'100%',padding:'2px 4px',fontSize:11,border:'1px solid var(--gray-300)'}}/></td>
+                                    <td style={{padding:'2px 4px'}}><input type="text" value={editingCourseDraft.contents||''}
+                                      onChange={function(e){setEditingCourseDraft(Object.assign({},editingCourseDraft,{contents:e.target.value}));}}
+                                      style={{width:'100%',padding:'2px 4px',fontSize:11,border:'1px solid var(--gray-300)'}}/></td>
+                                    <td style={{padding:'2px 4px',textAlign:'right'}}>
+                                      <button className="btn btn-primary btn-sm" style={{padding:'2px 6px',fontSize:10}} onClick={saveEditCourse}>저장</button>
+                                      <button className="btn btn-outline btn-sm" style={{padding:'2px 6px',fontSize:10,marginLeft:2}} onClick={function(){setEditingCourseId(null);}}>취소</button>
+                                    </td>
+                                  </tr>
+                                );
+                              }
+                              return (
+                                <tr key={c.id} style={{borderBottom:'1px solid var(--gray-100)'}}>
+                                  <td style={{padding:'4px 6px'}}>{c.course_no||'-'}</td>
+                                  <td style={{padding:'4px 6px'}}><strong>{c.subject}</strong></td>
+                                  <td style={{padding:'4px 6px',color:'var(--gray-600)'}}>{c.contents||'-'}</td>
+                                  <td style={{padding:'4px 6px',textAlign:'right',whiteSpace:'nowrap'}}>
+                                    <button className="btn btn-outline btn-sm" style={{padding:'2px 6px',fontSize:10}} onClick={function(){beginEditCourse(c);}}>수정</button>
+                                    <button className="btn btn-danger btn-sm" style={{padding:'2px 6px',fontSize:10,marginLeft:2}} onClick={function(){deleteCourse(c);}}>삭제</button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {list.length === 0 && (
+                              <tr><td colSpan="4" style={{padding:20,textAlign:'center',color:'var(--gray-400)'}}>등록된 과목이 없습니다</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Modal>
+          )}
         </div>
       )}
 
@@ -9004,6 +9187,78 @@ function PilotPage() {
               )}
             </div>
           </div>
+
+          {/* ── Unknown-subject approval modal ── */}
+          {showApprovalModal && (
+            <Modal title={'⚠ 미등록 과목 발견 — 관리자 승인 필요'}
+              onClose={function(){setShowApprovalModal(false);}}
+              footer={<>
+                <button className="btn btn-outline" onClick={function(){setShowApprovalModal(false);}} disabled={aiSaving}>취소</button>
+                <button className="btn btn-primary" onClick={proceedWithApproval} disabled={aiSaving}>
+                  {aiSaving ? '저장 중...' : '승인 후 저장'}
+                </button>
+              </>}>
+              <div style={{fontSize:13,color:'var(--gray-600)',marginBottom:12,padding:10,background:'#fef3c7',borderRadius:6,border:'1px solid #f59e0b'}}>
+                AI가 분석한 이미지에 <strong>현재 등록되지 않은 과목</strong>이 {aiUnknownSubjects.length}개 있습니다.
+                각 과목별로 <strong>추가</strong>/<strong>무시</strong>/<strong>이름 변경</strong>을 선택해주세요.
+                "추가"를 선택하면 개인별 현황의 과목 목록에 자동으로 등록됩니다.
+              </div>
+              <div className="table-wrapper">
+                <table>
+                  <thead><tr>
+                    <th style={{width:120}}>과목명</th>
+                    <th style={{width:100}}>분류</th>
+                    <th>예시 (이미지에서)</th>
+                    <th style={{width:280}}>처리 방법</th>
+                  </tr></thead>
+                  <tbody>
+                    {aiUnknownSubjects.map(function(u, idx){
+                      var rowBg = u.action === 'skip' ? '#f3f4f6' : (u.action === 'rename' ? '#fef9c3' : '#dcfce7');
+                      return (
+                        <tr key={idx} style={{background:rowBg}}>
+                          <td><strong style={{fontSize:14}}>{u.subject}</strong></td>
+                          <td>
+                            <select value={u.category||'sim'} onChange={function(e){updateUnknownSubjectAction(idx,'category',e.target.value);}}
+                              style={{padding:'4px 6px',fontSize:12,border:'1px solid var(--gray-300)',borderRadius:4,width:'100%'}}>
+                              <option value="sim">🖥 SIM</option>
+                              <option value="flight">✈ Flight</option>
+                            </select>
+                          </td>
+                          <td style={{fontSize:11,color:'var(--gray-600)'}}>
+                            {(u.sample_rows||[]).map(function(s,si){
+                              return <div key={si}>· {s.pilot_name} / {s.instructor} ({s.time_slot})</div>;
+                            })}
+                            {(!u.sample_rows || u.sample_rows.length===0) && <span style={{color:'var(--gray-400)'}}>—</span>}
+                          </td>
+                          <td>
+                            <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                              <label style={{fontSize:12,display:'flex',alignItems:'center',gap:4}}>
+                                <input type="radio" name={'act'+idx} checked={u.action==='add'} onChange={function(){updateUnknownSubjectAction(idx,'action','add');}}/>
+                                <span style={{color:'#15803d',fontWeight:600}}>✓ 추가</span>
+                              </label>
+                              <label style={{fontSize:12,display:'flex',alignItems:'center',gap:4}}>
+                                <input type="radio" name={'act'+idx} checked={u.action==='rename'} onChange={function(){updateUnknownSubjectAction(idx,'action','rename');}}/>
+                                <span style={{color:'#92400e',fontWeight:600}}>✏ 이름 변경 후 추가</span>
+                                {u.action==='rename' && (
+                                  <input type="text" value={u.renameTo||''}
+                                    onChange={function(e){updateUnknownSubjectAction(idx,'renameTo',e.target.value);}}
+                                    style={{flex:1,padding:'2px 6px',fontSize:12,border:'1px solid var(--gray-300)',borderRadius:4,marginLeft:4}}/>
+                                )}
+                              </label>
+                              <label style={{fontSize:12,display:'flex',alignItems:'center',gap:4}}>
+                                <input type="radio" name={'act'+idx} checked={u.action==='skip'} onChange={function(){updateUnknownSubjectAction(idx,'action','skip');}}/>
+                                <span style={{color:'var(--gray-500)'}}>✗ 무시</span>
+                              </label>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Modal>
+          )}
 
           {/* Upload History */}
           <div className="card">

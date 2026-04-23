@@ -245,7 +245,9 @@ class AIParseImageHandler(BaseHandler):
         # Aggregate to per-pilot totals (the shape the existing dashboard expects)
         aggregated = _aggregate_rows(per_sortie_rows)
 
-        # Try matching against active pilots so the UI can flag unmatched names
+        # Try matching against active pilots so the UI can flag unmatched names,
+        # and detect any sortie codes that aren't in pilot_courses yet (so the UI
+        # can prompt the admin to approve/add them before saving).
         conn = get_db()
         try:
             pilots = dicts_from_rows(
@@ -253,6 +255,9 @@ class AIParseImageHandler(BaseHandler):
                     "SELECT id, name, short_name FROM pilots WHERE status='active'"
                 ).fetchall()
             )
+            existing_courses = dicts_from_rows(conn.execute(
+                "SELECT id, course_no, subject, category FROM pilot_courses"
+            ).fetchall())
         finally:
             conn.close()
 
@@ -261,6 +266,46 @@ class AIParseImageHandler(BaseHandler):
             row["matched_pilot_id"] = pid
             row["matched"] = pid is not None
 
+        # ── Detect unknown subjects (sortie codes Claude found that don't exist in DB) ──
+        # Build a normalized set of known subjects for fast lookup. We compare on subject
+        # (e.g. "FD-3S") because the AI returns sortie_code, which is the operational
+        # name pilots use, and matches the 'subject' column in pilot_courses.
+        known_subjects = set()
+        for c in existing_courses:
+            for field in ("subject", "course_no"):
+                v = (c.get(field) or "").strip().upper()
+                if v:
+                    known_subjects.add(v)
+
+        # Collect unknown subjects (with type guess from the per-sortie rows)
+        unknown_by_code = {}
+        for r in per_sortie_rows:
+            code = (r.get("sortie_code") or "").strip()
+            if not code:
+                continue
+            key = code.upper()
+            if key in known_subjects:
+                continue
+            # AI's classification (sim/flight) for this row
+            stype = (r.get("sortie_type") or "").lower()
+            category = "sim" if stype == "sim" else ("flight" if stype == "flight" else "")
+            if key not in unknown_by_code:
+                unknown_by_code[key] = {
+                    "subject": code,
+                    "category": category,
+                    "sample_rows": [],
+                }
+            entry = unknown_by_code[key]
+            # Keep up to 3 sample rows so admin sees the context
+            if len(entry["sample_rows"]) < 3:
+                entry["sample_rows"].append({
+                    "pilot_name": r.get("pilot_name") or "",
+                    "instructor": r.get("instructor") or "",
+                    "device_or_squadron": r.get("device_or_squadron") or "",
+                    "time_slot": r.get("time_slot") or "",
+                })
+        unknown_subjects = list(unknown_by_code.values())
+
         # Echo the original filename + base64 back so the confirm step can store
         # the source image without re-uploading. Small files (<10MB) — fine to send.
         self.success({
@@ -268,6 +313,7 @@ class AIParseImageHandler(BaseHandler):
             "special_notes": special_notes,
             "per_sortie_rows": per_sortie_rows,
             "aggregated_rows": aggregated,
+            "unknown_subjects": unknown_subjects,
             "model_used": CLAUDE_MODEL,
             "source_filename": orig_name,
             "source_b64": b64_data,
@@ -296,6 +342,9 @@ class AIParseConfirmHandler(BaseHandler):
 
         report_date = payload.get("report_date") or datetime.date.today().isoformat()
         special_notes = (payload.get("special_notes") or "").strip()
+        # Approved new courses to insert into pilot_courses before save.
+        # Each item: {subject: 'FD-3S', category: 'sim'|'flight', course_no?, contents?}
+        approved_new_courses = payload.get("new_courses") or []
         raw_orig_name = payload.get("source_filename") or "ai_parsed_image"
         ext = payload.get("source_ext") or os.path.splitext(raw_orig_name)[1].lower() or ".png"
         source_b64 = payload.get("source_b64") or ""
@@ -334,6 +383,44 @@ class AIParseConfirmHandler(BaseHandler):
         conn = get_db()
         try:
             from database import IS_POSTGRES
+
+            # ── Insert any admin-approved new courses first ──
+            created_courses = []
+            if approved_new_courses:
+                # Find current max sort_order so new ones append at the end
+                row = conn.execute(
+                    "SELECT COALESCE(MAX(sort_order), 0) AS m FROM pilot_courses"
+                ).fetchone()
+                next_sort = (row["m"] if row else 0) + 1
+                for nc in approved_new_courses:
+                    subj = (nc.get("subject") or "").strip()
+                    cat = (nc.get("category") or "").strip().lower()
+                    if not subj or cat not in ("sim", "flight"):
+                        continue
+                    course_no = (nc.get("course_no") or "").strip()
+                    if not course_no:
+                        cnt_row = conn.execute(
+                            "SELECT COUNT(*) AS cnt FROM pilot_courses"
+                        ).fetchone()
+                        course_no = f"C-{(cnt_row['cnt'] if cnt_row else 0) + 1:02d}"
+                    seq_row = conn.execute(
+                        "SELECT COALESCE(MAX(seq_no), 0) AS m FROM pilot_courses WHERE category=?",
+                        (cat,),
+                    ).fetchone()
+                    seq_no = (seq_row["m"] if seq_row else 0) + 1
+                    cur_c = conn.execute(
+                        """INSERT INTO pilot_courses
+                           (course_no, category, seq_no, subject, contents, duration, sort_order)
+                           VALUES (?,?,?,?,?,?,?)""",
+                        (course_no, cat, seq_no, subj, nc.get("contents") or "",
+                         nc.get("duration") or "1:00", next_sort),
+                    )
+                    next_sort += 1
+                    created_courses.append({
+                        "id": cur_c.lastrowid, "course_no": course_no,
+                        "subject": subj, "category": cat,
+                    })
+                conn.commit()
 
             # ── CRITICAL: carry forward plan/remain from the most recent prior
             # upload, otherwise the dashboard (which reads the latest weekly_uploads
@@ -496,8 +583,10 @@ class AIParseConfirmHandler(BaseHandler):
                 "matched": matched_count,
                 "unmatched_names": unmatched_names,
                 "carried_over": carried_over,
+                "created_courses": created_courses,
             }, f"AI-parsed report saved: {len(aggregated)} rows updated, "
-               f"{matched_count} matched, {carried_over} carried over from prior upload")
+               f"{matched_count} matched, {carried_over} carried over, "
+               f"{len(created_courses)} new course(s) added")
 
         except Exception as ex:
             conn.rollback()

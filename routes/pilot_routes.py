@@ -221,7 +221,7 @@ class PilotPhotoHandler(BaseHandler):
 
 
 class PilotCoursesHandler(BaseHandler):
-    """GET all training syllabus courses"""
+    """GET all training syllabus courses, POST create new course"""
 
     @require_auth()
     def get(self):
@@ -231,6 +231,110 @@ class PilotCoursesHandler(BaseHandler):
         ).fetchall())
         conn.close()
         self.success(courses)
+
+    @require_auth(roles=['admin', 'ojt_admin'])
+    def post(self):
+        body = self.get_json_body() or {}
+        subject = (body.get('subject') or '').strip()
+        category = (body.get('category') or '').strip().lower()
+        if not subject:
+            return self.error("subject is required")
+        if category not in ('sim', 'flight'):
+            return self.error("category must be 'sim' or 'flight'")
+        course_no = (body.get('course_no') or '').strip()
+        contents = body.get('contents') or ''
+        duration = body.get('duration') or '1:00'
+        seq_no = body.get('seq_no')
+        sort_order = body.get('sort_order', 0)
+
+        conn = get_db()
+        try:
+            # Auto-generate course_no if not given (C-XX based on current max)
+            if not course_no:
+                row = conn.execute(
+                    "SELECT COUNT(*) AS cnt FROM pilot_courses"
+                ).fetchone()
+                next_num = (row['cnt'] if row else 0) + 1
+                course_no = f"C-{next_num:02d}"
+            # Auto seq_no within category if not given
+            if seq_no is None:
+                row = conn.execute(
+                    "SELECT COALESCE(MAX(seq_no), 0) AS m FROM pilot_courses WHERE category=?",
+                    (category,),
+                ).fetchone()
+                seq_no = (row['m'] if row else 0) + 1
+            cur = conn.execute(
+                """INSERT INTO pilot_courses (course_no, category, seq_no, subject, contents, duration, sort_order)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (course_no, category, int(seq_no), subject, contents, duration, int(sort_order)),
+            )
+            conn.commit()
+            new_row = dict_from_row(conn.execute(
+                "SELECT * FROM pilot_courses WHERE id=?", (cur.lastrowid,)
+            ).fetchone())
+            self.success(new_row, "Course created")
+        except Exception as ex:
+            conn.rollback()
+            import traceback; traceback.print_exc()
+            self.error(f"Failed to create course: {ex}", 500)
+        finally:
+            conn.close()
+
+
+class PilotCourseDetailHandler(BaseHandler):
+    """PATCH update / DELETE remove a single course."""
+
+    @require_auth(roles=['admin', 'ojt_admin'])
+    def patch(self, course_id):
+        body = self.get_json_body() or {}
+        # Build dynamic update from supplied fields
+        editable = ('course_no', 'category', 'seq_no', 'subject', 'contents', 'duration', 'sort_order')
+        sets, params = [], []
+        for k in editable:
+            if k in body and body[k] is not None:
+                v = body[k]
+                if k == 'category' and v not in ('sim', 'flight'):
+                    return self.error("category must be 'sim' or 'flight'")
+                sets.append(f"{k}=?")
+                params.append(v)
+        if not sets:
+            return self.error("No fields to update")
+        params.append(course_id)
+        conn = get_db()
+        try:
+            existing = conn.execute("SELECT id FROM pilot_courses WHERE id=?", (course_id,)).fetchone()
+            if not existing:
+                return self.error("Course not found", 404)
+            conn.execute(f"UPDATE pilot_courses SET {', '.join(sets)} WHERE id=?", tuple(params))
+            conn.commit()
+            updated = dict_from_row(conn.execute(
+                "SELECT * FROM pilot_courses WHERE id=?", (course_id,)
+            ).fetchone())
+            self.success(updated, "Course updated")
+        except Exception as ex:
+            conn.rollback()
+            import traceback; traceback.print_exc()
+            self.error(f"Failed to update course: {ex}", 500)
+        finally:
+            conn.close()
+
+    @require_auth(roles=['admin', 'ojt_admin'])
+    def delete(self, course_id):
+        conn = get_db()
+        try:
+            existing = conn.execute("SELECT id FROM pilot_courses WHERE id=?", (course_id,)).fetchone()
+            if not existing:
+                return self.error("Course not found", 404)
+            # CASCADE on pilot_training will remove related training records
+            conn.execute("DELETE FROM pilot_courses WHERE id=?", (course_id,))
+            conn.commit()
+            self.success(message="Course deleted")
+        except Exception as ex:
+            conn.rollback()
+            import traceback; traceback.print_exc()
+            self.error(f"Failed to delete course: {ex}", 500)
+        finally:
+            conn.close()
 
 
 class PilotTrainingHandler(BaseHandler):
