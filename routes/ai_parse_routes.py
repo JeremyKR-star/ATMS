@@ -561,3 +561,64 @@ class CleanupStalePhotoUrlsHandler(BaseHandler):
             self.error(f"Cleanup failed: {ex}", 500)
         finally:
             conn.close()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Endpoint 4: diagnose photo_data state (admin debug)
+# ──────────────────────────────────────────────────────────────────────
+class DiagnosePhotosHandler(BaseHandler):
+    """GET: returns each pilot's photo_url, length, and first-byte hex.
+
+    Lets us see exactly whether photo_data is NULL, garbled (text-encoded bytes),
+    or proper PNG/JPEG. PNG starts with 89 50 4E 47, JPEG with FF D8 FF.
+    """
+
+    @require_auth(roles=["admin", "ojt_admin"])
+    def get(self):
+        from database import IS_POSTGRES
+        len_fn = "octet_length" if IS_POSTGRES else "length"
+        conn = get_db()
+        try:
+            rows = dicts_from_rows(conn.execute(
+                f"""SELECT id, name, short_name, photo_url, photo_mime,
+                           {len_fn}(photo_data) AS bytes_len
+                    FROM pilots ORDER BY id"""
+            ).fetchall())
+            # For each row, also fetch the first 16 bytes as hex
+            for r in rows:
+                if r.get("bytes_len") and r["bytes_len"] > 0:
+                    if IS_POSTGRES:
+                        # ENCODE(SUBSTRING(...), 'hex') returns hex string
+                        peek = conn.execute(
+                            "SELECT ENCODE(SUBSTRING(photo_data FROM 1 FOR 16), 'hex') AS hex FROM pilots WHERE id=?",
+                            (r["id"],),
+                        ).fetchone()
+                    else:
+                        peek = conn.execute(
+                            "SELECT HEX(SUBSTR(photo_data, 1, 16)) AS hex FROM pilots WHERE id=?",
+                            (r["id"],),
+                        ).fetchone()
+                    r["first16_hex"] = (peek["hex"] if peek else None) if peek else None
+                    # Identify image type from magic bytes
+                    h = (r["first16_hex"] or "").lower()
+                    if h.startswith("89504e47"):
+                        r["image_type"] = "PNG ✓"
+                    elif h.startswith("ffd8ff"):
+                        r["image_type"] = "JPEG ✓"
+                    elif h.startswith("47494638"):
+                        r["image_type"] = "GIF ✓"
+                    elif h.startswith("52494646"):
+                        r["image_type"] = "WebP ✓"
+                    elif h.startswith("5c"):  # backslash — text-encoded bytes!
+                        r["image_type"] = "❌ text-encoded (\\x...) — Binary() not applied"
+                    else:
+                        r["image_type"] = f"❓ unknown magic {h[:8]}"
+                else:
+                    r["first16_hex"] = None
+                    r["image_type"] = "(empty / NULL)"
+            self.success({"pilots": rows, "backend": "postgres" if IS_POSTGRES else "sqlite"})
+        except Exception as ex:
+            traceback.print_exc()
+            self.error(f"Diagnose failed: {ex}", 500)
+        finally:
+            conn.close()

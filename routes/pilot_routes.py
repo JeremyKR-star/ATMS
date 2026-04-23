@@ -179,15 +179,12 @@ class PilotPhotoHandler(BaseHandler):
         mime_type = mime_map.get(ext, 'image/jpeg')
 
         # Store binary data in database (persistent across Render restarts).
-        # Append a version query param so the browser refetches after a re-upload
-        # instead of serving the stale cached image (or stale 404).
         version = int(time.time())
         new_url = f"/api/pilots/{pilot_id}/photo?v={version}"
-        # CRITICAL: wrap bytes with psycopg2.Binary on Postgres so the BYTEA
-        # column actually receives binary data. Without this wrapper psycopg2
-        # may try to encode bytes as text, leaving the column with garbled or
-        # empty content (upload reports success, but later GETs return 404).
         from database import IS_POSTGRES
+        upload_size = len(f["body"])
+        print(f"[PHOTO-UPLOAD] pilot={pilot_id} backend={'postgres' if IS_POSTGRES else 'sqlite'} "
+              f"incoming_bytes={upload_size} mime={mime_type}")
         if IS_POSTGRES:
             import psycopg2
             photo_param = psycopg2.Binary(f["body"])
@@ -198,8 +195,19 @@ class PilotPhotoHandler(BaseHandler):
             (photo_param, mime_type, new_url, pilot_id)
         )
         conn.commit()
+        # Read back to verify what actually landed in the column
+        len_fn = "octet_length" if IS_POSTGRES else "length"
+        check = conn.execute(
+            f"SELECT {len_fn}(photo_data) AS bytes_in_db FROM pilots WHERE id=?", (pilot_id,)
+        ).fetchone()
+        bytes_in_db = (check["bytes_in_db"] if check else None) if check else None
+        print(f"[PHOTO-UPLOAD] pilot={pilot_id} bytes_in_db_after_commit={bytes_in_db}")
         conn.close()
-        self.success({"photo_url": new_url}, "Photo uploaded")
+        self.success({
+            "photo_url": new_url,
+            "uploaded_size": upload_size,
+            "bytes_in_db": bytes_in_db,
+        }, "Photo uploaded")
 
 
 class PilotCoursesHandler(BaseHandler):
