@@ -176,14 +176,18 @@ class PilotPhotoHandler(BaseHandler):
                     '.gif': 'image/gif', '.webp': 'image/webp'}
         mime_type = mime_map.get(ext, 'image/jpeg')
 
-        # Store binary data in database (persistent across Render restarts)
+        # Store binary data in database (persistent across Render restarts).
+        # Append a version query param so the browser refetches after a re-upload
+        # instead of serving the stale cached image (or stale 404).
+        version = int(time.time())
+        new_url = f"/api/pilots/{pilot_id}/photo?v={version}"
         conn.execute(
             "UPDATE pilots SET photo_data=?, photo_mime=?, photo_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
-            (f["body"], mime_type, f"/api/pilots/{pilot_id}/photo", pilot_id)
+            (f["body"], mime_type, new_url, pilot_id)
         )
         conn.commit()
         conn.close()
-        self.success({"photo_url": f"/api/pilots/{pilot_id}/photo"}, "Photo uploaded")
+        self.success({"photo_url": new_url}, "Photo uploaded")
 
 
 class PilotCoursesHandler(BaseHandler):
