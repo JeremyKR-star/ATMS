@@ -50,12 +50,23 @@ class PhotoUploadHandler(tornado.web.RequestHandler):
         mime_map = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
                     '.gif': 'image/gif', '.webp': 'image/webp'}
         mime_type = mime_map.get(ext, 'image/jpeg')
-        photo_url = f"/api/users/{user_id}/photo"
+        # Cache-busting version + canonical URL
+        import time as _time
+        from database import IS_POSTGRES
+        version = int(_time.time())
+        photo_url = f"/api/users/{user_id}/photo?v={version}"
+
+        # Wrap with psycopg2.Binary on Postgres so BYTEA actually receives bytes
+        if IS_POSTGRES:
+            import psycopg2
+            photo_param = psycopg2.Binary(photo["body"])
+        else:
+            photo_param = photo["body"]
 
         db = get_db()
         db.execute(
             "UPDATE users SET photo_data=?, photo_mime=?, photo_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
-            (photo["body"], mime_type, photo_url, user_id)
+            (photo_param, mime_type, photo_url, user_id)
         )
         db.commit()
         db.close()

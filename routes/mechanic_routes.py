@@ -177,14 +177,25 @@ class MechanicPhotoHandler(BaseHandler):
                     '.gif': 'image/gif', '.webp': 'image/webp'}
         mime_type = mime_map.get(ext, 'image/jpeg')
 
-        # Store binary data in database (persistent across Render restarts)
+        # Store binary data in database (persistent across Render restarts).
+        # Append a version query so the browser refetches; wrap with psycopg2.Binary
+        # on Postgres so the BYTEA column actually receives binary data.
+        import time as _time
+        from database import IS_POSTGRES
+        version = int(_time.time())
+        new_url = f"/api/mechanics/{mechanic_id}/photo?v={version}"
+        if IS_POSTGRES:
+            import psycopg2
+            photo_param = psycopg2.Binary(f["body"])
+        else:
+            photo_param = f["body"]
         conn.execute(
             "UPDATE mechanics SET photo_data=?, photo_mime=?, photo_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
-            (f["body"], mime_type, f"/api/mechanics/{mechanic_id}/photo", mechanic_id)
+            (photo_param, mime_type, new_url, mechanic_id)
         )
         conn.commit()
         conn.close()
-        self.success({"photo_url": f"/api/mechanics/{mechanic_id}/photo"}, "Photo uploaded")
+        self.success({"photo_url": new_url}, "Photo uploaded")
 
 
 class MechanicOJTItemsHandler(BaseHandler):

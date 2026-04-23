@@ -181,9 +181,19 @@ class PilotPhotoHandler(BaseHandler):
         # instead of serving the stale cached image (or stale 404).
         version = int(time.time())
         new_url = f"/api/pilots/{pilot_id}/photo?v={version}"
+        # CRITICAL: wrap bytes with psycopg2.Binary on Postgres so the BYTEA
+        # column actually receives binary data. Without this wrapper psycopg2
+        # may try to encode bytes as text, leaving the column with garbled or
+        # empty content (upload reports success, but later GETs return 404).
+        from database import IS_POSTGRES
+        if IS_POSTGRES:
+            import psycopg2
+            photo_param = psycopg2.Binary(f["body"])
+        else:
+            photo_param = f["body"]
         conn.execute(
             "UPDATE pilots SET photo_data=?, photo_mime=?, photo_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
-            (f["body"], mime_type, new_url, pilot_id)
+            (photo_param, mime_type, new_url, pilot_id)
         )
         conn.commit()
         conn.close()
