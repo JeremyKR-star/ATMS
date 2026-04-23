@@ -701,18 +701,35 @@ def init_db():
     """)
 
     # ── Migrate: add photo_data columns for persistent storage ──
+    # Use ADD COLUMN IF NOT EXISTS so this is idempotent and won't poison the
+    # surrounding transaction. Visible logging so future migration failures aren't silent.
     for tbl in ("pilots", "mechanics", "users"):
         for col, ctype in [("photo_data", "BYTEA" if backend == "postgres" else "BLOB"),
                            ("photo_mime", "TEXT")]:
             try:
                 if backend == "postgres":
-                    c._cursor.execute(f"SAVEPOINT add_{tbl}_{col}")
-                    c._cursor.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {ctype}")
+                    # Postgres 9.6+ supports ADD COLUMN IF NOT EXISTS
+                    c._cursor.execute(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col} {ctype}")
+                    try:
+                        conn.commit()
+                    except Exception:
+                        pass
                 else:
-                    c._cursor.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {ctype}")
-            except Exception:
-                if backend == "postgres":
-                    c._cursor.execute(f"ROLLBACK TO SAVEPOINT add_{tbl}_{col}")
+                    # SQLite: ADD COLUMN errors if column exists; check first
+                    cols = [r[1] for r in c._cursor.execute(f"PRAGMA table_info({tbl})").fetchall()]
+                    if col not in cols:
+                        c._cursor.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {ctype}")
+                        try:
+                            conn.commit()
+                        except Exception:
+                            pass
+                print(f"[MIGRATE] {tbl}.{col} ✓")
+            except Exception as ex:
+                print(f"[MIGRATE] {tbl}.{col} FAILED: {ex}")
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
 
     # ── Migrate: Malaysian -> Malaysia ──
     try:

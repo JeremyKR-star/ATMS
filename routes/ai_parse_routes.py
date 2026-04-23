@@ -5,6 +5,10 @@ into the existing weekly_uploads / weekly_report_data tables.
 Endpoints:
   POST /api/pilots/ai-parse-image     — parse only, returns JSON for review
   POST /api/pilots/ai-parse-confirm   — save reviewed (and possibly edited) JSON
+  POST /api/admin/cleanup-stale-photo-urls — admin: clear photo_url for pilots whose
+                                              binary photo_data is missing (stops 404 spam
+                                              from old file-based URLs that died with the
+                                              ephemeral disk on Render free tier)
 """
 import os
 import io
@@ -394,5 +398,56 @@ class AIParseConfirmHandler(BaseHandler):
             conn.rollback()
             traceback.print_exc()
             self.error(f"Failed to save AI-parsed data: {ex}", 500)
+        finally:
+            conn.close()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Endpoint 3: cleanup stale photo_url values
+# ──────────────────────────────────────────────────────────────────────
+class CleanupStalePhotoUrlsHandler(BaseHandler):
+    """POST: clear photo_url for any pilot whose photo_data is missing.
+
+    Why this exists: Render's free tier has an ephemeral filesystem — every
+    redeploy wipes /public/uploads. Old pilot photos that were saved as files
+    (URL like /uploads/pilot_X_Y.png) still have those URLs in the DB but
+    the files are gone, so the browser hits 404 forever. Newer photos go
+    into pilots.photo_data BYTEA which survives. This endpoint detects
+    pilots whose URL is dead (photo_data IS NULL) and nulls the URL so
+    the UI falls back to showing initials. Re-upload to get the photo back.
+    """
+
+    @require_auth(roles=["admin", "ojt_admin"])
+    def post(self):
+        conn = get_db()
+        try:
+            # Find pilots with a stale URL (set, but no binary backing it)
+            rows = dicts_from_rows(conn.execute(
+                """SELECT id, name, short_name, photo_url
+                   FROM pilots
+                   WHERE photo_url IS NOT NULL AND photo_url <> ''
+                     AND photo_data IS NULL"""
+            ).fetchall())
+
+            cleared = []
+            for r in rows:
+                conn.execute(
+                    "UPDATE pilots SET photo_url=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (r["id"],),
+                )
+                cleared.append({
+                    "id": r["id"],
+                    "name": r.get("name") or r.get("short_name"),
+                    "old_url": r["photo_url"],
+                })
+            conn.commit()
+            self.success(
+                {"cleared_count": len(cleared), "cleared": cleared},
+                f"Cleared {len(cleared)} stale photo URL(s)",
+            )
+        except Exception as ex:
+            conn.rollback()
+            traceback.print_exc()
+            self.error(f"Cleanup failed: {ex}", 500)
         finally:
             conn.close()

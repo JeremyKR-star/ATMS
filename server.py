@@ -141,7 +141,7 @@ from routes.pilot_routes import (PilotsHandler, PilotDetailHandler, PilotPhotoHa
                                   PilotNationalitiesHandler, WeeklyUploadHandler,
                                   WeeklyUploadDetailHandler, WeeklyUploadDownloadHandler,
                                   WeeklyUploadLatestHandler)
-from routes.ai_parse_routes import AIParseImageHandler, AIParseConfirmHandler
+from routes.ai_parse_routes import AIParseImageHandler, AIParseConfirmHandler, CleanupStalePhotoUrlsHandler
 from routes.mechanic_routes import (MechanicsHandler, MechanicDetailHandler, MechanicPhotoHandler,
                                     MechanicOJTItemsHandler, MechanicOJTRecordsHandler,
                                     MechanicCertificationsHandler, MechanicCertDetailHandler,
@@ -590,6 +590,7 @@ def make_app():
         # ── AI image-parsing for non-standard daily reports ──
         (r"/api/pilots/ai-parse-image", AIParseImageHandler),
         (r"/api/pilots/ai-parse-confirm", AIParseConfirmHandler),
+        (r"/api/admin/cleanup-stale-photo-urls", CleanupStalePhotoUrlsHandler),
 
         # ── Mechanics ──
         (r"/api/mechanics", MechanicsHandler),
