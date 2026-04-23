@@ -8863,7 +8863,39 @@ function PilotPage() {
                     </div>
                   </div>
 
-                  <div className="table-wrapper" style={{marginBottom:12}}>
+                  {/* Side-by-side: original image (left) + parsed table (right) on wide screens, stacked on narrow */}
+                  <div style={{display:'flex',gap:16,marginBottom:12,flexWrap:'wrap',alignItems:'flex-start'}}>
+                    {aiResult.source_b64 && (aiResult.source_ext || '').toLowerCase() !== '.pdf' && (
+                      <div style={{flex:'1 1 380px',minWidth:280,maxWidth:'100%'}}>
+                        <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:6,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                          <span>📷 업로드한 원본 이미지</span>
+                          <a href={'data:image/' + (aiResult.source_ext||'.png').replace('.','') + ';base64,' + aiResult.source_b64}
+                             target="_blank" rel="noopener noreferrer"
+                             style={{fontSize:11,color:'var(--primary, #6366f1)',textDecoration:'none'}}>🔍 새 탭에서 크게 보기</a>
+                        </div>
+                        <img
+                          src={'data:image/' + (aiResult.source_ext||'.png').replace('.','') + ';base64,' + aiResult.source_b64}
+                          alt="Uploaded report"
+                          style={{width:'100%',maxHeight:520,objectFit:'contain',border:'1.5px solid var(--gray-200)',borderRadius:8,background:'#fff',cursor:'zoom-in'}}
+                          onClick={function(){
+                            var w = window.open('', '_blank');
+                            if (w) w.document.write('<title>' + (aiResult.source_filename||'image') + '</title><body style="margin:0;background:#222;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="data:image/' + (aiResult.source_ext||'.png').replace('.','') + ';base64,' + aiResult.source_b64 + '" style="max-width:100%;max-height:100vh;"/></body>');
+                          }}
+                        />
+                      </div>
+                    )}
+                    {aiResult.source_b64 && (aiResult.source_ext || '').toLowerCase() === '.pdf' && (
+                      <div style={{flex:'1 1 380px',minWidth:280}}>
+                        <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:6}}>📄 업로드한 PDF</div>
+                        <embed src={'data:application/pdf;base64,' + aiResult.source_b64}
+                               type="application/pdf"
+                               style={{width:'100%',height:520,border:'1.5px solid var(--gray-200)',borderRadius:8,background:'#fff'}}/>
+                      </div>
+                    )}
+
+                    <div style={{flex:'2 1 480px',minWidth:300}}>
+                      <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:6}}>🤖 AI가 분석한 결과 (수정 가능)</div>
+                      <div className="table-wrapper" style={{maxHeight:520,overflow:'auto'}}>
                     <table>
                       <thead><tr>
                         <th style={{width:36}}>#</th>
@@ -8911,6 +8943,8 @@ function PilotPage() {
                         )}
                       </tbody>
                     </table>
+                      </div>
+                    </div>
                   </div>
 
                   <div style={{display:'flex',gap:8,justifyContent:'space-between',alignItems:'center',flexWrap:'wrap'}}>
