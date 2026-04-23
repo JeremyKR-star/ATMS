@@ -322,6 +322,29 @@ class AIParseConfirmHandler(BaseHandler):
         conn = get_db()
         try:
             from database import IS_POSTGRES
+
+            # ── CRITICAL: carry forward plan/remain from the most recent prior
+            # upload, otherwise the dashboard (which reads the latest weekly_uploads
+            # only) will appear wiped. Daily AI reports only know today's done counts;
+            # the syllabus plan and the running remaining count come from the most
+            # recent Excel weekly upload (or a previous AI upload).
+            prev_upload_row = conn.execute(
+                "SELECT id FROM weekly_uploads ORDER BY created_at DESC LIMIT 1"
+            ).fetchone()
+            prev_by_pilot = {}
+            if prev_upload_row:
+                prev_id = prev_upload_row["id"] if isinstance(prev_upload_row, dict) else prev_upload_row[0]
+                prev_rows = dicts_from_rows(conn.execute(
+                    """SELECT pilot_name, flt_plan, flt_done, flt_remain,
+                              sim_plan, sim_done, sim_remain
+                       FROM weekly_report_data WHERE upload_id=?""",
+                    (prev_id,),
+                ).fetchall())
+                for pr in prev_rows:
+                    key = (pr.get("pilot_name") or "").lower().strip()
+                    if key:
+                        prev_by_pilot[key] = pr
+
             if IS_POSTGRES and file_binary:
                 import psycopg2
                 cur = conn.execute(
@@ -366,18 +389,71 @@ class AIParseConfirmHandler(BaseHandler):
                 else:
                     unmatched_names.append(name)
 
+                # Today's daily count from the AI image (possibly user-edited)
+                today_flt = int(row.get("flt_done") or 0)
+                today_sim = int(row.get("sim_done") or 0)
+
+                # Look up previous totals for this pilot (try exact name, then
+                # fall back to fuzzy match on prev rows since names may vary)
+                prev = prev_by_pilot.get(name.lower().strip())
+                if prev is None:
+                    # Fallback: contains-match on prior rows
+                    nl = name.lower().strip()
+                    for k, v in prev_by_pilot.items():
+                        if k and (k in nl or nl in k):
+                            prev = v
+                            break
+
+                if prev:
+                    final_flt_plan = int(prev.get("flt_plan") or 0)
+                    final_sim_plan = int(prev.get("sim_plan") or 0)
+                    final_flt_done = int(prev.get("flt_done") or 0) + today_flt
+                    final_sim_done = int(prev.get("sim_done") or 0) + today_sim
+                    final_flt_remain = max(0, int(prev.get("flt_remain") or 0) - today_flt)
+                    final_sim_remain = max(0, int(prev.get("sim_remain") or 0) - today_sim)
+                else:
+                    # No prior data for this pilot — just record today's counts
+                    final_flt_plan = int(row.get("flt_plan") or 0)
+                    final_sim_plan = int(row.get("sim_plan") or 0)
+                    final_flt_done = today_flt
+                    final_sim_done = today_sim
+                    final_flt_remain = int(row.get("flt_remain") or 0)
+                    final_sim_remain = int(row.get("sim_remain") or 0)
+
                 conn.execute(
                     """INSERT INTO weekly_report_data
                        (upload_id, pilot_id, pilot_name, flt_plan, flt_done, flt_remain,
                         sim_plan, sim_done, sim_remain, remarks)
                        VALUES (?,?,?,?,?,?,?,?,?,?)""",
                     (upload_id, pilot_id, name,
-                     int(row.get("flt_plan") or 0), int(row.get("flt_done") or 0),
-                     int(row.get("flt_remain") or 0),
-                     int(row.get("sim_plan") or 0), int(row.get("sim_done") or 0),
-                     int(row.get("sim_remain") or 0),
+                     final_flt_plan, final_flt_done, final_flt_remain,
+                     final_sim_plan, final_sim_done, final_sim_remain,
                      (row.get("remarks") or "")),
                 )
+
+            # ── Carry over pilots who didn't fly today, so the dashboard
+            # (which reads the latest weekly_uploads only) still shows them.
+            today_keys = {(r.get("name") or "").lower().strip() for r in aggregated}
+            carried_over = 0
+            for prev_key, prev in prev_by_pilot.items():
+                if prev_key in today_keys:
+                    continue  # already inserted above
+                # No fly today — preserve previous totals as-is
+                pname = prev.get("pilot_name") or prev_key
+                pid = _match_pilot_id(pname, pilots)
+                conn.execute(
+                    """INSERT INTO weekly_report_data
+                       (upload_id, pilot_id, pilot_name, flt_plan, flt_done, flt_remain,
+                        sim_plan, sim_done, sim_remain, remarks)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (upload_id, pid, pname,
+                     int(prev.get("flt_plan") or 0), int(prev.get("flt_done") or 0),
+                     int(prev.get("flt_remain") or 0),
+                     int(prev.get("sim_plan") or 0), int(prev.get("sim_done") or 0),
+                     int(prev.get("sim_remain") or 0),
+                     "(carried over — no flight today)"),
+                )
+                carried_over += 1
 
             conn.commit()
 
@@ -392,7 +468,9 @@ class AIParseConfirmHandler(BaseHandler):
                 "saved_rows": len(aggregated),
                 "matched": matched_count,
                 "unmatched_names": unmatched_names,
-            }, f"AI-parsed report saved: {len(aggregated)} rows, {matched_count} matched")
+                "carried_over": carried_over,
+            }, f"AI-parsed report saved: {len(aggregated)} rows updated, "
+               f"{matched_count} matched, {carried_over} carried over from prior upload")
 
         except Exception as ex:
             conn.rollback()

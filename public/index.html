@@ -8183,6 +8183,22 @@ function PilotPage() {
     } catch(err) { showToast(err.message, 'error'); }
   };
 
+  var handleWeeklyRename = async function(uploadId, currentName) {
+    var newName = prompt(t('새 파일명을 입력하세요') || 'Enter new filename', currentName || '');
+    if (newName === null) return; // user cancelled
+    newName = newName.trim();
+    if (!newName) { showToast(t('파일명을 입력해주세요') || 'Filename required', 'error'); return; }
+    if (newName === currentName) return;
+    try {
+      await api('/pilots/weekly-uploads/' + uploadId, {
+        method: 'PATCH',
+        body: JSON.stringify({ original_filename: newName })
+      });
+      showToast(t('파일명 변경 완료') || 'Renamed', 'success');
+      loadAll();
+    } catch(err) { showToast(err.message, 'error'); }
+  };
+
   var handleWeeklyDownload = function(uploadId, filename) {
     var token = localStorage.getItem('atms_token');
     window.open(API + '/pilots/weekly-uploads/' + uploadId + '/download?token=' + token, '_blank');
@@ -8983,7 +8999,18 @@ function PilotPage() {
                     return (
                       <tr key={u.id}>
                         <td>{idx + 1}</td>
-                        <td><strong>{u.original_filename}</strong></td>
+                        <td>
+                          <strong>{u.original_filename}</strong>
+                          {u.notes && u.notes.indexOf('[AI-parsed]') === 0 && (
+                            <span className="badge" style={{marginLeft:6,background:'#e0e7ff',color:'#4338ca',fontSize:10,padding:'2px 6px'}}>🤖 AI</span>
+                          )}
+                          {u.notes && u.notes.indexOf('[AI-parsed]') !== 0 && (
+                            <span className="badge" style={{marginLeft:6,background:'#dcfce7',color:'#15803d',fontSize:10,padding:'2px 6px'}}>📊 Excel</span>
+                          )}
+                          {!u.notes && (
+                            <span className="badge" style={{marginLeft:6,background:'#dcfce7',color:'#15803d',fontSize:10,padding:'2px 6px'}}>📊 Excel</span>
+                          )}
+                        </td>
                         <td>{u.report_date || '-'}</td>
                         <td>{u.uploaded_by || '-'}</td>
                         <td className="text-center"><span className="badge badge-blue">{u.row_count}명</span></td>
@@ -8993,6 +9020,8 @@ function PilotPage() {
                           <div style={{display:'flex',gap:4}}>
                             <button className="btn btn-outline btn-sm" onClick={function(){handleWeeklyDownload(u.id, u.original_filename);}}>
                               {t('다운로드')}</button>
+                            <button className="btn btn-outline btn-sm" title={t('파일명 수정')||'Rename'} onClick={function(){handleWeeklyRename(u.id, u.original_filename);}}>
+                              ✏️ {t('이름수정')||'Rename'}</button>
                             {isAdmin && <button className="btn btn-danger btn-sm" onClick={function(){handleWeeklyDelete(u.id);}}>
                               {t('삭제')}</button>}
                           </div>

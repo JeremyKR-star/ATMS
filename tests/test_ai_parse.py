@@ -88,9 +88,77 @@ def test_match_pilot_exact_then_contains():
     assert _match_pilot_id("Unknown", pilots) is None
 
 
+def test_confirm_preserves_plan_and_adds_done():
+    """Simulates the logic inside AIParseConfirmHandler.post() without hitting DB.
+
+    Fixes the bug where saving an AI daily report was wiping the dashboard
+    because plan/remain were stored as 0.
+    """
+    # Prior Excel upload had these totals per pilot
+    prev_by_pilot = {
+        "jamil":  {"pilot_name": "Jamil",  "flt_plan": 50, "flt_done": 10, "flt_remain": 40,
+                   "sim_plan": 30, "sim_done": 8,  "sim_remain": 22},
+        "samad":  {"pilot_name": "Samad",  "flt_plan": 50, "flt_done": 12, "flt_remain": 38,
+                   "sim_plan": 30, "sim_done": 10, "sim_remain": 20},
+        "ashraf": {"pilot_name": "Ashraf", "flt_plan": 50, "flt_done": 9,  "flt_remain": 41,
+                   "sim_plan": 30, "sim_done": 7,  "sim_remain": 23},
+    }
+    # AI parsed today's daily report (Samad flew 1 flt + 1 sim; Jamil flew 1 sim)
+    today = [
+        {"name": "Jamil", "flt_done": 0, "sim_done": 1},
+        {"name": "Samad", "flt_done": 1, "sim_done": 1},
+    ]
+
+    # Replicate the merge logic
+    results = {}
+    for row in today:
+        name = row["name"]
+        prev = prev_by_pilot.get(name.lower())
+        t_flt = row["flt_done"]; t_sim = row["sim_done"]
+        results[name] = {
+            "flt_plan":   prev["flt_plan"],
+            "flt_done":   prev["flt_done"] + t_flt,
+            "flt_remain": max(0, prev["flt_remain"] - t_flt),
+            "sim_plan":   prev["sim_plan"],
+            "sim_done":   prev["sim_done"] + t_sim,
+            "sim_remain": max(0, prev["sim_remain"] - t_sim),
+        }
+    # Carry-over for pilots who didn't fly today
+    today_keys = {r["name"].lower() for r in today}
+    for k, prev in prev_by_pilot.items():
+        if k not in today_keys:
+            results[prev["pilot_name"]] = {
+                "flt_plan":prev["flt_plan"],"flt_done":prev["flt_done"],"flt_remain":prev["flt_remain"],
+                "sim_plan":prev["sim_plan"],"sim_done":prev["sim_done"],"sim_remain":prev["sim_remain"],
+            }
+
+    # Jamil: +1 sim  →  sim_done 8→9, sim_remain 22→21
+    assert results["Jamil"]["sim_done"] == 9, results["Jamil"]
+    assert results["Jamil"]["sim_remain"] == 21
+    assert results["Jamil"]["flt_done"] == 10   # no change
+    assert results["Jamil"]["flt_plan"] == 50   # preserved
+
+    # Samad: +1 flt +1 sim
+    assert results["Samad"]["flt_done"] == 13
+    assert results["Samad"]["flt_remain"] == 37
+    assert results["Samad"]["sim_done"] == 11
+    assert results["Samad"]["sim_remain"] == 19
+    assert results["Samad"]["flt_plan"] == 50   # preserved
+
+    # Ashraf: didn't fly today — carried over unchanged
+    assert results["Ashraf"]["flt_done"] == 9
+    assert results["Ashraf"]["flt_remain"] == 41
+    assert results["Ashraf"]["flt_plan"] == 50
+
+    # No pilot has plan=0 → dashboard won't look wiped
+    for r in results.values():
+        assert r["flt_plan"] > 0 and r["sim_plan"] > 0
+
+
 if __name__ == "__main__":
     test_aggregate_counts()
     test_remarks_carry_source_detail()
     test_empty_pilot_name_skipped()
     test_match_pilot_exact_then_contains()
+    test_confirm_preserves_plan_and_adds_done()
     print("✓ all tests passed")

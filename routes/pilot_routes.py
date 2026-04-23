@@ -1000,6 +1000,39 @@ class WeeklyUploadDetailHandler(BaseHandler):
         conn.close()
         self.success(message="Upload deleted")
 
+    @require_auth(roles=['admin', 'ojt_admin', 'instructor'])
+    def patch(self, upload_id):
+        """Rename original_filename (and optionally update notes / report_date)."""
+        body = self.get_json_body()
+        new_name = (body.get('original_filename') or '').strip()
+        new_notes = body.get('notes')  # may be None to skip
+        new_report_date = body.get('report_date')  # may be None to skip
+        if not new_name:
+            return self.error("original_filename is required")
+        conn = get_db()
+        upload = dict_from_row(conn.execute(
+            "SELECT id FROM weekly_uploads WHERE id=?", (upload_id,)
+        ).fetchone())
+        if not upload:
+            conn.close()
+            return self.error("Upload not found", 404)
+        # Build update dynamically based on which fields were provided
+        sets = ["original_filename=?"]
+        params = [new_name]
+        if new_notes is not None:
+            sets.append("notes=?"); params.append(new_notes)
+        if new_report_date is not None:
+            sets.append("report_date=?"); params.append(new_report_date)
+        params.append(upload_id)
+        conn.execute(f"UPDATE weekly_uploads SET {', '.join(sets)} WHERE id=?", tuple(params))
+        conn.commit()
+        updated = dict_from_row(conn.execute(
+            "SELECT id, filename, original_filename, uploaded_by, report_date, file_size, row_count, notes, created_at FROM weekly_uploads WHERE id=?",
+            (upload_id,)
+        ).fetchone())
+        conn.close()
+        self.success(updated, "Upload updated")
+
 
 class WeeklyUploadDownloadHandler(BaseHandler):
     """GET download original Excel file (supports token in query param for window.open)"""
