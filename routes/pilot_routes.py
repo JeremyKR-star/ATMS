@@ -138,12 +138,14 @@ class PilotPhotoHandler(BaseHandler):
             return self.finish()
         photo_data = row[0] if row else None
         photo_mime = row[1] if row else None
-        if not photo_data:
-            self.set_status(404)
-            return self.finish()
         # Convert memoryview to bytes if needed
         if isinstance(photo_data, memoryview):
             photo_data = bytes(photo_data)
+        # Treat empty/tiny binary as no-photo (catches garbled rows from old uploads
+        # written before psycopg2.Binary() wrapping was added).
+        if not photo_data or len(photo_data) < 100:
+            self.set_status(404)
+            return self.finish()
         self.set_header("Content-Type", photo_mime or "image/jpeg")
         self.set_header("Cache-Control", "public, max-age=86400")
         self.write(photo_data)

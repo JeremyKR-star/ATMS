@@ -524,20 +524,25 @@ class CleanupStalePhotoUrlsHandler(BaseHandler):
 
     @require_auth(roles=["admin", "ojt_admin"])
     def post(self):
+        from database import IS_POSTGRES
+        # Use the right length function for the backend
+        len_fn = "octet_length" if IS_POSTGRES else "length"
+
         conn = get_db()
         try:
-            # Find pilots with a stale URL (set, but no binary backing it)
-            rows = dicts_from_rows(conn.execute(
-                """SELECT id, name, short_name, photo_url
-                   FROM pilots
-                   WHERE photo_url IS NOT NULL AND photo_url <> ''
-                     AND photo_data IS NULL"""
-            ).fetchall())
+            # Stale = URL is set AND (no binary OR binary is too small to be a real image).
+            # The "too small" check catches old uploads from before psycopg2.Binary() was
+            # used — those wrote empty/garbled bytes that aren't NULL but aren't valid images.
+            query = f"""SELECT id, name, short_name, photo_url
+                        FROM pilots
+                        WHERE photo_url IS NOT NULL AND photo_url <> ''
+                          AND (photo_data IS NULL OR {len_fn}(photo_data) < 100)"""
+            rows = dicts_from_rows(conn.execute(query).fetchall())
 
             cleared = []
             for r in rows:
                 conn.execute(
-                    "UPDATE pilots SET photo_url=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    "UPDATE pilots SET photo_url=NULL, photo_data=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?",
                     (r["id"],),
                 )
                 cleared.append({
