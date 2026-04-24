@@ -313,6 +313,23 @@ Render Logs에서 정확한 에러 확인: `anthropic.BadRequestError: Your cred
 
 ---
 
+## 2026-04-24 — 조종사 카드 carousel 네비게이션 가시성 개선
+
+### 사용자 요청
+> (스크린샷 첨부) 빨간색 박스로 표기한 영역들도 색이 너무 하얘서 잘 안 보여. 수정해줘.
+
+### 응답
+문제: 조종사 카드 carousel 의 좌/우 화살표 버튼과 하단 dot 인디케이터가 배경과 구분 안 됨. 특히 `.nat-section` 배경이 얇은 색상일 때 `rgba(255,255,255,0.15)` 로 된 화살표가 거의 투명.
+
+수정 (`public/index.html` CSS):
+- `.carousel-nav`: 배경 불투명 흰색(#fff), 테두리 2px 파란색(primary), 화살표 아이콘도 파란색, box-shadow 강화
+- `.carousel-dot`: 기본 색을 반투명 회색(rgba(100,116,139,0.35)) + 테두리 추가로 흰 배경에서도 보임
+- `.carousel-dot.active`: 파란색(primary) 단색 + 그림자
+- `.nat-section .carousel-nav` override 도 동일한 흰/파랑 조합으로 통일
+- hover 시 파란 배경 + 흰 아이콘으로 명확한 피드백
+
+---
+
 ## 2026-04-24 — 요구사항 이력 파일 자동 관리
 
 ### 사용자 요청
