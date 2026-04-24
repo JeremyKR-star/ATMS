@@ -7915,6 +7915,25 @@ function PilotPage() {
   const [editingCourseId, setEditingCourseId] = useState(null);
   const [editingCourseDraft, setEditingCourseDraft] = useState({});
 
+  // Renumber all courses so course_no runs C-01, C-02, ... sequentially:
+  // SIM courses first (ordered by sort_order), then Flight continuing from there.
+  // Called after any add/delete/reorder so the 일련번호 stays clean.
+  var renumberCourses = async function(silent) {
+    try {
+      var data = await api('/pilots/courses/renumber', {method: 'POST'});
+      if (!silent) {
+        var d = data.data || {};
+        showToast('번호 재정렬: ' + (d.updated||0) + '개 과목', 'success');
+      }
+      // Refresh local state with the renumbered values
+      var cResp = await api('/pilots/courses');
+      var raw = cResp.data;
+      setCourses(Array.isArray(raw) ? raw : (raw && raw.courses ? raw.courses : []));
+    } catch (err) {
+      if (!silent) showToast(err.message, 'error');
+    }
+  };
+
   var addCourse = async function(category) {
     var f = category === 'sim' ? courseFormSim : courseFormFlt;
     if (!f.subject || !f.subject.trim()) {
@@ -7948,6 +7967,8 @@ function PilotPage() {
         return prev.map(function(c){ return c.id === tempId ? real : c; });
       });
       showToast('과목 추가 완료', 'success');
+      // Auto-renumber so the new course gets the right C-XX + all stay sequential
+      await renumberCourses(true);
       loadAll(); // background validation
     } catch (err) {
       // Rollback on failure
@@ -8036,6 +8057,8 @@ function PilotPage() {
         api('/pilots/courses/' + me.id, {method:'PATCH', body:JSON.stringify({sort_order: neighborOrder})}),
         api('/pilots/courses/' + neighbor.id, {method:'PATCH', body:JSON.stringify({sort_order: meOrder})}),
       ]);
+      // Auto-renumber so course_no follows the new order (C-01, C-02, ...)
+      await renumberCourses(true);
     } catch (err) {
       setCourses(prevCourses);
       showToast(err.message, 'error');
@@ -8050,6 +8073,8 @@ function PilotPage() {
     try {
       await api('/pilots/courses/' + c.id, {method: 'DELETE'});
       showToast('과목 삭제 완료', 'success');
+      // Auto-renumber so remaining courses stay sequential (no gaps)
+      await renumberCourses(true);
       loadAll();
     } catch (err) {
       setCourses(prevCourses);
@@ -8976,7 +9001,12 @@ function PilotPage() {
           {/* ── Course Management Modal ── */}
           {showCourseManager && (
             <Modal size="xl" title={'⚙ 과목 관리 — 시뮬레이터 / 비행 과목 추가·수정·삭제·순서변경'} onClose={function(){setShowCourseManager(false); setEditingCourseId(null);}}
-              footer={<button className="btn btn-primary" onClick={function(){setShowCourseManager(false); setEditingCourseId(null);}}>{t('닫기')}</button>}>
+              footer={<>
+                <button className="btn btn-outline" onClick={function(){renumberCourses(false);}} style={{marginRight:'auto'}}>
+                  🔢 번호 재정렬 (C-01부터 다시)
+                </button>
+                <button className="btn btn-primary" onClick={function(){setShowCourseManager(false); setEditingCourseId(null);}}>{t('닫기')}</button>
+              </>}>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
                 {[{cat:'sim',label:'🖥 시뮬레이터 과목 (SIM/CPT)',color:'#dbeafe',headerColor:'#1e40af',form:courseFormSim,setForm:setCourseFormSim},
                   {cat:'flight',label:'✈ 비행 과목 (T-50)',color:'#fef3c7',headerColor:'#92400e',form:courseFormFlt,setForm:setCourseFormFlt}].map(function(section){
@@ -9613,7 +9643,7 @@ function PilotPage() {
                         <td style={{fontSize:12}}>{u.created_at ? new Date(u.created_at + 'Z').toLocaleString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}) : '-'}</td>
                         <td>
                           <div style={{display:'flex',gap:4}}>
-                            {u.has_ai_preview && (
+                            {!!u.has_ai_preview && (
                               <button className="btn btn-outline btn-sm" style={{whiteSpace:'nowrap',background:'#e0e7ff',borderColor:'#6366f1',color:'#4338ca',fontWeight:600}}
                                 title="AI 분석 결과 미리보기" onClick={function(){openAiPreview(u.id);}}>
                                 🔍 미리보기</button>

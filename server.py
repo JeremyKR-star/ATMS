@@ -138,6 +138,7 @@ from routes.notification_routes import NotificationsHandler, NotificationReadHan
 from routes.photo_routes import PhotoUploadHandler, UserPhotoHandler
 from routes.pilot_routes import (PilotsHandler, PilotDetailHandler, PilotPhotoHandler,
                                   PilotCoursesHandler, PilotCourseDetailHandler,
+                                  PilotCoursesRenumberHandler,
                                   PilotTrainingHandler, PilotWeeklyHandler,
                                   PilotNationalitiesHandler, WeeklyUploadHandler,
                                   WeeklyUploadDetailHandler, WeeklyUploadDownloadHandler,
@@ -582,6 +583,7 @@ def make_app():
         (r"/api/pilots/(\d+)", PilotDetailHandler),
         (r"/api/pilots/(\d+)/photo", PilotPhotoHandler),
         (r"/api/pilots/courses", PilotCoursesHandler),
+        (r"/api/pilots/courses/renumber", PilotCoursesRenumberHandler),
         (r"/api/pilots/courses/(\d+)", PilotCourseDetailHandler),
         (r"/api/pilots/training", PilotTrainingHandler),
         (r"/api/pilots/weekly", PilotWeeklyHandler),

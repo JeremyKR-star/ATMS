@@ -287,6 +287,32 @@ Render Logs에서 정확한 에러 확인: `anthropic.BadRequestError: Your cred
 
 ---
 
+## 2026-04-24 — 과목 일련번호 자동 재정렬 + 업로드 이력 "0" 제거
+
+### 사용자 요청
+> 과목 수기로 수정하면 일련번호가 자동으로 안 맞춰지고 저렇게 이상하게 맞춰져 있어. 그리고 업로드 이력의 엑셀 파일 기록내역에 Manage칸 0이 표기되어 있는 거 뭐야.
+
+### 응답
+**Fix 1 — 과목 번호 자동 재정렬**
+
+문제: C-27이 두 번 나오거나 C-33이 C-29 앞에 오는 식으로 수동 편집 후 과목 번호가 뒤섞임.
+
+해결:
+- 백엔드: `PilotCoursesRenumberHandler` 추가 (`POST /api/pilots/courses/renumber`)
+  - SIM 과목 먼저 (sort_order 순), Flight 과목 이어서
+  - `course_no` → C-01, C-02, ... 순차적으로 덮어씀
+  - `seq_no` (카테고리 내 번호) + `sort_order` 도 함께 정리 (10, 20, 30...)
+- 프론트엔드: `renumberCourses()` 함수 추가, 과목 추가/삭제/순서변경 후 자동 호출
+- 과목 관리 모달 푸터 좌측에 **🔢 번호 재정렬 (C-01부터 다시)** 버튼 추가 — 기존에 뒤섞인 번호 한 번에 정리
+
+**Fix 2 — Excel 업로드 행의 Manage 칸 "0" 제거**
+
+문제: JSX `{u.has_ai_preview && <button>...}` 에서 `has_ai_preview=0` 이면 `0` 이 그대로 렌더링됨 (React 클래식 버그).
+
+해결: `{!!u.has_ai_preview && <button>...}` 로 Boolean 강제 변환.
+
+---
+
 ## 2026-04-24 — 요구사항 이력 파일 자동 관리
 
 ### 사용자 요청

@@ -281,6 +281,49 @@ class PilotCoursesHandler(BaseHandler):
             conn.close()
 
 
+class PilotCoursesRenumberHandler(BaseHandler):
+    """POST: rewrite course_no + seq_no for all courses so they're sequential.
+    SIM courses first (C-01..), then Flight (continuing from wherever SIM left off).
+    Ordering follows sort_order within each category."""
+
+    @require_auth(roles=['admin', 'ojt_admin'])
+    def post(self):
+        conn = get_db()
+        try:
+            sim_rows = dicts_from_rows(conn.execute(
+                "SELECT id FROM pilot_courses WHERE category='sim' ORDER BY sort_order, id"
+            ).fetchall())
+            flt_rows = dicts_from_rows(conn.execute(
+                "SELECT id FROM pilot_courses WHERE category='flight' ORDER BY sort_order, id"
+            ).fetchall())
+
+            updated = 0
+            n = 0
+            for i, r in enumerate(sim_rows):
+                n = i + 1
+                conn.execute(
+                    "UPDATE pilot_courses SET course_no=?, seq_no=?, sort_order=? WHERE id=?",
+                    (f"C-{n:02d}", i + 1, n * 10, r["id"]),
+                )
+                updated += 1
+            for j, r in enumerate(flt_rows):
+                n = len(sim_rows) + j + 1
+                conn.execute(
+                    "UPDATE pilot_courses SET course_no=?, seq_no=?, sort_order=? WHERE id=?",
+                    (f"C-{n:02d}", j + 1, n * 10, r["id"]),
+                )
+                updated += 1
+            conn.commit()
+            self.success({"updated": updated, "sim_count": len(sim_rows), "flt_count": len(flt_rows)},
+                         f"Renumbered {updated} course(s)")
+        except Exception as ex:
+            conn.rollback()
+            import traceback; traceback.print_exc()
+            self.error(f"Failed to renumber: {ex}", 500)
+        finally:
+            conn.close()
+
+
 class PilotCourseDetailHandler(BaseHandler):
     """PATCH update / DELETE remove a single course."""
 
