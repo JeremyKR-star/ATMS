@@ -255,6 +255,38 @@ Render Logs에서 정확한 에러 확인: `anthropic.BadRequestError: Your cred
 
 ---
 
+## 2026-04-24 — 주간보고 대시보드와 개인별 현황 데이터 일치
+
+### 사용자 요청
+> 주간보고 대쉬보드랑 개인별현황 기록이랑 데이터 값이 매칭이 안 되는데?
+
+### 응답
+**원인 진단:**
+- 주간보고 대시보드는 `weekly_report_data` (Excel/AI에 저장된 Plan/Done/Remain 숫자)
+- 개인별 현황은 `pilot_training` (실제 완료 셀 날짜/시간)
+- 두 저장소가 별개라 불일치 가능. 주요 원인:
+  1. Excel 자체가 Plan/Done 타이핑값과 Individual Status 시트가 모순
+  2. AI 업로드가 이미 완료된 과목을 증분 (weekly_report_data +1 이지만 pilot_training UPSERT는 행 추가 아님)
+
+**해결 — 사용자가 "개인별 셀 수가 진짜" 선택:**
+
+1. 진단 endpoint 추가 (`routes/ai_parse_routes.py` → `DiagnoseTrainingCountsHandler`)
+   - `GET /api/admin/diagnose-training-counts`
+   - 조종사별로 dashboard_sim_done / individual_sim_done / sim_diff 나란히 반환
+   - 프론트 콘솔에서 `console.table()` 로 차이 한눈에 확인 가능
+
+2. 대시보드 재계산 (`routes/pilot_routes.py` → `PilotWeeklyHandler`)
+   - 기존: 최근 weekly_uploads 의 저장된 숫자 사용
+   - 변경: 항상 `pilot_training` 의 COUNT 로 계산
+   - Plan = `pilot_courses` COUNT (카테고리별)
+   - Done = `pilot_training` COUNT (완료 날짜 NOT NULL)
+   - Remain = max(0, Plan - Done)
+   - → 두 화면이 항상 일치
+
+**이후 동작:** weekly_uploads 는 여전히 업로드 이력/원본 파일 보관용으로 사용되지만, 실제 훈련 진도 숫자는 pilot_training 이 source of truth.
+
+---
+
 ## 2026-04-24 — 요구사항 이력 파일 자동 관리
 
 ### 사용자 요청

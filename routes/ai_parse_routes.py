@@ -832,6 +832,93 @@ memoryview = _b.memoryview
 
 
 # ──────────────────────────────────────────────────────────────────────
+# Endpoint: diagnose training count mismatch
+# ──────────────────────────────────────────────────────────────────────
+class DiagnoseTrainingCountsHandler(BaseHandler):
+    """GET: per-pilot comparison of what the 주간보고 dashboard shows (from
+    weekly_report_data of the latest upload) vs what 개인별 현황 actually has
+    (count of pilot_training rows with completed_date). Helps the admin see
+    exactly where the numbers drift."""
+
+    @require_auth(roles=["admin", "ojt_admin", "instructor"])
+    def get(self):
+        conn = get_db()
+        try:
+            pilots = dicts_from_rows(conn.execute(
+                "SELECT id, name, short_name FROM pilots WHERE status='active' ORDER BY sort_order, id"
+            ).fetchall())
+            # Total syllabus size per category
+            sim_plan = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM pilot_courses WHERE category='sim'"
+            ).fetchone()["cnt"]
+            flt_plan = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM pilot_courses WHERE category='flight'"
+            ).fetchone()["cnt"]
+            # Latest upload's weekly_report_data
+            latest = conn.execute(
+                "SELECT id FROM weekly_uploads ORDER BY created_at DESC LIMIT 1"
+            ).fetchone()
+            dash_by_name = {}
+            latest_id = None
+            if latest:
+                latest_id = latest["id"]
+                for r in dicts_from_rows(conn.execute(
+                    """SELECT pilot_id, pilot_name, flt_plan, flt_done, sim_plan, sim_done
+                       FROM weekly_report_data WHERE upload_id=?""", (latest_id,)
+                ).fetchall()):
+                    # Index by pilot_id if possible, else by name
+                    if r.get("pilot_id"):
+                        dash_by_name[r["pilot_id"]] = r
+                    dash_by_name[(r.get("pilot_name") or "").lower().strip()] = r
+
+            rows = []
+            for p in pilots:
+                # Count from pilot_training
+                sim_done_actual = conn.execute(
+                    """SELECT COUNT(*) AS cnt FROM pilot_training pt
+                       JOIN pilot_courses pc ON pt.course_id = pc.id
+                       WHERE pt.pilot_id=? AND pc.category='sim' AND pt.completed_date IS NOT NULL""",
+                    (p["id"],),
+                ).fetchone()["cnt"]
+                flt_done_actual = conn.execute(
+                    """SELECT COUNT(*) AS cnt FROM pilot_training pt
+                       JOIN pilot_courses pc ON pt.course_id = pc.id
+                       WHERE pt.pilot_id=? AND pc.category='flight' AND pt.completed_date IS NOT NULL""",
+                    (p["id"],),
+                ).fetchone()["cnt"]
+                # Dashboard values
+                dash = dash_by_name.get(p["id"]) or \
+                       dash_by_name.get((p.get("short_name") or "").lower().strip()) or \
+                       dash_by_name.get((p.get("name") or "").lower().strip())
+                dash_sim = dash.get("sim_done") if dash else None
+                dash_flt = dash.get("flt_done") if dash else None
+                rows.append({
+                    "pilot_id": p["id"],
+                    "short_name": p.get("short_name"),
+                    "name": p.get("name"),
+                    "dashboard_sim_done": dash_sim,
+                    "individual_sim_done": sim_done_actual,
+                    "sim_diff": (dash_sim - sim_done_actual) if dash_sim is not None else None,
+                    "dashboard_flt_done": dash_flt,
+                    "individual_flt_done": flt_done_actual,
+                    "flt_diff": (dash_flt - flt_done_actual) if dash_flt is not None else None,
+                    "sim_plan_total": sim_plan,
+                    "flt_plan_total": flt_plan,
+                })
+            self.success({
+                "rows": rows,
+                "sim_plan_total": sim_plan,
+                "flt_plan_total": flt_plan,
+                "latest_upload_id": latest_id,
+            })
+        except Exception as ex:
+            traceback.print_exc()
+            self.error(f"Diagnose failed: {ex}", 500)
+        finally:
+            conn.close()
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Endpoint 4: diagnose photo_data state (admin debug)
 # ──────────────────────────────────────────────────────────────────────
 class DiagnosePhotosHandler(BaseHandler):

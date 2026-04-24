@@ -400,41 +400,26 @@ class PilotTrainingHandler(BaseHandler):
 
 
 class PilotWeeklyHandler(BaseHandler):
-    """GET weekly summary per pilot — uses latest upload if available, otherwise computed from training records"""
+    """GET weekly summary per pilot — always computes from pilot_training (the
+    source of truth for completions), so the 주간보고 dashboard and 개인별 현황
+    always agree. Plan comes from pilot_courses (syllabus total), Done from
+    pilot_training COUNT with non-null completed_date, Remain = Plan - Done.
+    """
 
     @require_auth()
     def get(self):
         conn = get_db()
 
-        # Check if there's uploaded weekly data
-        latest_upload = conn.execute(
-            "SELECT id FROM weekly_uploads ORDER BY created_at DESC LIMIT 1"
-        ).fetchone()
-
-        if latest_upload:
-            # Use data from latest upload
-            upload_data = dicts_from_rows(conn.execute(
-                "SELECT * FROM weekly_report_data WHERE upload_id=? ORDER BY id",
-                (latest_upload['id'],)
-            ).fetchall())
-            result = []
-            for d in upload_data:
-                result.append({
-                    'id': d['pilot_id'] or 0,
-                    'name': d['pilot_name'],
-                    'simPlan': d['sim_plan'], 'simDone': d['sim_done'], 'simRemain': d['sim_remain'],
-                    'fltPlan': d['flt_plan'], 'fltDone': d['flt_done'], 'fltRemain': d['flt_remain'],
-                })
-            conn.close()
-            return self.success(result)
-
-        # Fallback: compute from training records
         pilots = dicts_from_rows(conn.execute(
             f"SELECT {PilotsHandler.PILOT_COLS} FROM pilots WHERE status='active' ORDER BY sort_order, id"
         ).fetchall())
 
-        sim_total = conn.execute("SELECT COUNT(*) as cnt FROM pilot_courses WHERE category='sim'").fetchone()['cnt']
-        flt_total = conn.execute("SELECT COUNT(*) as cnt FROM pilot_courses WHERE category='flight'").fetchone()['cnt']
+        sim_total = conn.execute(
+            "SELECT COUNT(*) as cnt FROM pilot_courses WHERE category='sim'"
+        ).fetchone()['cnt']
+        flt_total = conn.execute(
+            "SELECT COUNT(*) as cnt FROM pilot_courses WHERE category='flight'"
+        ).fetchone()['cnt']
 
         result = []
         for p in pilots:
@@ -450,8 +435,8 @@ class PilotWeeklyHandler(BaseHandler):
             """, (p['id'],)).fetchone()['cnt']
             result.append({
                 'id': p['id'], 'name': p['short_name'],
-                'simPlan': sim_total, 'simDone': sim_done, 'simRemain': sim_total - sim_done,
-                'fltPlan': flt_total, 'fltDone': flt_done, 'fltRemain': flt_total - flt_done,
+                'simPlan': sim_total, 'simDone': sim_done, 'simRemain': max(0, sim_total - sim_done),
+                'fltPlan': flt_total, 'fltDone': flt_done, 'fltRemain': max(0, flt_total - flt_done),
             })
         conn.close()
         self.success(result)

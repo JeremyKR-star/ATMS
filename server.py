@@ -144,7 +144,7 @@ from routes.pilot_routes import (PilotsHandler, PilotDetailHandler, PilotPhotoHa
                                   WeeklyUploadLatestHandler)
 from routes.ai_parse_routes import (AIParseImageHandler, AIParseConfirmHandler,
                                      CleanupStalePhotoUrlsHandler, DiagnosePhotosHandler,
-                                     AIParsePreviewHandler)
+                                     AIParsePreviewHandler, DiagnoseTrainingCountsHandler)
 from routes.mechanic_routes import (MechanicsHandler, MechanicDetailHandler, MechanicPhotoHandler,
                                     MechanicOJTItemsHandler, MechanicOJTRecordsHandler,
                                     MechanicCertificationsHandler, MechanicCertDetailHandler,
@@ -597,6 +597,7 @@ def make_app():
         (r"/api/pilots/weekly-uploads/(\d+)/ai-preview", AIParsePreviewHandler),
         (r"/api/admin/cleanup-stale-photo-urls", CleanupStalePhotoUrlsHandler),
         (r"/api/admin/diagnose-photos", DiagnosePhotosHandler),
+        (r"/api/admin/diagnose-training-counts", DiagnoseTrainingCountsHandler),
 
         # ── Mechanics ──
         (r"/api/mechanics", MechanicsHandler),
