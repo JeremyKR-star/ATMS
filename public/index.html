@@ -2118,8 +2118,13 @@ function LiveRegion({ message, priority = 'polite' }) {
   return <div aria-live={priority} aria-atomic="true" style={{position:'absolute',left:'-9999px',width:'1px',height:'1px',overflow:'hidden'}}>{message}</div>;
 }
 
-function Modal({ title, children, onClose, footer }) {
+function Modal({ title, children, onClose, footer, size }) {
   var modalRef = useRef(null);
+  // Map sizes to max-width; default stays 520px for backward compatibility
+  var sizeStyle = {};
+  if (size === 'lg') sizeStyle = {width: '880px', maxWidth: '95vw'};
+  else if (size === 'xl') sizeStyle = {width: '1200px', maxWidth: '95vw', maxHeight: '92vh'};
+  else if (size === 'full') sizeStyle = {width: '1400px', maxWidth: '98vw', maxHeight: '95vh'};
   useEffect(function() {
     var focusableElements = modalRef.current && modalRef.current.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
     var firstElement = focusableElements && focusableElements.length > 0 ? focusableElements[0] : null;
@@ -2146,7 +2151,7 @@ function Modal({ title, children, onClose, footer }) {
   }, [onClose]);
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" ref={modalRef} onClick={function(e) { e.stopPropagation(); }} role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div className="modal" ref={modalRef} style={sizeStyle} onClick={function(e) { e.stopPropagation(); }} role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div className="modal-header"><h3 id="modal-title">{title}</h3><button className="close-btn" onClick={onClose} aria-label="\uB2EB\uAE30">&times;</button></div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-footer">{footer}</div>}
@@ -7915,18 +7920,40 @@ function PilotPage() {
     if (!f.subject || !f.subject.trim()) {
       showToast(t('과목명을 입력해주세요') || 'Subject required', 'error'); return;
     }
+    // Optimistic: add a placeholder row immediately with a temp id
+    var tempId = 'tmp-' + Date.now();
+    var optimistic = {
+      id: tempId,
+      subject: f.subject.trim(),
+      category: category,
+      course_no: (f.course_no||'').trim() || '',
+      contents: f.contents || '',
+      sort_order: 999,
+      _pending: true,
+    };
+    var prevCourses = courses;
+    setCourses(courses.concat([optimistic]));
+    if (category === 'sim') setCourseFormSim({subject:'', course_no:'', contents:''});
+    else setCourseFormFlt({subject:'', course_no:'', contents:''});
     try {
-      await api('/pilots/courses', {method: 'POST', body: JSON.stringify({
-        subject: f.subject.trim(),
+      var res = await api('/pilots/courses', {method: 'POST', body: JSON.stringify({
+        subject: optimistic.subject,
         category: category,
-        course_no: (f.course_no||'').trim() || null,
-        contents: f.contents || ''
+        course_no: optimistic.course_no || null,
+        contents: optimistic.contents
       })});
+      // Replace temp row with real one from server
+      var real = res.data || res;
+      setCourses(function(prev){
+        return prev.map(function(c){ return c.id === tempId ? real : c; });
+      });
       showToast('과목 추가 완료', 'success');
-      if (category === 'sim') setCourseFormSim({subject:'', course_no:'', contents:''});
-      else setCourseFormFlt({subject:'', course_no:'', contents:''});
-      loadAll();
-    } catch (err) { showToast(err.message, 'error'); }
+      loadAll(); // background validation
+    } catch (err) {
+      // Rollback on failure
+      setCourses(prevCourses);
+      showToast(err.message, 'error');
+    }
   };
 
   var beginEditCourse = function(c) {
@@ -7939,21 +7966,95 @@ function PilotPage() {
     if (!editingCourseDraft.subject || !editingCourseDraft.subject.trim()) {
       showToast('과목명을 입력해주세요', 'error'); return;
     }
+    // Optimistic: apply edit immediately
+    var prevCourses = courses;
+    var editId = editingCourseId;
+    var draft = editingCourseDraft;
+    setCourses(courses.map(function(c){
+      return c.id === editId ? Object.assign({}, c, draft, {_pending:true}) : c;
+    }));
+    setEditingCourseId(null); setEditingCourseDraft({});
     try {
-      await api('/pilots/courses/' + editingCourseId, {method: 'PATCH', body: JSON.stringify(editingCourseDraft)});
+      var res = await api('/pilots/courses/' + editId, {method: 'PATCH', body: JSON.stringify(draft)});
+      var real = res.data || res;
+      setCourses(function(prev){ return prev.map(function(c){ return c.id === editId ? real : c; }); });
       showToast('과목 수정 완료', 'success');
-      setEditingCourseId(null); setEditingCourseDraft({});
       loadAll();
-    } catch (err) { showToast(err.message, 'error'); }
+    } catch (err) {
+      setCourses(prevCourses);
+      showToast(err.message, 'error');
+    }
+  };
+
+  // Move a course up or down within its category (sim or flight).
+  // direction = -1 (up) or +1 (down). Uses sort_order for ordering.
+  var moveCourse = async function(c, direction) {
+    var sameCat = courses.filter(function(x){ return x.category === c.category; })
+      .sort(function(a,b){ return (a.sort_order||0) - (b.sort_order||0) || a.id - b.id; });
+    var idx = sameCat.findIndex(function(x){ return x.id === c.id; });
+    var neighborIdx = idx + direction;
+    if (idx < 0 || neighborIdx < 0 || neighborIdx >= sameCat.length) return;
+    var me = sameCat[idx], neighbor = sameCat[neighborIdx];
+    // Determine new sort_order values — swap based on current ordering
+    var meOrder = me.sort_order || 0;
+    var neighborOrder = neighbor.sort_order || 0;
+    // Tie-break by id if orders are equal
+    if (meOrder === neighborOrder) {
+      // Assign sequential orders to the full category so future swaps work cleanly
+      var prev = courses;
+      var renumbered = [];
+      sameCat.forEach(function(x, i){
+        var newOrder = (i + 1) * 10;
+        if (x.id === me.id) newOrder = (neighborIdx + 1) * 10;
+        else if (x.id === neighbor.id) newOrder = (idx + 1) * 10;
+        else newOrder = (i + 1) * 10;
+        renumbered.push(Object.assign({}, x, {sort_order: newOrder}));
+      });
+      setCourses(courses.map(function(x){
+        var r = renumbered.find(function(y){ return y.id === x.id; });
+        return r ? r : x;
+      }));
+      try {
+        await Promise.all(renumbered.map(function(x){
+          return api('/pilots/courses/' + x.id, {method:'PATCH', body:JSON.stringify({sort_order: x.sort_order})});
+        }));
+      } catch(err) {
+        setCourses(prev);
+        showToast(err.message, 'error');
+      }
+      return;
+    }
+    // Optimistic: swap sort_order locally
+    var prevCourses = courses;
+    setCourses(courses.map(function(x){
+      if (x.id === me.id) return Object.assign({}, x, {sort_order: neighborOrder});
+      if (x.id === neighbor.id) return Object.assign({}, x, {sort_order: meOrder});
+      return x;
+    }));
+    try {
+      await Promise.all([
+        api('/pilots/courses/' + me.id, {method:'PATCH', body:JSON.stringify({sort_order: neighborOrder})}),
+        api('/pilots/courses/' + neighbor.id, {method:'PATCH', body:JSON.stringify({sort_order: meOrder})}),
+      ]);
+    } catch (err) {
+      setCourses(prevCourses);
+      showToast(err.message, 'error');
+    }
   };
 
   var deleteCourse = async function(c) {
     if (!confirm('"' + c.subject + '" 과목을 삭제하시겠습니까?\n관련 훈련 기록도 함께 삭제됩니다.')) return;
+    // Optimistic: remove from list immediately
+    var prevCourses = courses;
+    setCourses(courses.filter(function(x){ return x.id !== c.id; }));
     try {
       await api('/pilots/courses/' + c.id, {method: 'DELETE'});
       showToast('과목 삭제 완료', 'success');
       loadAll();
-    } catch (err) { showToast(err.message, 'error'); }
+    } catch (err) {
+      setCourses(prevCourses);
+      showToast(err.message, 'error');
+    }
   };
 
   // ── AI image-parsing (non-standard daily report) ──
@@ -8109,11 +8210,19 @@ function PilotPage() {
   const handlePhotoUpload = async (e)=>{
     const file = e.target.files[0]; if(!file||!photoTarget) return;
     const fd = new FormData(); fd.append('photo', file);
+    const targetId = photoTarget;
     try {
       const token = localStorage.getItem('atms_token');
-      const res = await fetch(`${API}/pilots/${photoTarget}/photo`,{method:'POST',headers:{'Authorization':`Bearer ${token}`},body:fd});
+      const res = await fetch(`${API}/pilots/${targetId}/photo`,{method:'POST',headers:{'Authorization':`Bearer ${token}`},body:fd});
       const data = await res.json(); if(!res.ok) throw new Error(data.error);
-      showToast('Photo uploaded','success'); loadAll();
+      // Optimistic: update the target pilot's photo_url immediately so the image shows up
+      // without waiting for loadAll (which can take 10+ seconds on Render free tier).
+      const newUrl = (data.data && data.data.photo_url) || `/api/pilots/${targetId}/photo?v=${Date.now()}`;
+      setPilots(function(prev){
+        return prev.map(function(p){ return p.id === targetId ? Object.assign({}, p, {photo_url: newUrl}) : p; });
+      });
+      showToast('Photo uploaded','success');
+      loadAll(); // background validation
     } catch(e) { showToast(e.message,'error'); }
     e.target.value='';
   };
@@ -8127,24 +8236,56 @@ function PilotPage() {
   };
   const saveCell = async ()=>{
     if(!editingCell) return;
+    // Optimistic: update local trainingRecs immediately
+    const prevRecs = trainingRecs;
+    const ec = editingCell;
+    const newDate = cellDate || null;
+    const newTime = cellTime || '1:00';
+    setTrainingRecs(function(prev){
+      const existing = prev.find(function(r){ return r.pilot_id===ec.pilotId && r.course_id===ec.courseId; });
+      if (existing) {
+        return prev.map(function(r){
+          return (r.pilot_id===ec.pilotId && r.course_id===ec.courseId)
+            ? Object.assign({}, r, {completed_date: newDate, completed_time: newTime}) : r;
+        });
+      }
+      return prev.concat([{pilot_id:ec.pilotId, course_id:ec.courseId, completed_date:newDate, completed_time:newTime, _pending:true}]);
+    });
+    setEditingCell(null);
     try {
       await api('/pilots/training',{method:'POST',body:JSON.stringify({
-        pilot_id:editingCell.pilotId, course_id:editingCell.courseId,
-        completed_date:cellDate||null, completed_time:cellTime||'1:00'
+        pilot_id:ec.pilotId, course_id:ec.courseId,
+        completed_date:newDate, completed_time:newTime
       })});
-      setEditingCell(null); loadAll();
-    } catch(e) { showToast(e.message,'error'); }
+      loadAll(); // background validation
+    } catch(e) {
+      setTrainingRecs(prevRecs);
+      showToast(e.message,'error');
+    }
   };
   const deleteCell = async ()=>{
     if(!editingCell) return;
+    // Optimistic: clear this cell immediately
+    const prevRecs = trainingRecs;
+    const ec = editingCell;
+    setTrainingRecs(function(prev){
+      return prev.map(function(r){
+        return (r.pilot_id===ec.pilotId && r.course_id===ec.courseId)
+          ? Object.assign({}, r, {completed_date: null}) : r;
+      });
+    });
+    setEditingCell(null); setCellDate(''); setCellTime('1:00');
     try {
       await api('/pilots/training',{method:'POST',body:JSON.stringify({
-        pilot_id:editingCell.pilotId, course_id:editingCell.courseId,
+        pilot_id:ec.pilotId, course_id:ec.courseId,
         completed_date:null
       })});
-      setEditingCell(null); setCellDate(''); setCellTime('1:00');
-      showToast('Record deleted','success'); loadAll();
-    } catch(e) { showToast(e.message,'error'); }
+      showToast('Record deleted','success');
+      loadAll();
+    } catch(e) {
+      setTrainingRecs(prevRecs);
+      showToast(e.message,'error');
+    }
   };
 
   // Filter pilots by nationality
@@ -8237,11 +8378,17 @@ function PilotPage() {
 
   var handleWeeklyDelete = async function(uploadId) {
     if (!confirm(t('이 업로드를 삭제하시겠습니까?'))) return;
+    // Optimistic: hide from list immediately
+    var prevUploads = weeklyUploads;
+    setWeeklyUploads(weeklyUploads.filter(function(u){ return u.id !== uploadId; }));
     try {
       await api('/pilots/weekly-uploads/' + uploadId, { method: 'DELETE' });
       showToast(t('삭제 완료'), 'success');
       loadAll();
-    } catch(err) { showToast(err.message, 'error'); }
+    } catch(err) {
+      setWeeklyUploads(prevUploads);
+      showToast(err.message, 'error');
+    }
   };
 
   var openAiPreview = async function(uploadId) {
@@ -8263,6 +8410,11 @@ function PilotPage() {
     newName = newName.trim();
     if (!newName) { showToast(t('파일명을 입력해주세요') || 'Filename required', 'error'); return; }
     if (newName === currentName) return;
+    // Optimistic: update the row immediately
+    var prevUploads = weeklyUploads;
+    setWeeklyUploads(weeklyUploads.map(function(u){
+      return u.id === uploadId ? Object.assign({}, u, {original_filename: newName}) : u;
+    }));
     try {
       await api('/pilots/weekly-uploads/' + uploadId, {
         method: 'PATCH',
@@ -8270,7 +8422,10 @@ function PilotPage() {
       });
       showToast(t('파일명 변경 완료') || 'Renamed', 'success');
       loadAll();
-    } catch(err) { showToast(err.message, 'error'); }
+    } catch(err) {
+      setWeeklyUploads(prevUploads);
+      showToast(err.message, 'error');
+    }
   };
 
   var handleWeeklyDownload = function(uploadId, filename) {
@@ -8820,12 +8975,13 @@ function PilotPage() {
 
           {/* ── Course Management Modal ── */}
           {showCourseManager && (
-            <Modal title={'⚙ 과목 관리 — 시뮬레이터 / 비행 과목 추가·수정·삭제'} onClose={function(){setShowCourseManager(false); setEditingCourseId(null);}}
+            <Modal size="xl" title={'⚙ 과목 관리 — 시뮬레이터 / 비행 과목 추가·수정·삭제·순서변경'} onClose={function(){setShowCourseManager(false); setEditingCourseId(null);}}
               footer={<button className="btn btn-primary" onClick={function(){setShowCourseManager(false); setEditingCourseId(null);}}>{t('닫기')}</button>}>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,maxHeight:'70vh',overflow:'auto'}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
                 {[{cat:'sim',label:'🖥 시뮬레이터 과목 (SIM/CPT)',color:'#dbeafe',headerColor:'#1e40af',form:courseFormSim,setForm:setCourseFormSim},
                   {cat:'flight',label:'✈ 비행 과목 (T-50)',color:'#fef3c7',headerColor:'#92400e',form:courseFormFlt,setForm:setCourseFormFlt}].map(function(section){
-                  var list = courses.filter(function(c){return c.category===section.cat;});
+                  var list = courses.filter(function(c){return c.category===section.cat;})
+                    .sort(function(a,b){ return (a.sort_order||0) - (b.sort_order||0) || a.id - b.id; });
                   return (
                     <div key={section.cat} style={{border:'1.5px solid var(--gray-200)',borderRadius:8,padding:12,background:'#fafafa'}}>
                       <div style={{background:section.color,color:section.headerColor,padding:'6px 10px',borderRadius:6,fontSize:13,fontWeight:700,marginBottom:10}}>
@@ -8846,19 +9002,23 @@ function PilotPage() {
                         onChange={function(e){section.setForm(Object.assign({},section.form,{contents:e.target.value}));}}
                         style={{width:'100%',padding:'4px 6px',fontSize:12,border:'1px solid var(--gray-200)',borderRadius:4,marginBottom:10}}/>
                       {/* List existing */}
-                      <div style={{maxHeight:340,overflow:'auto',border:'1px solid var(--gray-200)',borderRadius:6,background:'#fff'}}>
+                      <div style={{maxHeight:520,overflow:'auto',border:'1px solid var(--gray-200)',borderRadius:6,background:'#fff'}}>
                         <table style={{width:'100%',fontSize:12}}>
                           <thead><tr style={{background:'#f1f5f9',position:'sticky',top:0}}>
+                            <th style={{padding:'4px 6px',textAlign:'center',width:50}}>순서</th>
                             <th style={{padding:'4px 6px',textAlign:'left',width:60}}>번호</th>
                             <th style={{padding:'4px 6px',textAlign:'left',width:80}}>과목</th>
                             <th style={{padding:'4px 6px',textAlign:'left'}}>내용</th>
                             <th style={{padding:'4px 6px',width:100}}></th>
                           </tr></thead>
                           <tbody>
-                            {list.map(function(c){
+                            {list.map(function(c, ri){
+                              var isFirst = ri === 0;
+                              var isLast = ri === list.length - 1;
                               if (editingCourseId === c.id) {
                                 return (
                                   <tr key={c.id} style={{background:'#fef9c3'}}>
+                                    <td style={{padding:'2px 4px',textAlign:'center',color:'var(--gray-400)'}}>{ri+1}</td>
                                     <td style={{padding:'2px 4px'}}><input type="text" value={editingCourseDraft.course_no||''}
                                       onChange={function(e){setEditingCourseDraft(Object.assign({},editingCourseDraft,{course_no:e.target.value}));}}
                                       style={{width:'100%',padding:'2px 4px',fontSize:11,border:'1px solid var(--gray-300)'}}/></td>
@@ -8877,6 +9037,14 @@ function PilotPage() {
                               }
                               return (
                                 <tr key={c.id} style={{borderBottom:'1px solid var(--gray-100)'}}>
+                                  <td style={{padding:'2px 4px',textAlign:'center'}}>
+                                    <div style={{display:'flex',flexDirection:'column',gap:1,alignItems:'center'}}>
+                                      <button title="위로" onClick={function(){moveCourse(c,-1);}} disabled={isFirst}
+                                        style={{cursor:isFirst?'not-allowed':'pointer',opacity:isFirst?0.3:1,border:'1px solid var(--gray-300)',background:'#fff',borderRadius:3,padding:'0 4px',fontSize:11,lineHeight:1.2,height:18}}>▲</button>
+                                      <button title="아래로" onClick={function(){moveCourse(c,1);}} disabled={isLast}
+                                        style={{cursor:isLast?'not-allowed':'pointer',opacity:isLast?0.3:1,border:'1px solid var(--gray-300)',background:'#fff',borderRadius:3,padding:'0 4px',fontSize:11,lineHeight:1.2,height:18}}>▼</button>
+                                    </div>
+                                  </td>
                                   <td style={{padding:'4px 6px'}}>{c.course_no||'-'}</td>
                                   <td style={{padding:'4px 6px'}}><strong>{c.subject}</strong></td>
                                   <td style={{padding:'4px 6px',color:'var(--gray-600)'}}>{c.contents||'-'}</td>
@@ -8888,7 +9056,7 @@ function PilotPage() {
                               );
                             })}
                             {list.length === 0 && (
-                              <tr><td colSpan="4" style={{padding:20,textAlign:'center',color:'var(--gray-400)'}}>등록된 과목이 없습니다</td></tr>
+                              <tr><td colSpan="5" style={{padding:20,textAlign:'center',color:'var(--gray-400)'}}>등록된 과목이 없습니다</td></tr>
                             )}
                           </tbody>
                         </table>
@@ -9213,7 +9381,7 @@ function PilotPage() {
 
           {/* ── Unknown-subject approval modal ── */}
           {showApprovalModal && (
-            <Modal title={'⚠ 미등록 과목 발견 — 관리자 승인 필요'}
+            <Modal size="lg" title={'⚠ 미등록 과목 발견 — 관리자 승인 필요'}
               onClose={function(){setShowApprovalModal(false);}}
               footer={<>
                 <button className="btn btn-outline" onClick={function(){setShowApprovalModal(false);}} disabled={aiSaving}>취소</button>
@@ -9285,7 +9453,7 @@ function PilotPage() {
 
           {/* ── AI Parse Preview Modal ── */}
           {aiPreviewData && (
-            <Modal title={'🔍 AI 분석 결과 미리보기'} onClose={function(){setAiPreviewData(null);}}
+            <Modal size="xl" title={'🔍 AI 분석 결과 미리보기'} onClose={function(){setAiPreviewData(null);}}
               footer={<button className="btn btn-primary" onClick={function(){setAiPreviewData(null);}}>{t('닫기')}</button>}>
               {aiPreviewData.loading || aiPreviewLoading ? (
                 <div style={{padding:40,textAlign:'center',color:'var(--gray-500)'}}>로딩 중...</div>
