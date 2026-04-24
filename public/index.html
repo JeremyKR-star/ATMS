@@ -2776,11 +2776,11 @@ function LoginPage({ onLogin }) {
         <p className="subtitle"><TypingEffect text={t('Advanced Training Management System')} /></p>
         <form onSubmit={handleLogin}>
           <div className="form-group"><label htmlFor="emp-id">{t('사번')}</label>
-            <input id="emp-id" value={empId} onChange={function(e){setEmpId(e.target.value);}} placeholder="ADM001" required aria-required="true" autoComplete="username" /></div>
+            <input id="emp-id" value={empId} onChange={function(e){setEmpId(e.target.value);}} required aria-required="true" autoComplete="username" /></div>
           <div className="form-group"><label htmlFor="pwd">{t('비밀번호')}</label>
             <div style={{position:'relative'}}>
-              <input id="pwd" type={showPw ? 'text' : 'password'} value={pw} onChange={function(e){setPw(e.target.value);}} placeholder="\uBE44\uBC00\uBC88\uD638 \uC785\uB825" required aria-required="true" autoComplete="current-password" style={{paddingRight:40}} />
-              <button type="button" onClick={function(){setShowPw(!showPw);}} aria-label={showPw ? t('\uBE44\uBC00\uBC88\uD638 \uC228\uAE30\uae30') : t('\uBE44\uBC00\uBC88\uD638 \uBCF4\uC5EC\uAE30')} style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:16,opacity:0.6,color:'inherit',padding:4}}>
+              <input id="pwd" type={showPw ? 'text' : 'password'} value={pw} onChange={function(e){setPw(e.target.value);}} required aria-required="true" autoComplete="current-password" style={{paddingRight:40}} />
+              <button type="button" onClick={function(){setShowPw(!showPw);}} aria-label={showPw ? t('비밀번호 숨기기') : t('비밀번호 보여기')} style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:16,opacity:0.6,color:'inherit',padding:4}}>
                 {showPw ? '🙈' : '👁️'}
               </button>
             </div>
@@ -2789,9 +2789,6 @@ function LoginPage({ onLogin }) {
           <button className="btn btn-primary btn-block" type="submit" disabled={loading}>
             {loading ? t('로그인 중...') : t('로그인')}</button>
         </form>
-        <div style={{marginTop:28,padding:16,background:'rgba(15,23,42,0.6)',borderRadius:12,fontSize:12,color:'rgba(148,163,184,0.7)',border:'1px solid rgba(37,99,235,0.15)'}}>
-          <strong style={{color:'rgba(148,163,184,0.9)'}}>{t('테스트 계정')}</strong><br/>{t('관리자')}: ADM001 / admin1234<br/>{t('교관')}: INS001 / inst1234<br/>{t('훈련생')}: TRN001 / train1234
-        </div>
       </div>
     </div>
   );
